@@ -1,0 +1,7 @@
+name = "gex-talents-api"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+ALLOWED_ORIGIN = "https://recursoshumanos-2026.github.io"
+APPLICATIONS_ENABLED = "false"
