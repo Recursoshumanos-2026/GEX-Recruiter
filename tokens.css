@@ -1,0 +1,520 @@
+/* GEX Design System — todos os tokens num arquivo só (exportado em 08/10/2026).
+   Claro em :root, escuro em .dark. O escuro é o tema padrão: <html class="dark">.
+   Fontes: Geist e Geist Mono, do Google Fonts:
+   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@500;700&display=swap" rel="stylesheet"> */
+
+/* ===== colors ===== */
+/* GEX Design System — color tokens.
+   Light values live in :root; dark (the default app theme, applied by next-themes) lives in .dark.
+   Semantic aliases (--surface-*, --text-*, --border-*) are what components use. */
+
+:root {
+	/* Brand */
+	--brand-blue: #1e6fd9;
+	--brand-blue-deep: #0b3d86;
+	--brand-cyan: #38bdf8;
+	--brand-cyan-soft: #7fc3ef;
+	--brand-gradient-logo: linear-gradient(135deg, #38c4f2, #1552a8);
+	/* Accent text on surfaces (prototype `--accent-ink`): blue on light, soft cyan on dark — both pass WCAG AA. */
+	--accent-ink: #1a5fc0;
+
+	/* Hero (top band). Navy in both themes; light fades into the light page. */
+	--hero-gradient: linear-gradient(
+		180deg,
+		#071a3a 0%,
+		#0c2a5c 30%,
+		#1b4586 52%,
+		#5d82b4 74%,
+		#b7c5da 90%,
+		#e6eaf1 100%
+	);
+	--hero-glow: radial-gradient(
+		55% 45% at 50% 0%,
+		rgba(120, 190, 255, 0.22),
+		transparent 70%
+	);
+	--hero-text: #ffffff;
+	--hero-text-muted: rgba(255, 255, 255, 0.78);
+	--hero-glass: rgba(255, 255, 255, 0.07);
+	--hero-glass-border: rgba(255, 255, 255, 0.16);
+	/* seleção sobre o hero: no claro, pílula branca com texto escuro (o vidro translúcido sumia) */
+	--hero-glass-active: #ffffff;
+	--hero-glass-active-fg: #0b1526;
+	/* hero do dash: mesmo espaçamento do escuro e todo conteúdo sobre azul-marinho. O desbotamento até a
+	   página continua por trás do começo do conteúdo (--hero-skirt-dash), como o escuro escurece até o
+	   preto por trás dos primeiros cards */
+	--hero-gradient-dash: linear-gradient(180deg, #071a3a 0%, #0b2654 45%, #12387a 100%);
+	--hero-skirt-dash: linear-gradient(180deg, #12387a 0, var(--surface-page) 260px);
+	/* hero do hub: o texto da última linha (descrição, selos, botões) caía no azul que já clareava
+	   (2,6 a 3,6:1); aqui o desbotamento fica só nos últimos 48 px, o respiro que o hero já tem */
+	--hero-gradient-hub: linear-gradient(
+		180deg,
+		#071a3a 0%,
+		#0c2a5c 30%,
+		#1b4586 calc(100% - 48px),
+		#5d82b4 calc(100% - 30px),
+		#b7c5da calc(100% - 12px),
+		#e6eaf1 100%
+	);
+
+	/* Surfaces */
+	--surface-page: #e6eaf1;
+	--surface-card: #ffffff;
+	--surface-card-2: #f0f3f7;
+	--surface-card-3: #e9edf3;
+	--surface-active: #e8f0fc;
+	--surface-active-2: #e3edfb;
+	--surface-subtle: rgba(15, 23, 42, 0.05);
+	--surface-control: #edf0f4;
+
+	/* Borders */
+	--border-card: #d0d7e1;
+	--border-row: #e9edf3;
+	--border-strong: #c9d1dc;
+
+	/* Text */
+	--text-primary: #0b1526;
+	--text-strong: #0b1526;
+	--text-secondary: #4b5669;
+	--text-muted: #5d6879;
+	--text-faint: #b6bfcc;
+	--text-link: #1e6fd9;
+	--text-link-hover: #7fc3ef;
+
+	/* Semantic */
+	--positive: #059669;
+	--positive-strong: #047857;
+	--positive-soft: #047857;
+	--positive-bg: #dcf5ea;
+	--negative: #b91c1c;
+	--negative-strong: #be123c;
+	--negative-accent: #e11d48;
+	--negative-soft: #be123c;
+	--negative-bg: #fdecef;
+	--warning: #fcd34d;
+	--warning-bg: rgba(245, 158, 11, 0.08);
+	--warning-border: rgba(245, 158, 11, 0.35);
+	/* Warning text on warning-bg (prototype `--warning-ink`): amber-800 on light, amber-300 on dark. */
+	--warning-ink: #92400e;
+	/* Ask bar and suggestions on the hero (prototype `--ask2-*`, `.btn-ask`, `.sug`). */
+	--ask2-bg: rgba(255, 255, 255, 0.78);
+	--ask2-border: rgba(255, 255, 255, 0.9);
+	--ask2-fg: #0b1526;
+	--ask2-muted: #4b5669;
+	--ask-btn-bg: #ffffff;
+	--ask-btn-border: rgba(11, 21, 38, 0.1);
+	--sug-bg: rgba(255, 255, 255, 0.85);
+	--sug-bg-hover: #ffffff;
+	--sug-border: rgba(11, 21, 38, 0.08);
+	--sug-fg: #0b1526;
+	--sug-fg-hover: #0b1526;
+
+	/* Pills / controls */
+	/* borda de caixa de seleção, switch e campo: 3:1 contra o branco */
+	--control-border: #8792a5;
+	--pill-on-bg: #0b1526;
+	--pill-on-fg: #ffffff;
+	--shadow-rgb: 20, 40, 90;
+
+	/* Heat text helpers */
+	--heat-text-mix: #0b1526;
+	--ink-strong: #0b1526;
+}
+
+.dark {
+	--accent-ink: #7fc3ef;
+	--warning-ink: #fcd34d;
+	--ask2-bg: rgba(255, 255, 255, 0.14);
+	--ask2-border: rgba(255, 255, 255, 0.28);
+	--ask2-fg: #ffffff;
+	--ask2-muted: rgba(255, 255, 255, 0.78);
+	--ask-btn-bg: rgba(255, 255, 255, 0.07);
+	--ask-btn-border: rgba(255, 255, 255, 0.16);
+	--sug-bg: rgba(255, 255, 255, 0.07);
+	--sug-bg-hover: rgba(255, 255, 255, 0.14);
+	--sug-border: rgba(255, 255, 255, 0.16);
+	--sug-fg: rgba(255, 255, 255, 0.78);
+	--sug-fg-hover: #ffffff;
+	--hero-gradient: linear-gradient(
+		180deg,
+		#030a1a 0%,
+		#07204a 34%,
+		#0a2352 52%,
+		#040c1c 80%,
+		#000000 100%
+	);
+	--hero-glow: radial-gradient(
+		55% 45% at 50% 0%,
+		rgba(56, 196, 242, 0.16),
+		transparent 70%
+	);
+
+	--surface-page: #000000;
+	--surface-card: #131417;
+	--surface-card-2: #18191d;
+	--surface-card-3: #1b1c20;
+	--surface-active: #14202e;
+	--surface-active-2: #1a2b47;
+	--surface-subtle: rgba(255, 255, 255, 0.05);
+	--surface-control: #202126;
+
+	--border-card: #26272d;
+	--border-row: #1b1c20;
+	--border-strong: #2e2f36;
+
+	--text-primary: #f4f4f5;
+	--text-strong: #ffffff;
+	--text-secondary: #a1a1aa;
+	--text-muted: #71717a;
+	--text-faint: #3f3f46;
+
+	--positive: #34d399;
+	--positive-strong: #4ade80;
+	--positive-soft: #86efac;
+	--positive-bg: #123526;
+	--negative: #f87171;
+	--negative-strong: #fb7185;
+	--negative-accent: #ff8fa0;
+	--negative-soft: #fda4af;
+	--negative-bg: #3a1522;
+
+	--pill-on-bg: #f4f4f5;
+	--pill-on-fg: #000000;
+	--shadow-rgb: 0, 0, 0;
+
+	--heat-text-mix: #ffffff;
+	--ink-strong: #ffffff;
+	/* tokens que o claro passou a definir diferente: o escuro fica como era */
+	--hero-glass-active: rgba(255, 255, 255, 0.16);
+	--hero-glass-active-fg: #ffffff;
+	--hero-gradient-dash: var(--hero-gradient);
+	--hero-skirt-dash: none;
+	--hero-gradient-hub: var(--hero-gradient);
+	--control-border: var(--border-card);
+}
+
+/* ===== typography ===== */
+/* GEX Design System — typography tokens. Numbers are always tabular.
+   Fonts are bundled locally by @fontsource (Geist Variable / Geist Mono Variable). */
+
+:root {
+	--font-ui: "Geist Variable", system-ui, -apple-system, sans-serif;
+
+	/* Dashboard scale */
+	--fs-eyebrow: 10px; /* mono, uppercase, letter-spacing .1em */
+	--fs-caption: 10.5px;
+	--fs-small: 11.5px;
+	--fs-table: 12px;
+	--fs-body: 12.5px;
+	--fs-label: 13px;
+	--fs-ui: 14px;
+	--fs-h2: 16px; /* section title */
+	--fs-kpi: 21px; /* KPI value */
+	--fs-kpi-lg: 22px; /* panel big number (A/B, Warnings) */
+	--fs-h1: 36px; /* hero title */
+
+	--lh-tight: 1.05;
+	--lh-snug: 1.2;
+	--lh-body: 1.5;
+
+	--ls-eyebrow: 0.1em;
+	--ls-tight: -0.01em;
+	--ls-display: -0.03em;
+
+	--fw-regular: 400;
+	--fw-medium: 500;
+	--fw-semibold: 600;
+	--fw-bold: 700;
+	--fw-heavy: 800; /* total rows */
+
+	--numeric: tabular-nums;
+}
+
+/* ===== spacing ===== */
+/* GEX Design System — spacing and sizes. Values copied from the Cockpit screens, not snapped to a grid.
+   Radii (--radius-chip … --radius-pill) are Tailwind theme tokens in tailwind.css, so they also generate rounded-* utilities. */
+
+:root {
+	--space-1: 3px;
+	--space-2: 6px;
+	--space-3: 8px;
+	--space-4: 10px;
+	--space-5: 12px;
+	--space-6: 16px;
+	--space-7: 20px;
+	--space-8: 22px;
+	--space-9: 28px;
+
+	--card-padding: 20px 22px;
+	--kpi-padding: 14px 16px 0;
+	--kpi-min-width: 190px;
+	--section-gap: 16px;
+	--table-cell-padding: 2px 3px;
+	--table-pill-padding: 2px 5px;
+	--icon-chip: 32px;
+	--icon-chip-sm: 26px;
+	--icon-size: 16px;
+	--icon-size-sm: 14px;
+	--content-max-width: 1560px;
+	--page-padding: 18px 28px;
+}
+
+/* ===== surfaces ===== */
+/* GEX Design System — per-surface tokens. Same foundations everywhere; only density and brand weight change.
+   Dashboards use the base scale in typography.css / spacing.css. These add the larger scales for
+   apps, landing pages, reports and decks, plus controls, motion and focus. */
+
+:root {
+	/* Landing page / brand pieces: same Geist 500 / -.03em, bigger size */
+	--fs-display-xl: 64px; /* landing hero */
+	--fs-display-lg: 48px; /* landing section title, deck title */
+	--fs-display-md: 32px; /* deck slide title, report H1 */
+	--fs-lead: 18px; /* landing lead paragraph */
+	--fs-body-lg: 15px; /* app body, report body */
+	--lh-display: 1;
+	--lh-lead: 1.45;
+	--lh-prose: 1.6;
+
+	/* App density (between dashboard and landing) */
+	--control-height: 36px; /* buttons, inputs */
+	--control-height-sm: 28px;
+	--control-height-lg: 44px; /* landing CTA */
+	--control-padding-x: 14px;
+	--app-gutter: 24px;
+	--landing-gutter: 32px;
+	--landing-max-width: 1120px;
+	--report-max-width: 760px;
+	--deck-width: 1280px;
+	--deck-height: 720px;
+	--deck-padding: 64px;
+
+	/* Buttons */
+	--btn-primary-bg: var(--brand-blue);
+	--btn-primary-bg-hover: #2a7be4;
+	--btn-primary-bg-active: #1a62c2;
+	--btn-primary-fg: #ffffff;
+	--btn-secondary-bg: #ffffff;
+	--btn-secondary-bg-hover: var(--surface-card-2);
+	--btn-secondary-fg: var(--text-primary);
+	--btn-ghost-fg: var(--text-secondary);
+	--btn-ghost-bg-hover: var(--surface-subtle);
+	--btn-danger-bg: var(--negative-strong);
+	--btn-danger-fg: #ffffff;
+	--btn-glass-bg: rgba(255, 255, 255, 0.12);
+	--btn-glass-border: rgba(255, 255, 255, 0.28);
+
+	/* Inputs */
+	--input-bg: #ffffff;
+	--input-border: var(--control-border);
+	--input-border-focus: var(--brand-blue);
+	--input-placeholder: var(--text-muted);
+
+	/* Focus ring (keyboard only) */
+	--focus-ring: 0 0 0 2px var(--surface-page), 0 0 0 4px var(--brand-blue);
+
+	/* Motion: short, no bounce. Active state is shown by color, not movement. */
+	--ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+	--dur-fast: 120ms;
+	--dur-base: 180ms;
+
+	/* Glass (only over --hero-gradient) */
+	--glass-bg: rgba(255, 255, 255, 0.07);
+	--glass-border: rgba(255, 255, 255, 0.16);
+	--glass-blur: 12px;
+	--glass-bg-strong: rgba(255, 255, 255, 0.14);
+	--glass-border-strong: rgba(255, 255, 255, 0.28);
+	--auth-card-radius: 26px;
+	--auth-card-blur: 16px;
+	--auth-card-shadow: 0 40px 90px -40px rgba(3, 10, 26, 0.75);
+	--alert-danger-bg: rgba(251, 113, 133, 0.12);
+	--alert-danger-border: rgba(251, 113, 133, 0.35);
+	--alert-danger-icon: #be123c;
+}
+
+.dark {
+	--auth-card-radius: 26px;
+	--auth-card-blur: 16px;
+	--auth-card-shadow: 0 40px 90px -40px rgba(3, 10, 26, 0.75);
+	--alert-danger-bg: rgba(251, 113, 133, 0.12);
+	--alert-danger-border: rgba(251, 113, 133, 0.35);
+	--alert-danger-icon: #fb7185;
+	--btn-secondary-bg: var(--surface-card-2);
+	--btn-secondary-bg-hover: var(--surface-control);
+	--input-bg: var(--surface-page);
+}
+
+/* ===== data-viz ===== */
+/* GEX Design System — data-viz tokens.
+   Color carries meaning. Each metric family has ONE hue pair (low → high) used for sequential heat.
+   Never mix hues inside a column. Red appears only for negative margin and for ROAS below the ruler. */
+
+:root {
+	/* KPI identity hues */
+	--kpi-revenue: #047857;
+	--kpi-orders: #1d4ed8;
+	--kpi-aov: #0e7490;
+	--kpi-cpa: #be185d;
+	--kpi-refund: #c2410c;
+	--kpi-product-cost: #6d28d9;
+	--kpi-margin: #047857;
+	--kpi-negative: #e11d48;
+
+	/* Linha que aparece só pra comparação e fica fora do total (tráfego interno) */
+	--traffic-internal: #7c3aed;
+
+	/* Chart series */
+	--chart-bar: #1e6fd9;
+	/* topo do gradiente da barra: no claro, azul firme e opaco (o azul-claro transparente sumia no branco) */
+	--chart-bar-top: #3f86dc;
+	--chart-bar-top-opacity: 1;
+	--chart-mc-line: #d4650a; /* contribution margin %, right axis */
+	--chart-aov: #1e6fd9;
+	--chart-aov-no-upsell: #047857;
+	/* faixa do Funil Agrega entre as linhas do AOV diário */
+	--chart-band-color: #1e6fd9;
+	--chart-band-top-opacity: 0.18;
+	--chart-band-bottom-opacity: 0.08;
+	/* linha vertical do dia escolhido no cross-filter */
+	--chart-selected-guide: #1a5bb8;
+	--chart-grid: #edf0f4;
+	--chart-zero: #8b95a5;
+	--chart-axis-text: #5d6879;
+	--chart-label-text: #4b5669;
+	--chart-hover-guide: #3b6fb0;
+
+	/* Funnel stage series (Order Bump → Downsell 3) */
+	--stage-1: #7c3aed;
+	--stage-2: #16a34a;
+	--stage-3: #2563eb;
+	--stage-4: #d26a06;
+	/* família da etapa no A/B: upsell e downsell */
+	--stage-up: #0d9488;
+	--stage-down: #c46200;
+	--stage-5: #db2777;
+	--stage-6: #0891b2;
+	--stage-7: #64748b;
+
+	/* Heat families: [low hue, high hue], mixed in oklab against --surface-card. */
+	/* No claro: fundo tingido e tinta escura da mesma família (texto branco no pastel sumia). */
+	--heat-lo-share: 16%;
+	--heat-hi-share: 66%;
+	--heat-ink-lo-share: 30%;
+	--heat-ink-hi-share: 35%;
+	--heat-aov-lo: #38bdf8; /* AOV, Frete médio */
+	--heat-aov-hi: #6366f1;
+	--heat-funnel-lo: #2dd4bf; /* Funil Agrega */
+	--heat-funnel-hi: #16a34a;
+	--heat-stage-lo: #60a5fa; /* 7 etapas */
+	--heat-stage-hi: #a855f7;
+	--heat-pots-lo: #fcd34d; /* Potes 1ª venda */
+	--heat-pots-hi: #f97316;
+
+	/* ROAS fixed ruler (does not change with period). Meta 1,55 (1,45 Male Enhancement). */
+	--roas-bad: #e11d48; /* ≤ 1,30 */
+	--roas-warn-lo: #f97316; /* 1,30 → */
+	--roas-warn-hi: #facc15; /* → 1,55 */
+	--roas-near: #bef264; /* 1,55 – 1,60 */
+	--roas-good-lo: #a7f3d0; /* 1,60 → */
+	--roas-good-hi: #10b981; /* → 1,80+ */
+	--roas-text-on-good: #022c1b;
+	--roas-text-on-bright: #1f1200;
+	--roas-text-on-deep: #ffffff;
+
+	/* Freight rule (ex-US must be 100%) */
+	--freight-ok: color-mix(in oklab, #10b981 22%, var(--surface-card));
+	--freight-bad: color-mix(in oklab, #f43f5e 22%, var(--surface-card));
+	--freight-ok-ink: #065f46;
+	--freight-bad-ink: #9f1239;
+
+	/* Tooltip series dots */
+	--tip-revenue: #059669;
+	--tip-orders: #1e6fd9;
+	--tip-aov: #0284c7;
+	--tip-cpa: #e11d74;
+	--tip-roas: #d4650a;
+	--tip-refund: #6366f1;
+	--tip-product-cost: #a855f7;
+	--tip-margin: #ef4444;
+}
+
+.dark {
+	--kpi-revenue: #34d399;
+	--kpi-orders: #60a5fa;
+	--kpi-aov: #38bdf8;
+	--kpi-cpa: #f472b6;
+	--kpi-refund: #fb923c;
+	--kpi-product-cost: #a78bfa;
+	--kpi-margin: #34d399;
+	--traffic-internal: #c4b5fd;
+	--chart-grid: #161618;
+	--chart-zero: #3f3f46;
+	--chart-axis-text: #71717a;
+	--chart-label-text: #9ca3af;
+	/* tokens que o claro passou a definir diferente: o escuro fica como era */
+	--chart-bar-top: #6cc0f2;
+	--chart-bar-top-opacity: 0.75;
+	--chart-mc-line: #f08a24;
+	--chart-aov-no-upsell: #10b981;
+	--chart-band-color: var(--brand-cyan);
+	--chart-band-top-opacity: 0.16;
+	--chart-band-bottom-opacity: 0.1;
+	--chart-selected-guide: var(--brand-cyan-soft);
+	--stage-4: #ea7a0c;
+	--stage-up: #2dd4bf;
+	--stage-down: #fbbf24;
+	--roas-good-hi: #047857;
+	--roas-text-on-good: #ffffff;
+	--freight-ok: color-mix(in oklab, #10b981 70%, var(--surface-card));
+	--freight-bad: color-mix(in oklab, #f43f5e 72%, var(--surface-card));
+	--freight-ok-ink: #ffffff;
+	--freight-bad-ink: #ffffff;
+	--tip-revenue: #10b981;
+	--tip-aov: #0ea5e9;
+	--tip-roas: #f08a24;
+	--heat-lo-share: 20%;
+	--heat-hi-share: 88%;
+	--heat-ink-lo-share: 55%;
+	--heat-ink-hi-share: 0%;
+}
+
+/* ===== raios, sombras e fonte ===== */
+:root {
+	--font-ui: "Geist", "Geist Variable", system-ui, -apple-system, sans-serif;
+	--font-mono: "Geist Mono", "Geist Mono Variable", ui-monospace, Menlo, monospace;
+
+	--radius-chip: 6px; /* célula de calor */
+	--radius-tile: 8px; /* opção marcada do seletor, selo, etiqueta */
+	--radius-control: 10px; /* botão, seletor, campo, chip de ícone */
+	--radius-tile-lg: 12px; /* botão grande */
+	--radius-tile-xl: 14px; /* bloco de resumo dentro de card */
+	--radius-tooltip: 14px;
+	--radius-kpi: 18px;
+	--radius-card: 22px;
+	--radius-pill: 999px;
+
+	--shadow-card: 0 1px 2px rgba(var(--shadow-rgb), 0.06), 0 16px 40px -28px rgba(var(--shadow-rgb), 0.25);
+	--shadow-kpi: 0 18px 40px -26px rgba(var(--shadow-rgb), 0.55);
+	--shadow-tooltip: 0 24px 48px -18px rgba(var(--shadow-rgb), 0.35);
+
+	/* paleta categórica (afiliado, nicho, plataforma), nesta ordem */
+	--cat-1: var(--chart-bar);
+	--cat-2: #0e7490;
+	--cat-3: var(--positive);
+	--cat-4: var(--chart-mc-line);
+	--cat-5: var(--kpi-product-cost);
+	--cat-6: var(--kpi-cpa);
+	--cat-7: var(--stage-6);
+	--cat-8: var(--stage-7);
+}
+.dark {
+	--cat-2: var(--brand-cyan);
+}
+
+/* ===== base ===== */
+body {
+	margin: 0;
+	background: var(--surface-page);
+	color: var(--text-primary);
+	font-family: var(--font-ui);
+	font-variant-numeric: tabular-nums;
+}

@@ -30,14 +30,14 @@ function render(){
     <div class="job-actions"><small>#${safe(job.id)}</small><button data-apply="${safe(job.id)}">Quero me candidatar →</button></div>
   </article>`).join('');
   empty.hidden=filtered.length>0;
-  grid.querySelectorAll('[data-apply]').forEach(btn=>btn.addEventListener('click',()=>openApply(btn.dataset.apply)));
+  grid.querySelectorAll('[data-apply]').forEach(btn=>btn.addEventListener('click',()=>openApply(btn.dataset.apply))); if(window.lucide) lucide.createIcons({attrs:{'stroke-width':2}});
 }
 function populateLocations(){
   const locations=[...new Set(jobs.map(locationLabel))].sort();
   locationFilter.innerHTML='<option value="">Todas as localidades</option>'+locations.map(x=>`<option>${safe(x)}</option>`).join('');
 }
 async function loadJobs(){
-  if(!CONFIG.API_BASE_URL || CONFIG.DEMO_MODE){ jobs=demoJobs; statusPill.textContent='Modo demonstração'; populateLocations(); render(); return; }
+  if(!CONFIG.API_BASE_URL || CONFIG.DEMO_MODE){ jobs=demoJobs; statusPill.textContent='Vagas de demonstração'; populateLocations(); render(); return; }
   try{
     const res=await fetch(`${CONFIG.API_BASE_URL.replace(/\/$/,'')}/api/vagas`);
     if(!res.ok) throw new Error('Falha ao carregar vagas');
