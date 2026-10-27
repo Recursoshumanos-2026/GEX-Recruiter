@@ -3,8 +3,5 @@ main = "src/index.js"
 compatibility_date = "2026-10-01"
 
 [vars]
-# Troque pelo endereço final do seu GitHub Pages, por exemplo:
-# ALLOWED_ORIGIN = "https://recursoshumanos-2026.github.io"
-ALLOWED_ORIGIN = "*"
-# ID do canal de aquisição de prospect na Recrutei. NÃO use um número aleatório.
-# PROSPECT_CHANNEL_ID = "SEU_ID"
+ALLOWED_ORIGIN = "https://recursoshumanos-2026.github.io"
+APPLICATIONS_ENABLED = "false"
