@@ -35,11 +35,10 @@
           <h1>Grandes talentos encontram <span>grandes desafios.</span></h1>
           <p>Faça parte de um ambiente que valoriza autonomia, velocidade, aprendizado contínuo e decisões orientadas por dados.</p>
           <div class="hero-actions">
-            <a class="btn btn-primary" href="#vagas">Explorar oportunidades </a>
+            <a class="btn btn-primary" href="#vagas">Explorar oportunidades</a>
             <a class="btn btn-glass" href="#sobre">Conhecer a GEX</a>
           </div>
         </div>
-
       </div>
     </section>
 
@@ -153,17 +152,17 @@
           <h2>Encontre seu próximo desafio.</h2>
           <p>Confira as vagas abertas na GEX e encontre a oportunidade que combina com você.</p>
         </div>
-        <div class="status-pill" id="integrationStatus"> Modo demonstração</div>
+        <div class="status-pill" id="integrationStatus">Vagas atualizadas</div>
       </div>
 
       <div class="jobs-toolbar">
         <label class="search-box">
-          
           <input id="jobSearch" type="search" placeholder="Buscar por vaga, cidade ou área" autocomplete="off" />
         </label>
         <label class="select-wrap">
-          
-          <select id="jobLocation" aria-label="Filtrar por localidade"><option value="">Todas as localidades</option></select>
+          <select id="jobLocation" aria-label="Filtrar por localidade">
+            <option value="">Todas as localidades</option>
+          </select>
         </label>
       </div>
 
@@ -180,16 +179,20 @@
         <div>
           <span class="eyebrow light">• BANCO DE TALENTOS</span>
           <h2>A oportunidade certa ainda não apareceu?</h2>
-          <p>Em breve, o Banco de Talentos também poderá usar a mesma integração segura.</p>
+          <p>Continue acompanhando nossas oportunidades e encontre o momento certo para fazer parte da GEX.</p>
         </div>
-        <a class="btn btn-light" href="mailto:rh@gex.example">Quero fazer parte </a>
+        <a class="btn btn-light" href="#vagas">Ver oportunidades</a>
       </div>
     </section>
   </main>
 
   <footer>
     <div class="container footer-inner">
-      <div class="footer-brand"><img src="assets/gex-logo-branco.svg" alt="GEX Corporation" /><span class="brand-divider" aria-hidden="true"></span><span>Talents</span></div>
+      <div class="footer-brand">
+        <img src="assets/gex-logo-branco.svg" alt="GEX Corporation" />
+        <span class="brand-divider" aria-hidden="true"></span>
+        <span>Talents</span>
+      </div>
       <span>© 2026 GEX Corporation</span>
     </div>
   </footer>
@@ -199,20 +202,27 @@
       <button type="button" class="dialog-close" id="closeDialog" aria-label="Fechar"></button>
       <span class="eyebrow">• CANDIDATURA</span>
       <h2 id="applyJobTitle">Quero me candidatar</h2>
-      <p class="form-intro">Preencha seus dados. Quando a integração estiver ativa, a candidatura será criada diretamente no pipeline da Recrutei.</p>
+      <p class="form-intro">Preencha seus dados para participar do nosso processo seletivo. Nossa equipe receberá sua candidatura e dará continuidade às próximas etapas.</p>
+
       <input type="hidden" id="vacancyId" name="vacancy_id" />
-      <input type="hidden" id="pipeStageId" name="pipe_stage_id" />
+
       <div class="form-grid">
         <label class="full">Nome completo<input required name="name" autocomplete="name" /></label>
         <label>E-mail<input required type="email" name="email" autocomplete="email" /></label>
         <label>Telefone<input required name="telephone" inputmode="tel" placeholder="(11) 99999-9999" autocomplete="tel" /></label>
       </div>
-      <label class="consent"><input required type="checkbox" name="privacy" /> <span>Concordo com o tratamento dos meus dados para participação no processo seletivo.</span></label>
+
+      <label class="consent">
+        <input required type="checkbox" name="privacy" />
+        <span>Concordo com o tratamento dos meus dados para participação no processo seletivo.</span>
+      </label>
+
       <div id="formMessage" class="form-message" hidden></div>
-      <button class="btn btn-primary submit-btn" type="submit">Enviar candidatura </button>
-      <small>Seus dados não são enviados para a Recrutei enquanto o backend seguro não estiver configurado.</small>
+      <button class="btn btn-primary submit-btn" type="submit">Enviar candidatura</button>
+      <small>Seus dados serão utilizados exclusivamente para fins de recrutamento e seleção.</small>
     </form>
   </dialog>
+
   <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
