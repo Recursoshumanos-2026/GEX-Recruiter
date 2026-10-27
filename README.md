@@ -1,3 +1,7 @@
+# GEX Talents - versão visual aprovada
+
+Esta versão incorpora a identidade visual aprovada do GEX Talents, com tipografia ampliada, cards proporcionais, emojis em Cultura e Benefícios e o símbolo GEX como elemento de marca.
+
 # GEX Talents — GitHub Pages + Recrutei
 
 Primeira versão do portal externo de carreiras da GEX, seguindo o design oficial utilizado nos materiais internos da GEX.
