@@ -1,229 +1,284 @@
-<!DOCTYPE html>
-<html lang="pt-BR" class="dark">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="GEX Talents — oportunidades para construir o próximo capítulo com a GEX." />
-  <meta name="theme-color" content="#030a1a" />
-  <title>GEX Talents | Carreiras</title>
-  <link rel="stylesheet" href="tokens.css" />
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="icon" type="image/png" href="assets/gex-simbolo.png" />
-</head>
-<body>
-  <header class="site-header">
-    <div class="header-inner">
-      <a href="#inicio" class="brand" aria-label="GEX Talents">
-        <img src="assets/gex-logo-branco.svg" alt="GEX Corporation" />
-        <span class="brand-divider" aria-hidden="true"></span>
-        <span class="brand-product">Talents</span>
-      </a>
-      <nav aria-label="Navegação principal">
-        <a href="#cultura">Cultura</a>
-        <a href="#beneficios">Benefícios</a>
-        <a href="#vagas">Vagas</a>
-      </nav>
-    </div>
-  </header>
+const API_BASE = 'https://api.recrutei.com.br';
+let tokenCache = { token: null, expiresAt: 0 };
 
-  <main>
-    <section class="hero" id="inicio">
-      <img class="hero-symbol" src="assets/gex-simbolo.png" alt="" aria-hidden="true" />
-      <div class="hero-inner container">
-        <div class="hero-copy">
-          <span class="eyebrow light">• GEX TALENTS</span>
-          <h1>Grandes talentos encontram <span>grandes desafios.</span></h1>
-          <p>Faça parte de um ambiente que valoriza autonomia, velocidade, aprendizado contínuo e decisões orientadas por dados.</p>
-          <div class="hero-actions">
-            <a class="btn btn-primary" href="#vagas">Explorar oportunidades</a>
-            <a class="btn btn-glass" href="#sobre">Conhecer a GEX</a>
-          </div>
-        </div>
-      </div>
-    </section>
+function cors(env) {
+  return {
+    'Access-Control-Allow-Origin':
+      env.ALLOWED_ORIGIN || 'https://recursoshumanos-2026.github.io',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+  };
+}
 
-    <section class="section story-section" id="sobre">
-      <div class="container story-layout">
-        <div class="story-copy">
-          <span class="eyebrow">• NOSSA HISTÓRIA</span>
-          <h2>De onde viemos.</h2>
-          <p>Nossa história começou entre <strong>2019 e 2020</strong>, com a criação e comercialização de produtos digitais voltados à área de <strong>massoterapia</strong>, inicialmente por meio de e-books.</p>
-          <p>Com o crescimento da operação, demos um novo passo e desenvolvemos nossa própria plataforma de cursos, o <strong>Instituto Experience</strong>.</p>
-          <p>Ao longo dessa trajetória, <strong>mais de 300 mil alunos, em mais de 160 países, passaram pela plataforma</strong>, ampliando o alcance da nossa operação e consolidando nossa presença no mercado digital.</p>
-          <p>O Instituto Experience segue ativo e faz parte da nossa história, mas nossa evolução nos levou a novos mercados, produtos e desafios.</p>
+function json(data, status, env) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      ...cors(env)
+    }
+  });
+}
 
-          <div class="story-stats" aria-label="Números da nossa trajetória">
-            <article class="stat-card">
-              <strong>+300 mil</strong>
-              <span>alunos passaram pela plataforma</span>
-            </article>
-            <article class="stat-card">
-              <strong>+160</strong>
-              <span>países alcançados</span>
-            </article>
-          </div>
-        </div>
+async function getBearer(env) {
+  if (tokenCache.token && Date.now() < tokenCache.expiresAt - 60000) {
+    return tokenCache.token;
+  }
 
-        <article class="today-card">
-          <span class="eyebrow light">• O QUE FAZEMOS HOJE</span>
-          <h3>Construímos operações para o mercado internacional.</h3>
-          <p>Hoje, a <strong>GEX Corporation</strong> concentra sua atuação no <strong>marketing de resposta direta</strong>, com foco na comercialização de <strong>suplementos nutracêuticos para o mercado internacional</strong>.</p>
-          <p>Nossa operação conecta diferentes áreas - como marketing, tecnologia, dados, produto, atendimento e operações - para desenvolver estratégias, processos e estruturas capazes de levar nossos produtos a diferentes mercados ao redor do mundo.</p>
-          <p>Somos uma empresa em constante evolução, movida por testes, aprendizado contínuo, decisões orientadas por dados e pela busca por novas oportunidades de crescimento.</p>
-        </article>
-      </div>
-    </section>
+  const response = await fetch(`${API_BASE}/api/v1/login-api`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': env.RECRUTEI_API_KEY,
+      'x-api-secret': env.RECRUTEI_API_SECRET
+    },
+    body: JSON.stringify({
+      email: env.RECRUTEI_EMAIL,
+      password: env.RECRUTEI_PASSWORD
+    })
+  });
 
-    <section class="section container" id="cultura">
-      <div class="section-heading">
-        <span class="eyebrow">• NOSSA CULTURA</span>
-        <h2>Nosso jeito de construir.</h2>
-        <p>Buscamos pessoas que aprendem rápido, assumem responsabilidade e transformam desafios em movimento.</p>
-      </div>
+  if (!response.ok) {
+    throw new Error(`Falha de autenticação Recrutei (${response.status})`);
+  }
 
-      <div class="culture-grid">
-        <article class="feature-card">
-          <div class="icon-chip emoji-chip">🧠</div>
-          <span class="card-number">01</span>
-          <h3>Autodidatas Extremos</h3>
-          <p>Curiosidade, aprendizado constante e protagonismo para buscar respostas.</p>
-          <span class="tag">Aprender sempre</span>
-        </article>
-        <article class="feature-card">
-          <div class="icon-chip emoji-chip">🚀</div>
-          <span class="card-number">02</span>
-          <h3>Ready, Fire, Aim</h3>
-          <p>Agilidade para agir, aprender com a execução e melhorar continuamente.</p>
-          <span class="tag">Agir e evoluir</span>
-        </article>
-        <article class="feature-card">
-          <div class="icon-chip emoji-chip">❤️</div>
-          <span class="card-number">03</span>
-          <h3>Amar o que Faz</h3>
-          <p>Energia, responsabilidade e cuidado com o impacto do próprio trabalho.</p>
-          <span class="tag">Paixão com responsabilidade</span>
-        </article>
-        <article class="feature-card">
-          <div class="icon-chip emoji-chip">📊</div>
-          <span class="card-number">04</span>
-          <h3>Sangue Data Driven</h3>
-          <p>Decisões melhores começam com contexto, evidências e dados bem interpretados.</p>
-          <span class="tag">Dados que viram decisão</span>
-        </article>
-      </div>
-    </section>
+  const body = await response.json();
 
-    <section class="section benefits-section" id="beneficios">
-      <div class="container">
-        <div class="section-heading">
-          <span class="eyebrow light">• CUIDAMOS DE QUEM FAZ A GEX ACONTECER</span>
-          <h2>Benefícios que acompanham a jornada.</h2>
-          <p>Recursos pensados para apoiar rotina, saúde, bem-estar e momentos importantes.</p>
-        </div>
-        <div class="benefits-grid">
-          <article class="benefit-card">
-            <div class="benefit-icon emoji-benefit">💳</div>
-            <div><strong>Flash</strong><span>Benefício flexível para apoiar sua rotina.</span></div>
-          </article>
-          <article class="benefit-card">
-            <div class="benefit-icon emoji-benefit">🩺</div>
-            <div><strong>Clude</strong><span>Saúde, cuidado e bem-estar mais perto de você.</span></div>
-          </article>
-          <article class="benefit-card">
-            <div class="benefit-icon emoji-benefit">🏋️</div>
-            <div><strong>Wellhub + TotalPass</strong><span>Mais movimento, equilíbrio e qualidade de vida.</span></div>
-          </article>
-          <article class="benefit-card">
-            <div class="benefit-icon emoji-benefit">🎂</div>
-            <div><strong>Day Off</strong><span>Um dia especial para você celebrar do seu jeito.</span></div>
-          </article>
-          <article class="benefit-card">
-            <div class="benefit-icon emoji-benefit">🎁</div>
-            <div><strong>Mimos especiais</strong><span>Carinho extra em datas comemorativas e ações internas.</span></div>
-          </article>
-        </div>
-      </div>
-    </section>
+  tokenCache = {
+    token: body.token,
+    expiresAt:
+      Date.now() +
+      Math.min(
+        Number(body.expires_in || 3600) * 1000,
+        12 * 60 * 60 * 1000
+      )
+  };
 
-    <section class="section container" id="vagas">
-      <div class="jobs-heading">
-        <div class="section-heading compact">
-          <span class="eyebrow">• OPORTUNIDADES</span>
-          <h2>Encontre seu próximo desafio.</h2>
-          <p>Confira as vagas abertas na GEX e encontre a oportunidade que combina com você.</p>
-        </div>
-        <div class="status-pill" id="integrationStatus">Vagas atualizadas</div>
-      </div>
+  return body.token;
+}
 
-      <div class="jobs-toolbar">
-        <label class="search-box">
-          <input id="jobSearch" type="search" placeholder="Buscar por vaga, cidade ou área" autocomplete="off" />
-        </label>
-        <label class="select-wrap">
-          <select id="jobLocation" aria-label="Filtrar por localidade">
-            <option value="">Todas as localidades</option>
-          </select>
-        </label>
-      </div>
+async function recrutei(env, path, options = {}) {
+  const token = await getBearer(env);
 
-      <div id="jobsGrid" class="jobs-grid" aria-live="polite"></div>
-      <div id="jobsEmpty" class="empty-state" hidden>
-        <div class="icon-chip"></div>
-        <h3>Nenhuma vaga encontrada.</h3>
-        <p>Tente outro termo de busca ou volte em breve para conferir novas oportunidades.</p>
-      </div>
-    </section>
+  return fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
 
-    <section class="talent-pool">
-      <div class="container talent-pool-inner">
-        <div>
-          <span class="eyebrow light">• BANCO DE TALENTOS</span>
-          <h2>A oportunidade certa ainda não apareceu?</h2>
-          <p>Continue acompanhando nossas oportunidades e encontre o momento certo para fazer parte da GEX.</p>
-        </div>
-        <a class="btn btn-light" href="#vagas">Ver oportunidades</a>
-      </div>
-    </section>
-  </main>
+async function rawVacancies(env) {
+  const response = await recrutei(
+    env,
+    '/api/v2/vacancies/filter?page=1&perPage=100',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        orderBy: {
+          field: 'created_at',
+          type: 'DESC'
+        }
+      })
+    }
+  );
 
-  <footer>
-    <div class="container footer-inner">
-      <div class="footer-brand">
-        <img src="assets/gex-logo-branco.svg" alt="GEX Corporation" />
-        <span class="brand-divider" aria-hidden="true"></span>
-        <span>Talents</span>
-      </div>
-      <span>© 2026 GEX Corporation</span>
-    </div>
-  </footer>
+  if (!response.ok) {
+    throw new Error(`Falha ao listar vagas (${response.status})`);
+  }
 
-  <dialog id="applyDialog" class="apply-dialog">
-    <form id="applyForm" method="dialog" class="apply-card">
-      <button type="button" class="dialog-close" id="closeDialog" aria-label="Fechar"></button>
-      <span class="eyebrow">• CANDIDATURA</span>
-      <h2 id="applyJobTitle">Quero me candidatar</h2>
-      <p class="form-intro">Preencha seus dados para participar do nosso processo seletivo. Nossa equipe receberá sua candidatura e dará continuidade às próximas etapas.</p>
+  const body = await response.json();
+  return body.data || [];
+}
 
-      <input type="hidden" id="vacancyId" name="vacancy_id" />
+function publicVacancy(v) {
+  return {
+    id: v.id,
+    title: v.title,
+    city: v.city ?? null,
+    state: v.state ?? null,
+    remote: v.remote,
+    vacancy_status_id: v.vacancy_status_id,
+    slug: v.slug ?? null,
+    department: v.department ?? null
+  };
+}
 
-      <div class="form-grid">
-        <label class="full">Nome completo<input required name="name" autocomplete="name" /></label>
-        <label>E-mail<input required type="email" name="email" autocomplete="email" /></label>
-        <label>Telefone<input required name="telephone" inputmode="tel" placeholder="(11) 99999-9999" autocomplete="tel" /></label>
-      </div>
+function firstPipeStageId(vacancy) {
+  const stages = [...(vacancy.pipe_stages || [])].sort(
+    (a, b) =>
+      Number(a.order ?? 999) -
+      Number(b.order ?? 999)
+  );
 
-      <label class="consent">
-        <input required type="checkbox" name="privacy" />
-        <span>Concordo com o tratamento dos meus dados para participação no processo seletivo.</span>
-      </label>
+  return stages[0]?.id || null;
+}
 
-      <div id="formMessage" class="form-message" hidden></div>
-      <button class="btn btn-primary submit-btn" type="submit">Enviar candidatura</button>
-      <small>Seus dados serão utilizados exclusivamente para fins de recrutamento e seleção.</small>
-    </form>
-  </dialog>
+async function listVacancies(env) {
+  return (await rawVacancies(env))
+    .filter(v => Number(v.vacancy_status_id) === 1)
+    .map(publicVacancy);
+}
 
-  <script src="config.js"></script>
-  <script src="app.js"></script>
-</body>
-</html>
+async function createProspect(env, payload) {
+  if (env.APPLICATIONS_ENABLED !== 'true') {
+    throw new Error(
+      'Candidaturas diretas ainda não estão habilitadas.'
+    );
+  }
+
+  const required = [
+    'name',
+    'email',
+    'telephone',
+    'vacancy_id'
+  ];
+
+  for (const key of required) {
+    if (!payload[key]) {
+      throw new Error(`Campo obrigatório ausente: ${key}`);
+    }
+  }
+
+  if (!env.PROSPECT_CHANNEL_ID) {
+    throw new Error(
+      'Canal de aquisição ainda não configurado.'
+    );
+  }
+
+  const vacancies = await rawVacancies(env);
+
+  const vacancy = vacancies.find(
+    v =>
+      String(v.id) === String(payload.vacancy_id) &&
+      Number(v.vacancy_status_id) === 1
+  );
+
+  if (!vacancy) {
+    throw new Error(
+      'Vaga não encontrada ou não está publicada.'
+    );
+  }
+
+  const pipeStageId = firstPipeStageId(vacancy);
+
+  if (!pipeStageId) {
+    throw new Error(
+      'Não foi possível identificar a etapa inicial da vaga.'
+    );
+  }
+
+  const form = new FormData();
+
+  form.set(
+    'prospect_acquisition_channel_id',
+    env.PROSPECT_CHANNEL_ID
+  );
+
+  form.set('name', payload.name);
+  form.set('email', payload.email);
+  form.set('telephone', payload.telephone);
+  form.set('vacancy_id', vacancy.id);
+  form.set('pipe_stage_id', pipeStageId);
+
+  const response = await recrutei(
+    env,
+    '/api/v2/prospects',
+    {
+      method: 'POST',
+      body: form
+    }
+  );
+
+  const body = await response
+    .json()
+    .catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      body.message ||
+      `Falha ao criar candidatura (${response.status})`
+    );
+  }
+
+  return {
+    ok: true,
+    message: 'Candidatura enviada com sucesso.'
+  };
+}
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 204,
+        headers: cors(env)
+      });
+    }
+
+    try {
+      if (
+        request.method === 'GET' &&
+        url.pathname === '/api/vagas'
+      ) {
+        return json(
+          {
+            data: await listVacancies(env)
+          },
+          200,
+          env
+        );
+      }
+
+      if (
+        request.method === 'POST' &&
+        url.pathname === '/api/candidatar'
+      ) {
+        return json(
+          await createProspect(
+            env,
+            await request.json()
+          ),
+          201,
+          env
+        );
+      }
+
+      if (url.pathname === '/health') {
+        return json(
+          {
+            ok: true,
+            applications_enabled:
+              env.APPLICATIONS_ENABLED === 'true' &&
+              Boolean(env.PROSPECT_CHANNEL_ID)
+          },
+          200,
+          env
+        );
+      }
+
+      return json(
+        {
+          message: 'Rota não encontrada'
+        },
+        404,
+        env
+      );
+    } catch (error) {
+      return json(
+        {
+          message:
+            error.message || 'Erro interno'
+        },
+        500,
+        env
+      );
+    }
+  }
+};
