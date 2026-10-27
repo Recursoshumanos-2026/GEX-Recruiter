@@ -41,8 +41,6 @@ function render() {
       <span class="job-area">${safe(job.department || 'GEX CORPORATION')}</span>
       <h3>${safe(job.title)}</h3>
 
-<span>Processo via GEX Talents</span>
-
       <p>Conheça a oportunidade e candidate-se para fazer parte da GEX.</p>
 
       <div class="job-actions">
