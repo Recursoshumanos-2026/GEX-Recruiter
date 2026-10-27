@@ -75,3 +75,4 @@ Também valide com a Recrutei qual canal de aquisição (`PROSPECT_CHANNEL_ID`) 
 ## Observação sobre currículo e campos extras
 
 Nesta primeira versão, o envio usa apenas os campos documentados como obrigatórios pelo endpoint de criação de prospect: nome, e-mail, telefone, vaga, etapa e canal de aquisição. Não foi colocado upload de currículo “de fachada”. Depois de validarmos a criação real do candidato na conta da GEX, podemos evoluir para informações complementares e currículo usando os endpoints suportados pela Recrutei.
+Integração Cloudflare configurada.
