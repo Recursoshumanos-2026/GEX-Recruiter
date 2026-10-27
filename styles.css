@@ -97,3 +97,29 @@ footer{padding:26px 0;border-top:1px solid var(--border-card);background:var(--s
 @media(max-width:760px){.container,.header-inner{width:min(100% - 30px,var(--content-max-width))}.site-header nav{gap:16px}.hero{min-height:600px}.hero-inner{min-height:600px;padding:82px 0 64px}.hero h1{font-size:clamp(46px,13vw,64px)}.hero p{font-size:16px}.section{padding:70px 0}.benefits-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.jobs-heading{align-items:flex-start;flex-direction:column}.jobs-toolbar{grid-template-columns:1fr}.talent-pool-inner{align-items:flex-start;flex-direction:column}.form-grid{grid-template-columns:1fr}.footer-inner{align-items:flex-start;flex-direction:column}}
 @media(max-width:520px){.site-header nav a:nth-child(-n+2){display:none}.brand img{height:20px}.hero-actions{flex-direction:column;align-items:stretch}.hero-principles{display:grid;grid-template-columns:1fr 1fr}.culture-grid,.benefits-grid,.jobs-grid{grid-template-columns:1fr}.feature-card{min-height:240px}.benefit-card{min-height:auto}.talent-pool h2{font-size:30px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
+.emoji-chip{font-size:28px;line-height:1;background:linear-gradient(135deg,rgba(56,189,248,.18),rgba(30,111,217,.16));border:1px solid rgba(56,189,248,.22)}
+.emoji-benefit{font-size:27px;line-height:1;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16)}
+
+/* História / Sobre a GEX */
+.story-section{padding:96px 0;background:var(--surface-page);border-bottom:1px solid var(--border-card)}
+.story-layout{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(340px,.88fr);gap:28px;align-items:stretch}
+.story-copy{padding:6px 0}
+.story-copy h2{margin:10px 0 20px;font-size:clamp(34px,4vw,50px);font-weight:var(--fw-medium);line-height:1.04;letter-spacing:var(--ls-display);color:var(--text-strong)}
+.story-copy>p{max-width:760px;margin:0 0 14px;color:var(--text-secondary);font-size:var(--fs-body-lg);line-height:1.72}
+.story-copy strong{color:var(--text-primary);font-weight:var(--fw-semibold)}
+.story-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:28px;max-width:680px}
+.stat-card{min-height:150px;padding:24px;border:1px solid var(--border-card);border-radius:16px;background:var(--surface-card);display:flex;flex-direction:column;justify-content:center;transition:transform .18s ease,border-color .18s ease,background .18s ease}
+.stat-card:hover{transform:translateY(-2px);border-color:var(--border-strong);background:var(--surface-card-2)}
+.stat-card strong{font-size:clamp(34px,4vw,48px);line-height:1;font-weight:var(--fw-semibold);letter-spacing:var(--ls-display);color:var(--accent-ink)}
+.stat-card span{margin-top:10px;color:var(--text-secondary);font-size:var(--fs-small);line-height:1.45}
+.today-card{position:relative;overflow:hidden;padding:34px;border:1px solid var(--hero-glass-border);border-radius:18px;background:linear-gradient(155deg,rgba(30,111,217,.30) 0%,rgba(8,23,52,.94) 45%,rgba(3,10,26,.98) 100%);box-shadow:0 24px 60px rgba(0,0,0,.18)}
+.today-card::before{content:"";position:absolute;width:280px;height:280px;border-radius:50%;right:-110px;top:-100px;background:radial-gradient(circle,rgba(56,189,248,.26) 0%,rgba(56,189,248,0) 70%);pointer-events:none}
+.today-card>*{position:relative;z-index:1}
+.today-card h3{margin:12px 0 22px;max-width:520px;font-size:clamp(28px,3.2vw,40px);line-height:1.08;letter-spacing:var(--ls-tight);font-weight:var(--fw-medium);color:var(--hero-text)}
+.today-card p{margin:0 0 16px;color:var(--hero-text-muted);font-size:var(--fs-body);line-height:1.68}
+.today-card p:last-child{margin-bottom:0}
+.today-card strong{color:var(--hero-text);font-weight:var(--fw-semibold)}
+
+@media(max-width:960px){.story-layout{grid-template-columns:1fr}.today-card{min-height:auto}.story-copy>p{max-width:none}}
+@media(max-width:620px){.story-section{padding:72px 0}.story-stats{grid-template-columns:1fr}.stat-card{min-height:130px}.today-card{padding:26px}}
