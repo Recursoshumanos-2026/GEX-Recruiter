@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="GEX Talents — oportunidades para construir o próximo capítulo com a GEX." />
+  <title>GEX Talents | Carreiras</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a href="#inicio" class="brand" aria-label="GEX Talents">
+      <img src="assets/gex-logo.png" alt="GEX Corporation" />
+      <span>Talents</span>
+    </a>
+    <nav aria-label="Navegação principal">
+      <a href="#cultura">Cultura</a>
+      <a href="#beneficios">Benefícios</a>
+      <a href="#vagas">Vagas</a>
+      <a class="nav-cta" href="#vagas">Ver oportunidades</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" id="inicio">
+      <div class="hero-glow"></div>
+      <div class="hero-content container">
+        <span class="eyebrow">GEX TALENTS</span>
+        <h1>Grandes talentos encontram <span>grandes desafios.</span></h1>
+        <p>Faça parte de um ambiente que valoriza autonomia, velocidade, aprendizado contínuo e decisões orientadas por dados.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#vagas">Explorar oportunidades</a>
+          <a class="btn btn-ghost" href="#cultura">Conhecer a GEX</a>
+        </div>
+        <div class="hero-pills" aria-label="Características da GEX">
+          <span>Autonomia</span><span>Inovação</span><span>Data driven</span><span>Construção contínua</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section container" id="cultura">
+      <div class="section-heading">
+        <span class="eyebrow dark">NOSSA CULTURA</span>
+        <h2>Nosso jeito de construir.</h2>
+        <p>Buscamos pessoas que aprendem rápido, assumem responsabilidade e transformam desafios em movimento.</p>
+      </div>
+      <div class="culture-grid">
+        <article class="feature-card"><span>01</span><h3>Autodidatas Extremos</h3><p>Curiosidade, aprendizado constante e protagonismo para buscar respostas.</p></article>
+        <article class="feature-card"><span>02</span><h3>Ready, Fire, Aim</h3><p>Agilidade para agir, aprender com a execução e melhorar continuamente.</p></article>
+        <article class="feature-card"><span>03</span><h3>Amar o que Faz</h3><p>Energia, responsabilidade e cuidado com o impacto do próprio trabalho.</p></article>
+        <article class="feature-card"><span>04</span><h3>Sangue Data Driven</h3><p>Decisões melhores começam com contexto, evidências e dados bem interpretados.</p></article>
+      </div>
+    </section>
+
+    <section class="section benefits-section" id="beneficios">
+      <div class="container">
+        <div class="section-heading light">
+          <span class="eyebrow">CUIDAMOS DE QUEM FAZ A GEX ACONTECER</span>
+          <h2>Benefícios que acompanham a jornada.</h2>
+        </div>
+        <div class="benefits-grid">
+          <article><strong>Flash</strong><span>Benefício flexível conforme elegibilidade</span></article>
+          <article><strong>Clude</strong><span>Saúde e bem-estar</span></article>
+          <article><strong>Wellhub + TotalPass</strong><span>Movimento e qualidade de vida</span></article>
+          <article><strong>Day Off</strong><span>Um dia para celebrar você</span></article>
+          <article><strong>Kits & experiências</strong><span>Momentos especiais ao longo da jornada</span></article>
+          <article><strong>Mimos especiais</strong><span>Ações em datas comemorativas</span></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section container" id="vagas">
+      <div class="section-heading jobs-heading">
+        <div>
+          <span class="eyebrow dark">OPORTUNIDADES</span>
+          <h2>Encontre seu próximo desafio.</h2>
+          <p>As oportunidades publicadas na Recrutei aparecem aqui automaticamente quando a integração está ativa.</p>
+        </div>
+        <div class="status-pill" id="integrationStatus">Modo demonstração</div>
+      </div>
+
+      <div class="jobs-toolbar">
+        <label class="search-box">
+          <span>⌕</span>
+          <input id="jobSearch" type="search" placeholder="Buscar por vaga, cidade ou área" autocomplete="off" />
+        </label>
+        <select id="jobLocation" aria-label="Filtrar por localidade"><option value="">Todas as localidades</option></select>
+      </div>
+
+      <div id="jobsGrid" class="jobs-grid" aria-live="polite"></div>
+      <div id="jobsEmpty" class="empty-state" hidden>
+        <h3>Nenhuma vaga encontrada.</h3>
+        <p>Tente outro termo de busca ou volte em breve para conferir novas oportunidades.</p>
+      </div>
+    </section>
+
+    <section class="talent-pool">
+      <div class="container talent-pool-inner">
+        <div><span class="eyebrow">BANCO DE TALENTOS</span><h2>A oportunidade certa ainda não apareceu?</h2><p>Em breve, o Banco de Talentos também poderá usar a mesma integração segura.</p></div>
+        <a class="btn btn-light" href="mailto:rh@gex.example">Quero fazer parte</a>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="container footer-inner"><img src="assets/gex-logo.png" alt="GEX Corporation" /><span>© 2026 GEX Corporation · GEX Talents</span></div></footer>
+
+  <dialog id="applyDialog" class="apply-dialog">
+    <form id="applyForm" method="dialog" class="apply-card">
+      <button type="button" class="dialog-close" id="closeDialog" aria-label="Fechar">×</button>
+      <span class="eyebrow dark">CANDIDATURA</span>
+      <h2 id="applyJobTitle">Quero me candidatar</h2>
+      <p class="form-intro">Preencha seus dados. Quando a integração estiver ativa, a candidatura será criada diretamente no pipeline da Recrutei.</p>
+      <input type="hidden" id="vacancyId" name="vacancy_id" />
+      <input type="hidden" id="pipeStageId" name="pipe_stage_id" />
+      <div class="form-grid">
+        <label class="full">Nome completo<input required name="name" autocomplete="name" /></label>
+        <label>E-mail<input required type="email" name="email" autocomplete="email" /></label>
+        <label>Telefone<input required name="telephone" inputmode="tel" placeholder="(11) 99999-9999" autocomplete="tel" /></label>
+      </div>
+      <label class="consent"><input required type="checkbox" name="privacy" /> <span>Concordo com o tratamento dos meus dados para participação no processo seletivo.</span></label>
+      <div id="formMessage" class="form-message" hidden></div>
+      <button class="btn btn-primary submit-btn" type="submit">Enviar candidatura</button>
+      <small>Seus dados não são enviados para a Recrutei enquanto o backend seguro não estiver configurado.</small>
+    </form>
+  </dialog>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
