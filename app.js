@@ -2,13 +2,20 @@ const CONFIG = window.GEX_TALENTS_CONFIG || {};
 
 let jobs = [];
 let applicationsEnabled = false;
-let externalJobHandled = false;
+
+const DEFAULT_TITLE = 'GEX Talents | Carreiras';
+const DEFAULT_DESCRIPTION =
+  'GEX Talents — oportunidades para construir o próximo capítulo com a GEX.';
 
 const grid = document.querySelector('#jobsGrid');
 const empty = document.querySelector('#jobsEmpty');
 const search = document.querySelector('#jobSearch');
 const locationFilter = document.querySelector('#jobLocation');
 const statusPill = document.querySelector('#integrationStatus');
+const jobsHeading = document.querySelector('.jobs-heading');
+const jobsToolbar = document.querySelector('.jobs-toolbar');
+const jobsSection = document.querySelector('#vagas');
+const talentPool = document.querySelector('.talent-pool');
 
 const dialog = document.querySelector('#applyDialog');
 const form = document.querySelector('#applyForm');
@@ -27,7 +34,7 @@ function workMode(job) {
 function locationLabel(job) {
   return job.city
     ? `${job.city}${job.state ? `, ${job.state}` : ''}`
-    : workMode(job);
+    : '';
 }
 
 function safe(value = '') {
@@ -44,80 +51,127 @@ function safe(value = '') {
   );
 }
 
-function getExternalVacancyId() {
-  const params = new URLSearchParams(
-    window.location.search
-  );
-
+function specificVacancyId() {
+  const params = new URLSearchParams(window.location.search);
   const queryId = params.get('vaga');
 
-  if (
-    queryId &&
-    /^\d+$/.test(queryId)
-  ) {
-    return {
-      id: queryId,
-      openAutomatically: true
-    };
+  if (queryId && /^\d+$/.test(queryId)) {
+    return queryId;
   }
 
-  const hashMatch =
-    window.location.hash.match(
-      /^#vaga-(\d+)$/
-    );
+  const oldHash = window.location.hash.match(/^#vaga-(\d+)$/);
 
-  if (hashMatch) {
-    return {
-      id: hashMatch[1],
-      openAutomatically: false
-    };
-  }
-
-  return null;
+  return oldHash ? oldHash[1] : null;
 }
 
-function focusExternalJob() {
-  const external =
-    getExternalVacancyId();
-
-  if (!external) return;
-
-  const jobExists = jobs.some(
-    job =>
-      String(job.id) ===
-      String(external.id)
+function vacancyUrl(id) {
+  const url = new URL(
+    `${window.location.origin}${window.location.pathname}`
   );
 
-  if (!jobExists) return;
+  url.searchParams.set('vaga', id);
 
-  const card =
-    document.getElementById(
-      `vaga-${external.id}`
-    );
+  return url.toString();
+}
 
-  if (card) {
-    setTimeout(() => {
-      card.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
-      });
-    }, 150);
+function allJobsUrl() {
+  return `${window.location.origin}${window.location.pathname}`;
+}
+
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+    return;
   }
 
-  if (
-    external.openAutomatically &&
-    applicationsEnabled &&
-    !externalJobHandled
-  ) {
-    externalJobHandled = true;
+  const field = document.createElement('textarea');
+  field.value = text;
+  field.style.position = 'fixed';
+  field.style.opacity = '0';
+
+  document.body.appendChild(field);
+  field.focus();
+  field.select();
+
+  document.execCommand('copy');
+  field.remove();
+}
+
+async function shareVacancy(id, button) {
+  const url = vacancyUrl(id);
+  const originalText = button.textContent;
+
+  try {
+    await copyText(url);
+
+    button.textContent = 'Link copiado ✓';
+    button.classList.add('share-success');
 
     setTimeout(() => {
-      openApply(external.id);
-    }, 350);
+      button.textContent = originalText;
+      button.classList.remove('share-success');
+    }, 2200);
+
+  } catch (error) {
+    console.error('Não foi possível copiar o link:', error);
+
+    window.prompt(
+      'Copie o link desta vaga:',
+      url
+    );
   }
 }
 
-function render() {
+function bindJobActions() {
+  grid
+    .querySelectorAll('[data-apply]')
+    .forEach(button => {
+      button.addEventListener('click', () => {
+        openApply(button.dataset.apply);
+      });
+    });
+
+  grid
+    .querySelectorAll('[data-share]')
+    .forEach(button => {
+      button.addEventListener('click', () => {
+        shareVacancy(
+          button.dataset.share,
+          button
+        );
+      });
+    });
+}
+
+function renderGeneralJobs() {
+  jobsSection.classList.remove(
+    'specific-vacancy-section'
+  );
+
+  grid.classList.remove(
+    'jobs-grid--specific'
+  );
+
+  jobsHeading.hidden = false;
+  jobsToolbar.hidden = false;
+
+  if (talentPool) {
+    talentPool.hidden = false;
+  }
+
+  document.title = DEFAULT_TITLE;
+
+  const description = document.querySelector(
+    'meta[name="description"]'
+  );
+
+  if (description) {
+    description.content = DEFAULT_DESCRIPTION;
+  }
+
+  statusPill.textContent =
+    'Vagas atualizadas';
+
   const term =
     search.value.toLowerCase().trim();
 
@@ -127,9 +181,7 @@ function render() {
   const filtered = jobs
     .filter(
       job =>
-        Number(
-          job.vacancy_status_id
-        ) === 1
+        Number(job.vacancy_status_id) === 1
     )
     .filter(job => {
       if (!term) return true;
@@ -148,15 +200,17 @@ function render() {
         return true;
       }
 
-      return (
-        locationLabel(job) ===
-        selectedLocation
-      );
+      const location =
+        locationLabel(job) || workMode(job);
+
+      return location === selectedLocation;
     });
 
   grid.innerHTML = filtered
-    .map(
-      job => `
+    .map(job => {
+      const location = locationLabel(job);
+
+      return `
         <article
           class="job-card"
           id="vaga-${safe(job.id)}"
@@ -172,6 +226,18 @@ function render() {
             ${safe(job.title)}
           </h3>
 
+          <div class="job-meta">
+            <span>
+              ${safe(workMode(job))}
+            </span>
+
+            ${
+              location
+                ? `<span>${safe(location)}</span>`
+                : ''
+            }
+          </div>
+
           <p>
             Conheça a oportunidade e candidate-se para fazer parte da GEX.
           </p>
@@ -181,59 +247,234 @@ function render() {
               #${safe(job.id)}
             </small>
 
-            <button
-              data-apply="${safe(job.id)}"
-              ${
-                applicationsEnabled
-                  ? ''
-                  : 'disabled'
-              }
-              aria-disabled="${
-                applicationsEnabled
-                  ? 'false'
-                  : 'true'
-              }"
-            >
-              ${
-                applicationsEnabled
-                  ? 'Quero me candidatar →'
-                  : 'Candidatura em breve'
-              }
-            </button>
+            <div class="job-action-buttons">
+              <button
+                type="button"
+                class="job-share-button"
+                data-share="${safe(job.id)}"
+              >
+                Compartilhar
+              </button>
+
+              <button
+                type="button"
+                class="job-apply-button"
+                data-apply="${safe(job.id)}"
+                ${applicationsEnabled ? '' : 'disabled'}
+              >
+                ${
+                  applicationsEnabled
+                    ? 'Quero me candidatar →'
+                    : 'Candidatura em breve'
+                }
+              </button>
+            </div>
           </div>
         </article>
-      `
-    )
+      `;
+    })
     .join('');
 
   empty.hidden =
     filtered.length > 0;
 
-  if (applicationsEnabled) {
-    grid
-      .querySelectorAll(
-        '[data-apply]'
-      )
-      .forEach(button => {
-        button.addEventListener(
-          'click',
-          () => {
-            openApply(
-              button.dataset.apply
-            );
-          }
-        );
-      });
+  bindJobActions();
+}
+
+function renderSpecificVacancy(id) {
+  const job = jobs.find(
+    item =>
+      String(item.id) === String(id) &&
+      Number(item.vacancy_status_id) === 1
+  );
+
+  jobsHeading.hidden = true;
+  jobsToolbar.hidden = true;
+
+  jobsSection.classList.add(
+    'specific-vacancy-section'
+  );
+
+  grid.classList.add(
+    'jobs-grid--specific'
+  );
+
+  if (talentPool) {
+    talentPool.hidden = true;
   }
 
-  focusExternalJob();
+  if (!job) {
+    empty.hidden = false;
+
+    grid.innerHTML = '';
+
+    empty.querySelector('h3').textContent =
+      'Esta oportunidade não está mais disponível.';
+
+    empty.querySelector('p').innerHTML =
+      `Confira <a href="${safe(allJobsUrl())}">todas as oportunidades abertas</a> na GEX.`;
+
+    return;
+  }
+
+  empty.hidden = true;
+
+  document.title =
+    `${job.title} | GEX Talents`;
+
+  const description = document.querySelector(
+    'meta[name="description"]'
+  );
+
+  if (description) {
+    description.content =
+      `${job.title} — oportunidade na GEX Corporation.`;
+  }
+
+  const location = locationLabel(job);
+
+  grid.innerHTML = `
+    <article
+      class="vacancy-landing"
+      id="vaga-${safe(job.id)}"
+    >
+      <div class="vacancy-landing-top">
+        <a
+          class="vacancy-back-link"
+          href="${safe(allJobsUrl())}"
+        >
+          ← Todas as oportunidades
+        </a>
+
+        <button
+          type="button"
+          class="vacancy-share-top"
+          data-share="${safe(job.id)}"
+        >
+          Compartilhar vaga
+        </button>
+      </div>
+
+      <div class="vacancy-landing-content">
+        <div class="vacancy-main-content">
+          <span class="eyebrow">
+            • OPORTUNIDADE NA GEX
+          </span>
+
+          <span class="vacancy-department">
+            ${safe(
+              job.department ||
+              'GEX CORPORATION'
+            )}
+          </span>
+
+          <h2>
+            ${safe(job.title)}
+          </h2>
+
+          <div class="vacancy-meta-large">
+            <span>
+              <strong>Modelo</strong>
+              ${safe(workMode(job))}
+            </span>
+
+            ${
+              location
+                ? `
+                  <span>
+                    <strong>Localidade</strong>
+                    ${safe(location)}
+                  </span>
+                `
+                : ''
+            }
+
+            <span>
+              <strong>Oportunidade</strong>
+              #${safe(job.id)}
+            </span>
+          </div>
+
+          <div class="vacancy-about">
+            <h3>
+              Seu próximo desafio pode começar aqui.
+            </h3>
+
+            <p>
+              Estamos em busca de pessoas que queiram construir,
+              aprender rápido e assumir protagonismo junto com a GEX.
+              Se esta oportunidade combina com o seu momento,
+              queremos conhecer você.
+            </p>
+          </div>
+        </div>
+
+        <aside class="vacancy-cta-card">
+          <span class="vacancy-cta-label">
+            FAÇA PARTE DA GEX
+          </span>
+
+          <h3>
+            Quer se candidatar a esta oportunidade?
+          </h3>
+
+          <p>
+            Preencha seus dados e envie sua candidatura diretamente
+            pelo GEX Talents.
+          </p>
+
+          <button
+            type="button"
+            class="btn btn-primary vacancy-apply-main"
+            data-apply="${safe(job.id)}"
+            ${applicationsEnabled ? '' : 'disabled'}
+          >
+            ${
+              applicationsEnabled
+                ? 'Quero me candidatar'
+                : 'Candidatura em breve'
+            }
+          </button>
+
+          <button
+            type="button"
+            class="vacancy-share-button"
+            data-share="${safe(job.id)}"
+          >
+            Compartilhar esta vaga
+          </button>
+
+          <small>
+            O processo seletivo é conduzido pelo time de People da GEX Corporation.
+          </small>
+        </aside>
+      </div>
+    </article>
+  `;
+
+  bindJobActions();
+}
+
+function render() {
+  const vacancyId =
+    specificVacancyId();
+
+  if (vacancyId) {
+    renderSpecificVacancy(vacancyId);
+    return;
+  }
+
+  renderGeneralJobs();
 }
 
 function populateLocations() {
   const locations = [
     ...new Set(
       jobs
-        .map(locationLabel)
+        .map(job =>
+          locationLabel(job) ||
+          workMode(job)
+        )
         .filter(Boolean)
     )
   ].sort();
@@ -250,13 +491,9 @@ function populateLocations() {
 
 async function readBackendStatus() {
   try {
-    const response =
-      await fetch(
-        `${CONFIG.API_BASE_URL.replace(
-          /\/$/,
-          ''
-        )}/health`
-      );
+    const response = await fetch(
+      `${CONFIG.API_BASE_URL.replace(/\/$/, '')}/health`
+    );
 
     if (!response.ok) {
       applicationsEnabled = false;
@@ -280,13 +517,9 @@ async function loadJobs() {
   try {
     await readBackendStatus();
 
-    const response =
-      await fetch(
-        `${CONFIG.API_BASE_URL.replace(
-          /\/$/,
-          ''
-        )}/api/vagas`
-      );
+    const response = await fetch(
+      `${CONFIG.API_BASE_URL.replace(/\/$/, '')}/api/vagas`
+    );
 
     if (!response.ok) {
       throw new Error(
@@ -298,9 +531,6 @@ async function loadJobs() {
       await response.json();
 
     jobs = body.data || [];
-
-    statusPill.textContent =
-      'Vagas atualizadas';
 
   } catch (error) {
     jobs = [];
@@ -316,8 +546,7 @@ async function loadJobs() {
 function openApply(id) {
   const job = jobs.find(
     item =>
-      String(item.id) ===
-      String(id)
+      String(item.id) === String(id)
   );
 
   if (
@@ -389,28 +618,21 @@ form.addEventListener(
       );
 
     button.disabled = true;
-
     button.textContent =
       'Enviando candidatura...';
 
     try {
-      const response =
-        await fetch(
-          `${CONFIG.API_BASE_URL.replace(
-            /\/$/,
-            ''
-          )}/api/candidatar`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type':
-                'application/json'
-            },
-            body: JSON.stringify(
-              payload
-            )
-          }
-        );
+      const response = await fetch(
+        `${CONFIG.API_BASE_URL.replace(/\/$/, '')}/api/candidatar`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/json'
+          },
+          body: JSON.stringify(payload)
+        }
+      );
 
       const body =
         await response
@@ -433,8 +655,7 @@ form.addEventListener(
       formMessage.hidden = false;
 
       if (
-        body.profile_completed ===
-        false
+        body.profile_completed === false
       ) {
         console.warn(
           'Candidatura criada, mas houve uma pendência na atualização dos dados complementares.',
@@ -443,8 +664,7 @@ form.addEventListener(
       }
 
       if (
-        body.tag_completed ===
-        false
+        body.tag_completed === false
       ) {
         console.warn(
           'Candidatura criada, mas a tag GEX Talents não foi adicionada.',
@@ -475,7 +695,6 @@ form.addEventListener(
 
     } finally {
       button.disabled = false;
-
       button.textContent =
         'Enviar candidatura';
     }
@@ -490,11 +709,6 @@ search.addEventListener(
 locationFilter.addEventListener(
   'change',
   render
-);
-
-window.addEventListener(
-  'hashchange',
-  focusExternalJob
 );
 
 document
