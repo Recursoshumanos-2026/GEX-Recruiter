@@ -2,6 +2,7 @@ const CONFIG = window.GEX_TALENTS_CONFIG || {};
 
 let jobs = [];
 let applicationsEnabled = false;
+let externalJobHandled = false;
 
 const grid = document.querySelector('#jobsGrid');
 const empty = document.querySelector('#jobsEmpty');
@@ -43,12 +44,93 @@ function safe(value = '') {
   );
 }
 
+function getExternalVacancyId() {
+  const params = new URLSearchParams(
+    window.location.search
+  );
+
+  const queryId = params.get('vaga');
+
+  if (
+    queryId &&
+    /^\d+$/.test(queryId)
+  ) {
+    return {
+      id: queryId,
+      openAutomatically: true
+    };
+  }
+
+  const hashMatch =
+    window.location.hash.match(
+      /^#vaga-(\d+)$/
+    );
+
+  if (hashMatch) {
+    return {
+      id: hashMatch[1],
+      openAutomatically: false
+    };
+  }
+
+  return null;
+}
+
+function focusExternalJob() {
+  const external =
+    getExternalVacancyId();
+
+  if (!external) return;
+
+  const jobExists = jobs.some(
+    job =>
+      String(job.id) ===
+      String(external.id)
+  );
+
+  if (!jobExists) return;
+
+  const card =
+    document.getElementById(
+      `vaga-${external.id}`
+    );
+
+  if (card) {
+    setTimeout(() => {
+      card.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    }, 150);
+  }
+
+  if (
+    external.openAutomatically &&
+    applicationsEnabled &&
+    !externalJobHandled
+  ) {
+    externalJobHandled = true;
+
+    setTimeout(() => {
+      openApply(external.id);
+    }, 350);
+  }
+}
+
 function render() {
-  const term = search.value.toLowerCase().trim();
-  const location = locationFilter.value;
+  const term =
+    search.value.toLowerCase().trim();
+
+  const selectedLocation =
+    locationFilter.value;
 
   const filtered = jobs
-    .filter(job => Number(job.vacancy_status_id) === 1)
+    .filter(
+      job =>
+        Number(
+          job.vacancy_status_id
+        ) === 1
+    )
     .filter(job => {
       if (!term) return true;
 
@@ -62,8 +144,14 @@ function render() {
       return text.includes(term);
     })
     .filter(job => {
-      if (!location) return true;
-      return locationLabel(job) === location;
+      if (!selectedLocation) {
+        return true;
+      }
+
+      return (
+        locationLabel(job) ===
+        selectedLocation
+      );
     });
 
   grid.innerHTML = filtered
@@ -74,22 +162,37 @@ function render() {
           id="vaga-${safe(job.id)}"
         >
           <span class="job-area">
-            ${safe(job.department || 'GEX CORPORATION')}
+            ${safe(
+              job.department ||
+              'GEX CORPORATION'
+            )}
           </span>
 
-          <h3>${safe(job.title)}</h3>
+          <h3>
+            ${safe(job.title)}
+          </h3>
 
           <p>
             Conheça a oportunidade e candidate-se para fazer parte da GEX.
           </p>
 
           <div class="job-actions">
-            <small>#${safe(job.id)}</small>
+            <small>
+              #${safe(job.id)}
+            </small>
 
             <button
               data-apply="${safe(job.id)}"
-              ${applicationsEnabled ? '' : 'disabled'}
-              aria-disabled="${applicationsEnabled ? 'false' : 'true'}"
+              ${
+                applicationsEnabled
+                  ? ''
+                  : 'disabled'
+              }
+              aria-disabled="${
+                applicationsEnabled
+                  ? 'false'
+                  : 'true'
+              }"
             >
               ${
                 applicationsEnabled
@@ -103,19 +206,27 @@ function render() {
     )
     .join('');
 
-  empty.hidden = filtered.length > 0;
+  empty.hidden =
+    filtered.length > 0;
 
   if (applicationsEnabled) {
     grid
-      .querySelectorAll('[data-apply]')
+      .querySelectorAll(
+        '[data-apply]'
+      )
       .forEach(button => {
-        button.addEventListener('click', () => {
-          openApply(button.dataset.apply);
-        });
+        button.addEventListener(
+          'click',
+          () => {
+            openApply(
+              button.dataset.apply
+            );
+          }
+        );
       });
   }
 
-  focusHashJob();
+  focusExternalJob();
 }
 
 function populateLocations() {
@@ -131,46 +242,34 @@ function populateLocations() {
     '<option value="">Todas as localidades</option>' +
     locations
       .map(
-        location =>
-          `<option value="${safe(location)}">${safe(location)}</option>`
+        value =>
+          `<option value="${safe(value)}">${safe(value)}</option>`
       )
       .join('');
 }
 
-function focusHashJob() {
-  const match = location.hash.match(/^#vaga-(\d+)$/);
-
-  if (!match) return;
-
-  const card = document.getElementById(
-    `vaga-${match[1]}`
-  );
-
-  if (card) {
-    setTimeout(() => {
-      card.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
-      });
-    }, 100);
-  }
-}
-
 async function readBackendStatus() {
   try {
-    const response = await fetch(
-      `${CONFIG.API_BASE_URL.replace(/\/$/, '')}/health`
-    );
+    const response =
+      await fetch(
+        `${CONFIG.API_BASE_URL.replace(
+          /\/$/,
+          ''
+        )}/health`
+      );
 
     if (!response.ok) {
       applicationsEnabled = false;
       return;
     }
 
-    const body = await response.json();
+    const body =
+      await response.json();
 
     applicationsEnabled =
-      Boolean(body.applications_enabled);
+      Boolean(
+        body.applications_enabled
+      );
 
   } catch (error) {
     applicationsEnabled = false;
@@ -181,9 +280,13 @@ async function loadJobs() {
   try {
     await readBackendStatus();
 
-    const response = await fetch(
-      `${CONFIG.API_BASE_URL.replace(/\/$/, '')}/api/vagas`
-    );
+    const response =
+      await fetch(
+        `${CONFIG.API_BASE_URL.replace(
+          /\/$/,
+          ''
+        )}/api/vagas`
+      );
 
     if (!response.ok) {
       throw new Error(
@@ -191,7 +294,8 @@ async function loadJobs() {
       );
     }
 
-    const body = await response.json();
+    const body =
+      await response.json();
 
     jobs = body.data || [];
 
@@ -211,10 +315,15 @@ async function loadJobs() {
 
 function openApply(id) {
   const job = jobs.find(
-    item => String(item.id) === String(id)
+    item =>
+      String(item.id) ===
+      String(id)
   );
 
-  if (!job || !applicationsEnabled) {
+  if (
+    !job ||
+    !applicationsEnabled
+  ) {
     return;
   }
 
@@ -235,7 +344,8 @@ function openApply(id) {
 }
 
 function normalizeFormPayload() {
-  const formData = new FormData(form);
+  const formData =
+    new FormData(form);
 
   const payload =
     Object.fromEntries(
@@ -279,25 +389,28 @@ form.addEventListener(
       );
 
     button.disabled = true;
+
     button.textContent =
       'Enviando candidatura...';
 
     try {
-      const response = await fetch(
-        `${CONFIG.API_BASE_URL.replace(/\/$/, '')}/api/candidatar`,
-        {
-          method: 'POST',
-
-          headers: {
-            'Content-Type':
-              'application/json'
-          },
-
-          body: JSON.stringify(
-            payload
-          )
-        }
-      );
+      const response =
+        await fetch(
+          `${CONFIG.API_BASE_URL.replace(
+            /\/$/,
+            ''
+          )}/api/candidatar`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type':
+                'application/json'
+            },
+            body: JSON.stringify(
+              payload
+            )
+          }
+        );
 
       const body =
         await response
@@ -307,7 +420,7 @@ form.addEventListener(
       if (!response.ok) {
         throw new Error(
           body.message ||
-            'Não foi possível enviar sua candidatura.'
+          'Não foi possível enviar sua candidatura.'
         );
       }
 
@@ -319,14 +432,9 @@ form.addEventListener(
 
       formMessage.hidden = false;
 
-      /*
-       * A candidatura já foi criada na Recrutei.
-       * Se algum dado complementar não tiver sido
-       * atualizado, não mostramos erro para o candidato,
-       * evitando que ele tente novamente e gere duplicidade.
-       */
       if (
-        body.profile_completed === false
+        body.profile_completed ===
+        false
       ) {
         console.warn(
           'Candidatura criada, mas houve uma pendência na atualização dos dados complementares.',
@@ -334,11 +442,22 @@ form.addEventListener(
         );
       }
 
+      if (
+        body.tag_completed ===
+        false
+      ) {
+        console.warn(
+          'Candidatura criada, mas a tag GEX Talents não foi adicionada.',
+          body.tag_warning || ''
+        );
+      }
+
       form.reset();
 
       document.querySelector(
         '#vacancyId'
-      ).value = payload.vacancy_id;
+      ).value =
+        payload.vacancy_id;
 
     } catch (error) {
       console.error(
@@ -375,7 +494,7 @@ locationFilter.addEventListener(
 
 window.addEventListener(
   'hashchange',
-  focusHashJob
+  focusExternalJob
 );
 
 document
