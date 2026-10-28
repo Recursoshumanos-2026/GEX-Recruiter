@@ -25,6 +25,9 @@ const jobsSection =
 const talentPool =
   document.querySelector('.talent-pool');
 
+const main =
+  document.querySelector('main');
+
 const dialog =
   document.querySelector('#applyDialog');
 
@@ -244,6 +247,12 @@ function bindJobActions() {
 
 function renderGeneralJobs() {
 
+  if (main && talentPool) {
+  main.insertBefore(
+    jobsSection,
+    talentPool
+  );
+}
   jobsSection.classList.remove(
     'specific-vacancy-section'
   );
