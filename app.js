@@ -288,8 +288,8 @@ function renderSpecificVacancy(id) {
       Number(item.vacancy_status_id) === 1
   );
 
-  jobsHeading.hidden = true;
-  jobsToolbar.hidden = true;
+  jobsHeading.style.display = 'none';
+jobsToolbar.style.display = 'none';
 
   jobsSection.classList.add(
     'specific-vacancy-section'
@@ -434,15 +434,6 @@ function renderSpecificVacancy(id) {
                 ? 'Quero me candidatar'
                 : 'Candidatura em breve'
             }
-          </button>
-
-          <button
-            type="button"
-            class="vacancy-share-button"
-            data-share="${safe(job.id)}"
-          >
-            Compartilhar esta vaga
-          </button>
 
           <small>
             O processo seletivo é conduzido pelo time de People da GEX Corporation.
