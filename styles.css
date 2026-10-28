@@ -1622,7 +1622,19 @@ footer{
   margin-top:42px;
   padding-top:34px
 }
+/* Vaga específica abre como primeira tela */
 
+.specific-vacancy-section{
+  min-height:calc(100vh - 64px);
+  min-height:calc(100dvh - 64px);
+  padding-top:36px;
+  padding-bottom:56px;
+}
+
+.specific-vacancy-section .vacancy-landing-top{
+  border-bottom:0;
+  border-top:1px solid var(--border-card);
+}
 
 /* AJUSTE DO TÍTULO */
 
