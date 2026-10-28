@@ -1502,3 +1502,204 @@ footer{
     display:none
   }
 }
+/* =========================
+   GEX RECRUITER
+   PÁGINA ESPECÍFICA DA VAGA
+========================= */
+
+.vacancy-landing-content--single{
+  display:block;
+  padding:48px
+}
+
+.vacancy-main-content--wide{
+  max-width:100%
+}
+
+
+/* BLOCO PRINCIPAL DE CANDIDATURA */
+
+.vacancy-primary-action{
+  position:relative;
+  overflow:hidden;
+  margin-top:34px;
+  padding:30px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:20px 32px;
+  border:1px solid var(--hero-glass-border);
+  border-radius:18px;
+  background:
+    linear-gradient(
+      155deg,
+      rgba(30,111,217,.28) 0%,
+      rgba(7,25,58,.96) 55%,
+      rgba(3,10,26,.98) 100%
+    );
+  box-shadow:
+    0 22px 52px rgba(0,0,0,.20)
+}
+
+.vacancy-primary-action::before{
+  content:"";
+  position:absolute;
+  width:260px;
+  height:260px;
+  border-radius:50%;
+  right:-100px;
+  top:-120px;
+  background:
+    radial-gradient(
+      circle,
+      rgba(56,189,248,.22) 0%,
+      rgba(56,189,248,0) 70%
+    );
+  pointer-events:none
+}
+
+.vacancy-primary-action>*{
+  position:relative;
+  z-index:1
+}
+
+.vacancy-primary-action .vacancy-cta-label{
+  display:block;
+  color:var(--brand-cyan-soft);
+  font-family:"Geist Mono",monospace;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.11em
+}
+
+.vacancy-primary-action h3{
+  margin:10px 0 9px;
+  color:var(--hero-text);
+  font-size:26px;
+  line-height:1.15;
+  letter-spacing:-.02em
+}
+
+.vacancy-primary-action p{
+  max-width:660px;
+  margin:0;
+  color:var(--hero-text-muted);
+  font-size:14.5px;
+  line-height:1.65
+}
+
+
+/* BOTÃO DE CANDIDATURA */
+
+.vacancy-primary-action .vacancy-apply-main{
+  width:auto;
+  min-width:235px;
+  min-height:48px;
+  margin:0;
+  padding:0 22px
+}
+
+
+/* TEXTO TIME DE RH */
+
+.vacancy-primary-action small{
+  grid-column:1 / -1;
+  display:block;
+  margin-top:0;
+  padding-top:17px;
+  border-top:1px solid rgba(255,255,255,.08);
+  color:var(--hero-text-muted);
+  font-size:11.5px;
+  line-height:1.55
+}
+
+
+/* TEXTO SOBRE A VAGA */
+
+.vacancy-main-content--wide .vacancy-about{
+  max-width:820px;
+  margin-top:42px;
+  padding-top:34px
+}
+
+
+/* AJUSTE DO TÍTULO */
+
+.vacancy-main-content--wide h2{
+  max-width:900px
+}
+
+
+/* =========================
+   BANCO DE TALENTOS
+========================= */
+
+.talent-pool-inner > div{
+  max-width:760px
+}
+
+.talent-pool .btn-light{
+  flex:0 0 auto;
+  min-height:48px;
+  padding:0 20px;
+  white-space:nowrap
+}
+
+
+/* =========================
+   RESPONSIVO
+========================= */
+
+@media(max-width:900px){
+
+  .vacancy-primary-action{
+    grid-template-columns:1fr
+  }
+
+  .vacancy-primary-action .vacancy-apply-main{
+    width:100%;
+    min-width:0
+  }
+
+}
+
+
+@media(max-width:760px){
+
+  .vacancy-landing-content--single{
+    padding:30px 24px
+  }
+
+  .vacancy-primary-action{
+    margin-top:28px;
+    padding:24px
+  }
+
+  .vacancy-primary-action h3{
+    font-size:23px
+  }
+
+  .vacancy-primary-action p{
+    font-size:14px
+  }
+
+  .talent-pool .btn-light{
+    width:100%;
+    white-space:normal;
+    text-align:center
+  }
+
+}
+
+
+@media(max-width:520px){
+
+  .vacancy-primary-action{
+    padding:22px 20px
+  }
+
+  .vacancy-primary-action h3{
+    font-size:21px
+  }
+
+}
