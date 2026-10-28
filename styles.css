@@ -181,3 +181,22 @@ body{font-size:16px}
   .talent-pool{break-inside:avoid}
   .apply-dialog{display:none}
 }
+/* Hero ocupa a primeira tela inteira */
+.hero{
+  min-height:calc(100vh - 64px);
+  min-height:calc(100dvh - 64px);
+}
+
+.hero-inner{
+  min-height:calc(100vh - 64px);
+  min-height:calc(100dvh - 64px);
+}
+
+/* Mantém o conteúdo bem centralizado na primeira dobra */
+@media(min-width:761px){
+  .hero-inner{
+    justify-content:center;
+    padding-top:72px;
+    padding-bottom:72px;
+  }
+}
