@@ -1522,7 +1522,7 @@ footer{
 .vacancy-primary-action{
   position:relative;
   overflow:hidden;
-  margin-top:18px;
+  margin-top:34px;
   padding:30px;
   display:grid;
   grid-template-columns:minmax(0,1fr) auto;
