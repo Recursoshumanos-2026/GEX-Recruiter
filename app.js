@@ -452,6 +452,11 @@ function renderGeneralJobs() {
 function renderSpecificVacancy(
   id
 ) {
+  if (main) {
+  main.prepend(
+    jobsSection
+  );
+}
 
   const job =
     jobs.find(
@@ -691,7 +696,24 @@ function renderSpecificVacancy(
     </article>
   `;
 
+const vacancyLanding =
+  grid.querySelector(
+    '.vacancy-landing'
+  );
 
+const vacancyActions =
+  grid.querySelector(
+    '.vacancy-landing-top'
+  );
+
+if (
+  vacancyLanding &&
+  vacancyActions
+) {
+  vacancyLanding.appendChild(
+    vacancyActions
+  );
+}
   bindJobActions();
 }
 
