@@ -1,0 +1,125 @@
+/* Formulário de candidatura ampliado — GEX Talents */
+
+.apply-dialog-expanded{
+  width:min(820px,calc(100% - 28px));
+  max-height:min(92vh,920px);
+  overflow:auto
+}
+
+.apply-card-expanded{
+  padding:34px
+}
+
+.apply-card-expanded h2{
+  margin:10px 44px 8px 0
+}
+
+.application-section{
+  margin-top:26px;
+  padding-top:24px;
+  border-top:1px solid var(--border-card)
+}
+
+.application-section-heading{
+  display:flex;
+  align-items:flex-start;
+  gap:14px;
+  margin-bottom:16px
+}
+
+.application-section-heading>span{
+  width:34px;
+  height:34px;
+  flex:0 0 34px;
+  display:grid;
+  place-items:center;
+  border-radius:10px;
+  background:rgba(30,111,217,.13);
+  border:1px solid rgba(56,189,248,.18);
+  color:var(--accent-ink);
+  font-family:"Geist Mono",monospace;
+  font-size:12px;
+  font-weight:700
+}
+
+.application-section-heading h3{
+  margin:1px 0 4px;
+  color:var(--text-strong);
+  font-size:18px;
+  font-weight:650
+}
+
+.application-section-heading p{
+  margin:0;
+  color:var(--text-muted);
+  font-size:13px;
+  line-height:1.5
+}
+
+.application-grid{
+  margin:0
+}
+
+.application-grid label{
+  min-width:0
+}
+
+.application-grid input,
+.application-grid select{
+  width:100%;
+  height:46px;
+  border:1px solid var(--control-border);
+  border-radius:10px;
+  background:var(--surface-card-2);
+  color:var(--text-primary);
+  padding:0 12px;
+  outline:none
+}
+
+.application-grid input:focus,
+.application-grid select:focus{
+  border-color:var(--brand-blue);
+  box-shadow:0 0 0 3px rgba(30,111,217,.14)
+}
+
+.application-grid select{
+  appearance:auto
+}
+
+.application-grid option{
+  background:var(--surface-card);
+  color:var(--text-primary)
+}
+
+.optional{
+  color:var(--text-muted);
+  font-weight:500;
+  font-size:11px
+}
+
+.application-consent{
+  margin-top:20px;
+  padding:14px;
+  border:1px solid var(--border-card);
+  border-radius:12px;
+  background:var(--surface-card-2)
+}
+
+.dialog-close{
+  font-size:22px;
+  line-height:1
+}
+
+@media(max-width:760px){
+  .apply-card-expanded{
+    padding:26px 20px
+  }
+
+  .apply-dialog-expanded{
+    max-height:94vh
+  }
+
+  .application-section-heading{
+    gap:10px
+  }
+}
