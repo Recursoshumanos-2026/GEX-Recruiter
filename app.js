@@ -152,8 +152,8 @@ function renderGeneralJobs() {
     'jobs-grid--specific'
   );
 
-  jobsHeading.hidden = false;
-  jobsToolbar.hidden = false;
+jobsHeading.style.display = '';
+jobsToolbar.style.display = '';
 
   if (talentPool) {
     talentPool.hidden = false;
