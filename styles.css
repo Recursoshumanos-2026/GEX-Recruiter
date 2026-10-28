@@ -1595,8 +1595,9 @@ footer{
   width:auto;
   min-width:235px;
   min-height:48px;
-  margin:0;
-  padding:0 22px
+  margin:4px 0 0;
+  padding:0 22px;
+  align-self:start;
 }
 
 
