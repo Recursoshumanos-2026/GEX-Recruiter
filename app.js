@@ -253,7 +253,8 @@ jobsToolbar.style.display = '';
                 class="job-share-button"
                 data-share="${safe(job.id)}"
               >
-                Compartilhar
+              
+                Compartilhar vaga
               </button>
 
               <button
