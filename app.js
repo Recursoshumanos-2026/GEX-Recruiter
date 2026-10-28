@@ -3,9 +3,9 @@ const CONFIG = window.GEX_TALENTS_CONFIG || {};
 let jobs = [];
 let applicationsEnabled = false;
 
-const DEFAULT_TITLE = 'GEX Talents | Carreiras';
+const DEFAULT_TITLE = 'GEX Recruiter | Carreiras';
 const DEFAULT_DESCRIPTION =
-  'GEX Talents — oportunidades para construir o próximo capítulo com a GEX.';
+  'GEX Recruiter — oportunidades para construir o próximo capítulo com a GEX.';
 
 const grid = document.querySelector('#jobsGrid');
 const empty = document.querySelector('#jobsEmpty');
@@ -505,7 +505,7 @@ function renderSpecificVacancy(
 
 
   document.title =
-    `${job.title} | GEX Talents`;
+    `${job.title} | GEX Recruiter`;
 
 
   const description =
@@ -551,10 +551,9 @@ function renderSpecificVacancy(
       </div>
 
 
-      <div class="vacancy-landing-content">
+      <div class="vacancy-landing-content vacancy-landing-content--single">
 
-
-        <div class="vacancy-main-content">
+        <div class="vacancy-main-content vacancy-main-content--wide">
 
           <span class="eyebrow">
             • OPORTUNIDADE NA GEX
@@ -615,6 +614,52 @@ function renderSpecificVacancy(
           </div>
 
 
+          <div class="vacancy-primary-action">
+
+            <div>
+
+              <span class="vacancy-cta-label">
+                FAÇA PARTE DA GEX
+              </span>
+
+              <h3>
+                Quer se candidatar a esta oportunidade?
+              </h3>
+
+              <p>
+                Preencha seus dados e envie sua candidatura
+                diretamente pelo GEX Recruiter.
+              </p>
+
+            </div>
+
+
+            <button
+              type="button"
+              class="btn btn-primary vacancy-apply-main"
+              data-apply="${safe(job.id)}"
+              ${
+                applicationsEnabled
+                  ? ''
+                  : 'disabled'
+              }
+            >
+              ${
+                applicationsEnabled
+                  ? 'Quero me candidatar →'
+                  : 'Candidatura em breve'
+              }
+            </button>
+
+
+            <small>
+              O processo seletivo é conduzido pelo
+              Time de RH da GEX Corporation.
+            </small>
+
+          </div>
+
+
           <div class="vacancy-about">
 
             <h3>
@@ -631,46 +676,6 @@ function renderSpecificVacancy(
           </div>
 
         </div>
-
-
-        <aside class="vacancy-cta-card">
-
-          <span class="vacancy-cta-label">
-            FAÇA PARTE DA GEX
-          </span>
-
-          <h3>
-            Quer se candidatar a esta oportunidade?
-          </h3>
-
-          <p>
-            Preencha seus dados e envie sua candidatura diretamente
-            pelo GEX Talents.
-          </p>
-
-          <button
-            type="button"
-            class="btn btn-primary vacancy-apply-main"
-            data-apply="${safe(job.id)}"
-            ${
-              applicationsEnabled
-                ? ''
-                : 'disabled'
-            }
-          >
-            ${
-              applicationsEnabled
-                ? 'Quero me candidatar'
-                : 'Candidatura em breve'
-            }
-          </button>
-
-          <small>
-            O processo seletivo é conduzido pelo time de People da GEX Corporation.
-          </small>
-
-        </aside>
-
 
       </div>
 
@@ -936,9 +941,9 @@ form.addEventListener(
         await fetch(
           `${CONFIG.API_BASE_URL.replace(/\/$/, '')}/api/candidatar`,
           {
-            method:'POST',
+            method: 'POST',
 
-            headers:{
+            headers: {
               'Content-Type':
                 'application/json'
             },
@@ -1002,7 +1007,7 @@ form.addEventListener(
       ) {
 
         console.warn(
-          'Candidatura criada, mas a tag GEX Talents não foi adicionada.',
+          'Candidatura criada, mas a tag do processo não foi adicionada.',
           body.tag_warning || ''
         );
 
