@@ -258,6 +258,52 @@ async function updateProspectProfile(env, payload, createBody) {
   return { ok: true };
 }
 
+async function addGexTalentsTag(env, payload, createBody) {
+  const { talentId, applicationId } = profileIds(
+    createBody,
+    payload.vacancy_id
+  );
+
+  if (!talentId || !applicationId) {
+    return {
+      ok: false,
+      reason:
+        'IDs do talento/candidatura não retornados para criação da tag.'
+    };
+  }
+
+  const response = await recrutei(
+    env,
+    '/api/v2/tags/talent',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        application_id: Number(applicationId),
+        talent_id: Number(talentId),
+        key: 'generic',
+        value: 'GEX Talents',
+        color: '#1e6fd9'
+      })
+    }
+  );
+
+  const body = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      reason:
+        body.message ||
+        `Falha ao adicionar tag GEX Talents (${response.status})`
+    };
+  }
+
+  return { ok: true };
+}
+
 async function createProspect(env, rawPayload) {
   if (env.APPLICATIONS_ENABLED !== 'true') {
     throw new Error(
@@ -380,12 +426,35 @@ async function createProspect(env, rawPayload) {
     }
   }
 
+  const tagResult = await addGexTalentsTag(
+    env,
+    payload,
+    createBody
+  );
+
+  let tagCompleted = true;
+  let tagWarning = null;
+
+  if (!tagResult.ok) {
+    tagCompleted = false;
+    tagWarning = tagResult.reason;
+
+    console.error(
+      'GEX Talents: candidatura criada, mas a tag não foi adicionada:',
+      tagResult.reason
+    );
+  }
+
   return {
     ok: true,
     message: 'Candidatura enviada com sucesso.',
     profile_completed: profileCompleted,
+    tag_completed: tagCompleted,
     ...(profileWarning
       ? { profile_warning: profileWarning }
+      : {}),
+    ...(tagWarning
+      ? { tag_warning: tagWarning }
       : {})
   };
 }
@@ -444,7 +513,8 @@ export default {
               env.APPLICATIONS_ENABLED === 'true' &&
               Boolean(env.PROSPECT_CHANNEL_ID),
             candidate_form_version: 2,
-            curriculum_storage: false
+            curriculum_storage: false,
+            gex_talents_tag: true
           },
           200,
           env
