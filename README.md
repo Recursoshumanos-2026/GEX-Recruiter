@@ -76,3 +76,39 @@ Também valide com a Recrutei qual canal de aquisição (`PROSPECT_CHANNEL_ID`) 
 
 Nesta primeira versão, o envio usa apenas os campos documentados como obrigatórios pelo endpoint de criação de prospect: nome, e-mail, telefone, vaga, etapa e canal de aquisição. Não foi colocado upload de currículo “de fachada”. Depois de validarmos a criação real do candidato na conta da GEX, podemos evoluir para informações complementares e currículo usando os endpoints suportados pela Recrutei.
 Integração Cloudflare configurada.
+
+## Questionários por vaga (revisão, ainda sem publicação)
+
+O cadastro compartilhado em `questionnaires.js` contém o questionário obrigatório da vaga
+`158928` (Analista de Atendimento). As demais vagas não recebem perguntas ou observações.
+Para futuras vagas, acrescente uma entrada pelo ID, com título, IDs estáveis de perguntas,
+rótulos, tipos `text`, `single` ou `multiple` e alternativas. Todos os itens cadastrados
+são obrigatórios; respostas curtas aceitam até 500 caracteres após remover espaços externos.
+
+O navegador envia `questionnaire_answers` junto dos dados existentes. O Worker valida
+novamente as respostas antes de qualquer chamada à Recrutei e, após criar a candidatura,
+mantém o preenchimento complementar e a tag `GEX Talents`, acrescentando
+`POST /api/v2/talents-observations` em multipart com HTML escapado.
+Nenhum token foi acrescentado ao front-end.
+
+Quando a observação falha, a API mantém HTTP 201 e informa `application_created: true`,
+`observation_completed: false` e `observation_warning`. O formulário informa a pendência,
+preserva as respostas para contato com o RH e bloqueia novo envio naquele formulário.
+Não há repetição automática nem armazenamento local persistente das respostas.
+
+Verificações locais (Node 20+ e Chromium):
+
+```sh
+npm ci
+npm test
+npm run check
+CHROMIUM_PATH=/usr/bin/chromium npm run test:ui
+```
+
+O teste visual compara outra vaga com o commit aprovado
+`253641126defebd7761443fb913fb2550a32262b` e requer esse commit no histórico Git.
+Pode-se selecionar outra referência com `GEX_BASELINE_REF`.
+Os testes usam exclusivamente respostas simuladas e um servidor local.
+
+Consulte `REVISAO.md` para resultados, limitações e ordem proposta de homologação.
+Nenhuma publicação ou candidatura real foi executada nesta implementação.

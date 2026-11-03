@@ -1,3 +1,5 @@
+import { questionnaireFor, validateAnswers } from '../../questionnaires.js';
+
 const API_BASE = 'https://api.recrutei.com.br';
 let tokenCache = { token: null, expiresAt: 0 };
 
@@ -304,6 +306,52 @@ async function addGexTalentsTag(env, payload, createBody) {
   return { ok: true };
 }
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[character]);
+}
+
+async function addQuestionnaireObservation(env, payload, createBody, answers) {
+  const questionnaire = questionnaireFor(payload.vacancy_id);
+  const { talentId, applicationId } = profileIds(createBody, payload.vacancy_id);
+  if (![talentId, applicationId].every(id => /^[1-9]\d*$/.test(String(id)))) {
+    return { ok: false, reason: 'IDs do talento/candidatura não retornados para a observação.' };
+  }
+  const description = '<p><strong>GEX Talents | Respostas da candidatura</strong></p>' +
+    `<p><strong>Vaga:</strong> ${escapeHtml(questionnaire.title)}</p>` +
+    questionnaire.questions.map((question, index) => {
+      const answer = answers[question.id];
+      const html = Array.isArray(answer)
+        ? `<ul>${answer.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
+        : `<p>${escapeHtml(answer)}</p>`;
+      return `<p><strong>${index + 1}. ${escapeHtml(question.label)}</strong></p>${html}`;
+    }).join('');
+  const form = new FormData();
+  form.set('application_id', applicationId);
+  form.set('talent_id', talentId);
+  form.set('talent_observation_type_id', '7');
+  form.set('description', description);
+  form.set('action', '1');
+  const response = await recrutei(env, '/api/v2/talents-observations', {
+    method: 'POST', body: form
+  });
+  // Não refletir mensagens externas ou dados pessoais no retorno público.
+  return response.ok ? { ok: true } : {
+    ok: false, reason: `Não foi possível confirmar o registro da observação (${response.status}).`
+  };
+}
+
+async function completeApplicationStep(operation) {
+  try {
+    return await operation();
+  } catch {
+    // A candidatura já existe: uma falha de rede não pode virar erro de criação.
+    return { ok: false, reason: 'Não foi possível confirmar esta etapa após a criação da candidatura.' };
+  }
+}
+
+
 async function createProspect(env, rawPayload) {
   if (env.APPLICATIONS_ENABLED !== 'true') {
     throw new Error(
@@ -341,6 +389,14 @@ async function createProspect(env, rawPayload) {
         `Campo obrigatório ausente: ${key}`
       );
     }
+  }
+
+  let answers;
+  try {
+    answers = validateAnswers(payload.vacancy_id, payload.questionnaire_answers);
+  } catch (error) {
+    error.status = 400;
+    throw error;
   }
 
   if (!env.PROSPECT_CHANNEL_ID) {
@@ -408,12 +464,9 @@ async function createProspect(env, rawPayload) {
   let profileWarning = null;
 
   if (completeForm) {
-    const profileResult =
-      await updateProspectProfile(
-        env,
-        payload,
-        createBody
-      );
+    const profileResult = await completeApplicationStep(() =>
+      updateProspectProfile(env, payload, createBody)
+    );
 
     if (!profileResult.ok) {
       profileCompleted = false;
@@ -426,10 +479,8 @@ async function createProspect(env, rawPayload) {
     }
   }
 
-  const tagResult = await addGexTalentsTag(
-    env,
-    payload,
-    createBody
+  const tagResult = await completeApplicationStep(() =>
+    addGexTalentsTag(env, payload, createBody)
   );
 
   let tagCompleted = true;
@@ -445,8 +496,18 @@ async function createProspect(env, rawPayload) {
     );
   }
 
+  const observationResult = answers
+    ? await completeApplicationStep(() =>
+        addQuestionnaireObservation(env, payload, createBody, answers))
+    : null;
+
   return {
     ok: true,
+    application_created: true,
+    ...(observationResult ? {
+      observation_completed: observationResult.ok,
+      ...(!observationResult.ok ? { observation_warning: observationResult.reason } : {})
+    } : {}),
     message: 'Candidatura enviada com sucesso.',
     profile_completed: profileCompleted,
     tag_completed: tagCompleted,
@@ -534,7 +595,7 @@ export default {
           message:
             error.message || 'Erro interno'
         },
-        500,
+        error.status === 400 ? 400 : 500,
         env
       );
     }
