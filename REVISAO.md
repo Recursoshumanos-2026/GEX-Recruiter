@@ -14,11 +14,12 @@ Status: implementação para revisão em branch separada e pull request em rascu
 | `index.html` | Contêiner inicialmente oculto; carregamento do app como módulo; anúncio acessível do resultado; versões dos recursos atualizadas. |
 | `application.css` | Estilos restritos ao novo questionário, com os tokens visuais existentes. |
 | `worker/src/index.js` | Validação antes da criação; observação multipart após criação; HTML escapado; estados explícitos de sucesso parcial. |
+| `wrangler.toml` | Configuração descoberta pela Cloudflare na raiz; aponta para o Worker existente e declara `previews.vars` com candidaturas desabilitadas. |
 | `tests/`, `package.json`, `package-lock.json` | Testes de integração simulados e de interface com Chromium. Playwright é dependência somente de desenvolvimento. |
 | `.gitignore`, `README.md`, `REVISAO.md` | Exclusão dos arquivos de trabalho/dependências e instruções para revisão. |
 
 Não foram alterados `styles.css`, `tokens.css`, logos, conteúdos das páginas, URL do
-backend, credenciais ou configuração do Worker. O fluxo existente de perfil e tag foi
+backend, credenciais ou o arquivo existente `worker/wrangler.toml`. O fluxo existente de perfil e tag foi
 preservado. Suas exceções de rede agora são isoladas para que uma falha posterior à
 criação não impeça tentar registrar a observação nem seja apresentada como falha de criação.
 
@@ -71,9 +72,10 @@ versão antiga do backend seja usada por engano.
 
 ## Resultados das verificações
 
-- **30 testes do Worker aprovados**, com `fetch` substituído por uma API simulada:
+- **32 testes do Worker aprovados**, com `fetch` substituído por uma API simulada:
   criação, ordem, multipart, IDs, HTML escapado, todas as seleções, validações,
-  preservação do perfil/tag, outras vagas e falhas posteriores à criação.
+  preservação do perfil/tag, outras vagas, falhas posteriores à criação e bloqueio de
+  candidaturas na prévia desabilitada.
 - **Testes do Chromium aprovados**: campos obrigatórios, espaços em branco,
   exclusividade do rádio, seleção mínima em cada grupo, envio de múltiplas respostas,
   ausência do questionário em outra vaga e aviso de sucesso parcial.
@@ -101,3 +103,31 @@ reais do usuário da API. Essa validação depende de homologação autorizada.
 4. Confirmar o resultado antes de autorizar qualquer publicação em produção.
 
 Nenhum dos passos que envolvem publicação ou registro real foi executado.
+
+
+## Correção da compilação de prévia da Cloudflare
+
+O build `3e479bb5-7b9a-4d81-9858-a42cbd9caac5` falhou ao executar
+`npx wrangler preview` na raiz: faltava o bloco `previews` exigido pelo Wrangler 4.157.0.
+O repositório tinha configuração somente em `worker/wrangler.toml`.
+
+A configuração adicional `wrangler.toml` na raiz aponta para `worker/src/index.js`,
+reproduz os parâmetros de produção existentes e define `[previews.vars]` com
+`APPLICATIONS_ENABLED = "false"`, canal 8 e a origem da prévia privada do formulário.
+O arquivo dentro de `worker/` foi preservado. Ao alterar futuramente parâmetros de
+produção, mantenha os dois arquivos consistentes.
+
+Validação do ajuste: equivalência das variáveis de produção e do caminho resolvido
+para o entrypoint; configuração interpretada pelo Wrangler 4.157.0; bundle de
+`wrangler deploy --dry-run` executado da raiz; sintaxe e 32 testes aprovados.
+As mudanças estão restritas à branch do PR, sem merge ou publicação em produção.
+A confirmação do novo build remoto depende do resultado da Cloudflare.
+
+As prévias não herdam os segredos de produção: as credenciais de teste deverão ser
+configuradas de forma segura na Base de Prévias, sem envio por chat ou commit.
+Mesmo com credenciais configuradas, o envio continua bloqueado por `APPLICATIONS_ENABLED`.
+Nenhuma candidatura real será criada sem autorização explícita.
+A prévia privada do formulário continua usando simulação até a ligação ao backend
+real de homologação ser preparada e revisada.
+
+Referência: https://developers.cloudflare.com/workers/previews/configuration/

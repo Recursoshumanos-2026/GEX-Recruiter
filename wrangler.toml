@@ -1,0 +1,17 @@
+# A Cloudflare executa `npx wrangler preview` a partir da raiz do repositório.
+# Produção: mesmos valores de worker/wrangler.toml, com o caminho relativo ajustado.
+name = "gex-talents-api"
+main = "worker/src/index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+ALLOWED_ORIGIN = "https://recursoshumanos-2026.github.io"
+APPLICATIONS_ENABLED = "true"
+PROSPECT_CHANNEL_ID = "8"
+
+# Prévia isolada: candidaturas reais permanecem bloqueadas até autorização.
+# Segredos da Recrutei são configurados exclusivamente no painel da Cloudflare.
+[previews.vars]
+ALLOWED_ORIGIN = "https://gex-talents-previa-questionario.yasmimbsouza80.chatgpt.site"
+APPLICATIONS_ENABLED = "false"
+PROSPECT_CHANNEL_ID = "8"

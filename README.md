@@ -112,3 +112,17 @@ Os testes usam exclusivamente respostas simuladas e um servidor local.
 
 Consulte `REVISAO.md` para resultados, limitações e ordem proposta de homologação.
 Nenhuma publicação ou candidatura real foi executada nesta implementação.
+
+
+### Compilação de prévias na Cloudflare
+
+A Cloudflare executa `npx wrangler preview` a partir da raiz. O `wrangler.toml`
+da raiz aponta para o backend existente e declara `[previews.vars]`, exigido por
+esse comando. A configuração original `worker/wrangler.toml` continua disponível
+para os comandos que já usam esse caminho; mantenha os parâmetros de produção
+consistentes entre ambos.
+
+As prévias usam `APPLICATIONS_ENABLED = "false"` até autorização de teste real.
+Os segredos de produção não são herdados pelas prévias: configure-os somente no
+painel seguro da Cloudflare, na Base de Prévias, quando for preparar a homologação.
+A existência de uma URL de prévia não confirma por si só a integração com a Recrutei.

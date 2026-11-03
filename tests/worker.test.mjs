@@ -36,7 +36,7 @@ async function run(input, options = {}) {
   try {
     const response = await worker.fetch(new Request('https://worker.invalid/api/candidatar', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input)
-    }), env);
+    }), options.env ?? env);
     return { status: response.status, body: await response.json(), calls };
   } finally { globalThis.fetch = original; }
 }
@@ -173,4 +173,18 @@ test('vaga sem questionário aceita o payload original sem campos adicionais', a
   const input = payload(); input.vacancy_id = '999999'; delete input.questionnaire_answers;
   const result = await run(input);
   assert.equal(result.status, 201); assert.equal(result.body.observation_completed, undefined);
+});
+
+test('prévia com candidaturas desabilitadas bloqueia criação antes de chamar a Recrutei', async () => {
+  const result = await run(payload(), { env: { ...env, APPLICATIONS_ENABLED: 'false' } });
+  assert.equal(result.status, 500);
+  assert.match(result.body.message, /não estão habilitadas/);
+  assert.equal(result.calls.length, 0);
+});
+test('health da prévia informa candidaturas desabilitadas', async () => {
+  const response = await worker.fetch(new Request('https://preview.invalid/health'), {
+    ...env, APPLICATIONS_ENABLED: 'false'
+  });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).applications_enabled, false);
 });
