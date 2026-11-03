@@ -1061,6 +1061,16 @@ form.addEventListener(
           );
 
 
+      if (!response.ok && body.code === 'APPLICATIONS_DISABLED') {
+        applicationsEnabled = false;
+        formMessage.className = 'form-message error';
+        formMessage.textContent = 'O envio de candidaturas está desativado neste ambiente. Nenhuma nova candidatura foi criada nesta tentativa.';
+        formMessage.hidden = false;
+        render();
+        return;
+      }
+
+
       if (
         !response.ok
       ) {
@@ -1153,7 +1163,7 @@ form.addEventListener(
 
     } finally {
 
-      button.disabled = form.dataset.applicationCreated === 'true';
+      button.disabled = !applicationsEnabled || form.dataset.applicationCreated === 'true';
 
 
       button.textContent =

@@ -88,9 +88,11 @@ versão antiga do backend seja usada por engano.
 - **Bundle do Worker aprovado com Wrangler 4.157.0 em `--dry-run`**, sem publicação.
 
 Os testes do navegador bloqueiam acessos externos; o backend é testado apenas com
-respostas simuladas. Nenhuma candidatura real foi criada. Não foi confirmada a
-aceitação efetiva da observação pela conta de produção da Recrutei, nem as permissões
-reais do usuário da API. Essa validação depende de homologação autorizada.
+respostas simuladas. Após os testes simulados, uma candidatura real de teste foi enviada com autorização
+explícita. Capturas do painel confirmaram a candidatura, a tag e a observação com as
+sete perguntas e respostas. A validação dos dados complementares permanece pendente:
+a data de nascimento não aparece na ficha apresentada. A origem dessa pendência
+ainda não foi identificada; nenhuma correção especulativa foi aplicada a esses dados.
 
 ## Homologação proposta, após revisão
 
@@ -102,7 +104,9 @@ reais do usuário da API. Essa validação depende de homologação autorizada.
    a candidatura, o perfil complementar, a tag e a observação com as sete respostas.
 4. Confirmar o resultado antes de autorizar qualquer publicação em produção.
 
-Nenhum dos passos que envolvem publicação ou registro real foi executado.
+O envio real autorizado ocorreu apenas na prévia, para uma candidatura de teste.
+O portal oficial continua sem publicação ou merge. A prévia foi bloqueada novamente
+após esse envio; não é necessário reenviar a candidatura para conferir o registro.
 
 
 ## Correção da compilação de prévia da Cloudflare
@@ -131,3 +135,15 @@ A prévia privada do formulário continua usando simulação até a ligação ao
 real de homologação ser preparada e revisada.
 
 Referência: https://developers.cloudflare.com/workers/previews/configuration/
+
+
+## Mensagem para candidaturas desativadas
+
+Uma página que já estava aberta ainda podia tentar enviar após o bloqueio da prévia.
+O backend agora responde HTTP 503 com `code: APPLICATIONS_DISABLED`,
+`applications_enabled: false` e `application_created: false`, antes de qualquer
+chamada à Recrutei. O front-end exibe a informação de bloqueio, preserva os campos
+preenchidos e desabilita os botões de candidatura, sem sugerir uma nova tentativa.
+O caso de prévia desativada integra os 32 testes do Worker aprovados; a sintaxe dos
+scripts também foi verificada. Este ajuste não corrige nem diagnostica por si só
+os campos complementares que não apareceram na ficha.

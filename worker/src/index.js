@@ -354,9 +354,10 @@ async function completeApplicationStep(operation) {
 
 async function createProspect(env, rawPayload) {
   if (env.APPLICATIONS_ENABLED !== 'true') {
-    throw new Error(
-      'Candidaturas diretas ainda não estão habilitadas.'
-    );
+    const error = new Error('O envio de candidaturas está desativado neste ambiente.');
+    error.status = 503;
+    error.code = 'APPLICATIONS_DISABLED';
+    throw error;
   }
 
   const payload = Object.fromEntries(
@@ -593,9 +594,14 @@ export default {
       return json(
         {
           message:
-            error.message || 'Erro interno'
+            error.message || 'Erro interno',
+          ...(error.code === 'APPLICATIONS_DISABLED' ? {
+            code: 'APPLICATIONS_DISABLED',
+            applications_enabled: false,
+            application_created: false
+          } : {})
         },
-        error.status === 400 ? 400 : 500,
+        [400, 503].includes(error.status) ? error.status : 500,
         env
       );
     }

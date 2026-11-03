@@ -126,3 +126,9 @@ As prévias usam `APPLICATIONS_ENABLED = "false"` até autorização de teste re
 Os segredos de produção não são herdados pelas prévias: configure-os somente no
 painel seguro da Cloudflare, na Base de Prévias, quando for preparar a homologação.
 A existência de uma URL de prévia não confirma por si só a integração com a Recrutei.
+
+
+Se uma página aberta tentar enviar depois que as candidaturas forem desativadas,
+a API responde HTTP 503, `code: APPLICATIONS_DISABLED` e `application_created: false`,
+sem consultar ou escrever na Recrutei. A interface informa o bloqueio e desativa
+o envio, preservando o preenchimento.

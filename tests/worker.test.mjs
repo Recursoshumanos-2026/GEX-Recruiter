@@ -177,8 +177,11 @@ test('vaga sem questionário aceita o payload original sem campos adicionais', a
 
 test('prévia com candidaturas desabilitadas bloqueia criação antes de chamar a Recrutei', async () => {
   const result = await run(payload(), { env: { ...env, APPLICATIONS_ENABLED: 'false' } });
-  assert.equal(result.status, 500);
-  assert.match(result.body.message, /não estão habilitadas/);
+  assert.equal(result.status, 503);
+  assert.equal(result.body.code, 'APPLICATIONS_DISABLED');
+  assert.equal(result.body.applications_enabled, false);
+  assert.equal(result.body.application_created, false);
+  assert.ok(typeof result.body.message === 'string' && result.body.message.length > 0);
   assert.equal(result.calls.length, 0);
 });
 test('health da prévia informa candidaturas desabilitadas', async () => {
