@@ -208,6 +208,19 @@ function buildProfilePayload(payload, talentId, applicationId) {
   };
 }
 
+function profileValidationFields(body) {
+  const errors = body?.errors;
+  if (!errors || typeof errors !== 'object' || Array.isArray(errors)) {
+    return [];
+  }
+
+  // Somente nomes conhecidos: mensagens e valores rejeitados ficam no backend.
+  const allowed = /^(?:talent_id|application_id|birthday|ssn|city|linkedin_url|intended_remuneration|available|(?:basic_infos|additional)(?:\.[0-9]+(?:\.(?:key|value|title))?)?)$/;
+  return Object.keys(errors).filter(field =>
+    field === field.trim() && allowed.test(field)
+  );
+}
+
 async function updateProspectProfile(env, payload, createBody) {
   const { talentId, applicationId } = profileIds(
     createBody,
@@ -252,8 +265,12 @@ async function updateProspectProfile(env, payload, createBody) {
     return {
       ok: false,
       reason:
-        body.message ||
-        `Falha ao complementar perfil (${response.status})`
+        body?.message ||
+        `Falha ao complementar perfil (${response.status})`,
+      diagnostics: {
+        http_status: response.status,
+        fields: profileValidationFields(body)
+      }
     };
   }
 
@@ -463,6 +480,7 @@ async function createProspect(env, rawPayload) {
 
   let profileCompleted = true;
   let profileWarning = null;
+  let profileError = null;
 
   if (completeForm) {
     const profileResult = await completeApplicationStep(() =>
@@ -472,6 +490,7 @@ async function createProspect(env, rawPayload) {
     if (!profileResult.ok) {
       profileCompleted = false;
       profileWarning = profileResult.reason;
+      profileError = profileResult.diagnostics || { http_status: null, fields: [] };
 
       console.error(
         'GEX Talents: candidatura criada, mas perfil complementar falhou:',
@@ -515,6 +534,7 @@ async function createProspect(env, rawPayload) {
     ...(profileWarning
       ? { profile_warning: profileWarning }
       : {}),
+    ...(!profileCompleted ? { profile_error: profileError } : {}),
     ...(tagWarning
       ? { tag_warning: tagWarning }
       : {})

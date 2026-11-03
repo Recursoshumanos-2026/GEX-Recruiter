@@ -72,7 +72,7 @@ versão antiga do backend seja usada por engano.
 
 ## Resultados das verificações
 
-- **32 testes do Worker aprovados**, com `fetch` substituído por uma API simulada:
+- **37 testes do Worker aprovados**, com `fetch` substituído por uma API simulada:
   criação, ordem, multipart, IDs, HTML escapado, todas as seleções, validações,
   preservação do perfil/tag, outras vagas, falhas posteriores à criação e bloqueio de
   candidaturas na prévia desabilitada.
@@ -123,7 +123,7 @@ produção, mantenha os dois arquivos consistentes.
 
 Validação do ajuste: equivalência das variáveis de produção e do caminho resolvido
 para o entrypoint; configuração interpretada pelo Wrangler 4.157.0; bundle de
-`wrangler deploy --dry-run` executado da raiz; sintaxe e 32 testes aprovados.
+`wrangler deploy --dry-run` executado da raiz; sintaxe e 37 testes aprovados.
 As mudanças estão restritas à branch do PR, sem merge ou publicação em produção.
 A confirmação do novo build remoto depende do resultado da Cloudflare.
 
@@ -144,6 +144,27 @@ O backend agora responde HTTP 503 com `code: APPLICATIONS_DISABLED`,
 `applications_enabled: false` e `application_created: false`, antes de qualquer
 chamada à Recrutei. O front-end exibe a informação de bloqueio, preserva os campos
 preenchidos e desabilita os botões de candidatura, sem sugerir uma nova tentativa.
-O caso de prévia desativada integra os 32 testes do Worker aprovados; a sintaxe dos
+O caso de prévia desativada integra os 37 testes do Worker aprovados; a sintaxe dos
 scripts também foi verificada. Este ajuste não corrige nem diagnostica por si só
 os campos complementares que não apareceram na ficha.
+
+
+## Diagnóstico de preenchimento complementar
+
+O teste autorizado confirmou candidatura, tag e observação. O CPF informado era
+um número inventado, conforme relatado pelo usuário; isso é uma hipótese para a
+recusa dos dados complementares, ainda sem confirmação porque o retorno original
+não foi preservado.
+
+Sem mudar o payload ou o endpoint de atualização, falhas do perfil agora incluem
+`profile_error.http_status` e `profile_error.fields`. A lista contém somente nomes
+de campos conhecidos, sem valores rejeitados ou resposta bruta da API. O campo
+`profile_warning` existente permanece preservado. Exceções de rede ou ausência dos
+IDs retornam status nulo e lista vazia; o sucesso não inclui `profile_error`.
+
+Os 37 testes simulados do Worker passaram. A prévia privada ganhou um resumo do
+resultado do envio, separado por candidatura, perfil, tag e observação. Esse
+observador não altera o envio nem o repete; registra apenas presença dos campos de
+entrada, sem seus valores ou headers. Quatro testes locais desse observador
+passaram, incluindo falha de rede, bloqueio e preservação do retorno original.
+Ainda não foi criada outra candidatura real e o envio da prévia permanece bloqueado.

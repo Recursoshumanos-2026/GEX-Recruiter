@@ -27,7 +27,7 @@ async function run(input, options = {}) {
       data: { talent: { id: 22 }, application: { id: 33 } }
     }, options.createStatus ?? 201);
     if (path === options.throwPath) throw new Error('Simulated network failure');
-    if (path === options.failPath) return json({ message: 'upstream rejected' }, 422);
+    if (path === options.failPath) return json(options.failBody ?? { message: 'upstream rejected' }, 422);
     if (['/api/v2/curriculum/filled', '/api/v2/tags/talent', '/api/v2/talents-observations'].includes(path)) {
       return json({ data: { id: 1 } }, 201);
     }
@@ -48,6 +48,7 @@ test('cria observação multipart ordenada, preservando perfil e tag', async () 
   assert.equal(result.status, 201);
   assert.equal(result.body.application_created, true);
   assert.equal(result.body.profile_completed, true);
+  assert.equal(result.body.profile_error, undefined);
   assert.equal(result.body.tag_completed, true);
   assert.equal(result.body.observation_completed, true);
   const paths = result.calls.map(c => c.path);
@@ -132,12 +133,61 @@ for (const path of ['/api/v2/curriculum/filled', '/api/v2/tags/talent']) {
     assert.equal(result.status, 201);
     assert.equal(result.body.observation_completed, true);
     assert.equal(result.body[path.includes('curriculum') ? 'profile_completed' : 'tag_completed'], false);
+    if (path.includes('curriculum')) {
+      assert.deepEqual(result.body.profile_error, { http_status: null, fields: [] });
+    } else {
+      assert.equal(result.body.profile_error, undefined);
+    }
+  });
+}
+test('falha422 do perfil informa status e somente chaves conhecidas, sem valores de validação', async () => {
+  const rejectedValue = 'CPF rejeitado: 123.456.789-00; dado privado teste@example.invalid';
+  const result = await run(payload(), {
+    failPath: '/api/v2/curriculum/filled',
+    failBody: {
+      message: 'upstream rejected',
+      errors: {
+        birthday: [rejectedValue],
+        ssn: [rejectedValue],
+        'basic_infos.1.value': [rejectedValue],
+        'additional.0.value': [rejectedValue],
+        email: [rejectedValue],
+        'basic_infos.*.value': [rejectedValue],
+        'basic_infos.1.value.123.456.789-00': [rejectedValue],
+        'basic_infos.1.value\n': [rejectedValue]
+      },
+      rejected_value: rejectedValue
+    }
+  });
+  assert.equal(result.status, 201);
+  assert.equal(result.body.application_created, true);
+  assert.equal(result.body.profile_completed, false);
+  assert.equal(result.body.profile_warning, 'upstream rejected');
+  assert.deepEqual(result.body.profile_error, {
+    http_status: 422,
+    fields: ['birthday', 'ssn', 'basic_infos.1.value', 'additional.0.value']
+  });
+  assert.equal(result.body.tag_completed, true);
+  assert.equal(result.body.observation_completed, true);
+  const publicResponse = JSON.stringify(result.body);
+  for (const value of [rejectedValue, '123.456.789-00', 'teste@example.invalid', 'rejected_value']) {
+    assert.ok(!publicResponse.includes(value));
+  }
+  assert.equal(result.calls.filter(c => c.path.endsWith('/prospects')).length, 1);
+});
+for (const errors of [undefined, null, 'invalid', ['birthday']]) {
+  test(`perfil422 com errors ${JSON.stringify(errors)} mantém status sem inferir campos`, async () => {
+    const result = await run(payload(), {
+      failPath: '/api/v2/curriculum/filled', failBody: { message: 'upstream rejected', errors }
+    });
+    assert.deepEqual(result.body.profile_error, { http_status: 422, fields: [] });
   });
 }
 test('IDs ausentes: nenhuma observação com IDs inventados e candidatura permanece criada', async () => {
   const result = await run(payload(), { createBody: { data: {} } });
   assert.equal(result.status, 201); assert.equal(result.body.application_created, true);
   assert.equal(result.body.observation_completed, false);
+  assert.deepEqual(result.body.profile_error, { http_status: null, fields: [] });
   assert.ok(!result.calls.some(c => c.path.endsWith('/talents-observations')));
 });
 test('suporta IDs no formato alternativo já reconhecido pela integração', async () => {

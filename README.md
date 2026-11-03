@@ -132,3 +132,10 @@ Se uma página aberta tentar enviar depois que as candidaturas forem desativadas
 a API responde HTTP 503, `code: APPLICATIONS_DISABLED` e `application_created: false`,
 sem consultar ou escrever na Recrutei. A interface informa o bloqueio e desativa
 o envio, preservando o preenchimento.
+
+
+Quando a atualização complementar falha, `profile_error` informa o status HTTP
+(se houver) e somente nomes conhecidos dos campos recusados. Os valores das
+mensagens de validação não são incluídos nesse novo diagnóstico. O retorno
+`profile_warning` existente foi mantido. A causa do nascimento ausente no teste
+real ainda não foi confirmada; CPF fictício é apenas uma hipótese.
