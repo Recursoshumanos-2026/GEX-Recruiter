@@ -35,3 +35,10 @@ binding = "AI"
 # database_name = "gex-talents-curriculos-gratis"
 # database_id = "UUID_DO_BANCO_D1"
 # This does not add any public endpoint to candidate curricula.
+
+# Sincronizado com a associação "Base de Prévias" feita no painel Cloudflare.
+# Usado somente por Worker Previews; não cria binding D1 em produção.
+[[previews.d1_databases]]
+binding = "RESUME_DB"
+database_name = "gex-talents-curriculos-teste"
+database_id = "5b71acd5-8203-48e5-9d33-3396cfa76ffb"
