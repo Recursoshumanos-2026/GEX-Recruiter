@@ -79,3 +79,25 @@ GEX_RESUME_PREVIEW=true node tests/vacancy-browser.mjs
 Testes de código incluem mock de D1 Free, schema preflight, SQL parametrizado, conversão/erros, Recrutei 404 e fallback de observações; testes de interface usam arquivo fictício.
 
 **Status: implementação apenas na branch de revisão, sem D1 real provisionada e sem upload ativado no site oficial.**
+
+
+## Retenção e exclusão automática — código preparado, não ativado
+
+A rotina `worker/src/retention.js` considera **12 meses desde a data do armazenamento no D1** como prazo técnico inicial, sujeito à política de retenção aprovada pela GEX. Isso não é a mesma coisa que "12 meses após o encerramento da vaga": para usar a data de encerramento, precisamos integrar estados da Recrutei e revisar a regra antes de ativar.
+
+O Worker já possui um handler `scheduled()` protegido. Quando autorizado e implantado com um Cron Trigger diário `0 6 * * *` (06h UTC), verifica o banco `RESUME_DB` e:
+- Sem `RESUME_RETENTION_ENABLED="true"`: não consulta nem exclui dados.
+- Com `RESUME_RETENTION_ENABLED="true"`, mas sem `RESUME_RETENTION_DRY_RUN="false"`: **simula**, retornando apenas a contagem de currículos elegíveis, sem excluir.
+- Somente com ambas as flags explicitamente aprovadas, remove até 500 registros vencidos por execução, em lotes de 100, sem imprimir currículos, IDs ou e-mails nos logs.
+
+Valores propostos para uma futura revisão de configuração:
+```toml
+RESUME_RETENTION_ENABLED = "false"
+RESUME_RETENTION_DRY_RUN = "true"
+RESUME_RETENTION_MONTHS = "12"
+```
+A configuração do agendamento automático **ainda não foi ativada na Cloudflare**. Não agendar nem mudar essas flags antes da revisão de RH/LGPD, testes com documentos fictícios e conferência da tabela. O código e testes estão na branch de revisão.
+
+**Limite importante:** esta limpeza afeta somente o Markdown armazenado na tabela D1 da GEX. Não remove o campo personalizado, a observação, o candidato ou qualquer cópia na Recrutei. Para cumprir a política de exclusão de ponta a ponta, é indispensável definir uma rotina compatível na Recrutei; não assumir que o cron do D1 apaga dados do ATS.
+
+Para evitar exclusão de um currículo em um processo seletivo ainda ativo, validar antes a regra temporal e um mecanismo que proteja candidaturas com retenção legítima. Pedidos de exclusão por titulares e obrigações legais podem exigir tratamento diferente.
