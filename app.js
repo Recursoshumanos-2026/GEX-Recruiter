@@ -277,13 +277,42 @@ function safeJobDescription(input) {
   return container.innerHTML.trim();
 }
 
+
 function vacancyBenefitsMarkup() {
-  const original = document.querySelector('body > main > #beneficios');
-  const benefits = original?.querySelector('.benefits-grid');
-  return benefits ? `<section class="vacancy-benefits benefits-section" aria-labelledby="vacancyBenefitsTitle">
-    <h3 id="vacancyBenefitsTitle">Benefícios GEX</h3>
-    <div class="benefits-grid">${benefits.innerHTML}</div>
-  </section>` : '';
+  // One source of truth: reuse benefit names, descriptions and SVGs from the homepage.
+  const cards = [...document.querySelectorAll('#beneficios .benefits-grid .benefit-card')];
+  if (!cards.length) return '';
+
+  const tiles = cards.map((card, index) => {
+    const title = card.querySelector('strong')?.textContent.trim();
+    const description = card.querySelector('span')?.textContent.trim();
+    const icon = card.querySelector('svg.gex-animated-icon')?.outerHTML || '';
+    if (!title) return '';
+    const number = String(index + 1).padStart(2, '0');
+    const featured = index === 0 ? ' benefit-bento-card--featured' : '';
+    return `
+      <article class="benefit-bento-card${featured}" aria-label="${safe(title)}">
+        <span class="benefit-bento-number" aria-hidden="true">${number} / ${String(cards.length).padStart(2, '0')}</span>
+        <div class="benefit-bento-icon" aria-hidden="true">${icon}</div>
+        <div class="benefit-bento-copy">
+          <h3>${safe(title)}</h3>
+          <p>${safe(description || '')}</p>
+        </div>
+        <span class="benefit-bento-accent" aria-hidden="true"></span>
+      </article>`;
+  }).join('');
+
+  return `
+    <section class="vacancy-benefits" aria-labelledby="vacancyBenefitsTitle">
+      <div class="vacancy-benefits-heading">
+        <div>
+          <span class="vacancy-section-kicker">BEM-ESTAR • GEX CORPORATION</span>
+          <h2 id="vacancyBenefitsTitle">Benefícios que fazem <em>a diferença.</em></h2>
+        </div>
+        <p>Recursos para apoiar a sua rotina, saúde, bem-estar e momentos especiais.</p>
+      </div>
+      <div class="benefits-bento">${tiles}</div>
+    </section>`;
 }
 
 function vacancyApplyButton(id, extraClass = '') {
@@ -514,16 +543,35 @@ function renderSpecificVacancy(id) {
       </div>
       <div class="vacancy-landing-content vacancy-landing-content--single">
         <div class="vacancy-main-content vacancy-main-content--wide">
-          <span class="eyebrow">• OPORTUNIDADE NA GEX</span>
-          <span class="vacancy-department">${safe(job.department || 'GEX CORPORATION')}</span>
-          <h1 class="vacancy-title">${safe(job.title)}</h1>
-          <div class="vacancy-meta-large">
-            <span><strong>Modalidade</strong>${safe(workMode(job))}</span>
-            ${location ? `<span><strong>Localidade</strong>${safe(location)}</span>` : ''}
-            ${contract ? `<span><strong>Contratação</strong>${safe(contract)}</span>` : ''}
-            <span><strong>Oportunidade</strong>#${safe(job.id)}</span>
-          </div>
-          <div class="vacancy-top-apply">${vacancyApplyButton(job.id, 'vacancy-apply-main')}</div>
+
+          <header class="vacancy-hero">
+            <div class="vacancy-hero-inner">
+              <div class="vacancy-hero-copy">
+                <span class="vacancy-hero-overline"><span class="vacancy-hero-status-dot" aria-hidden="true"></span> OPORTUNIDADE ABERTA • GEX CORPORATION</span>
+                <span class="vacancy-department">${safe(job.department || 'GEX CORPORATION')}</span>
+                <h1 class="vacancy-title">${safe(job.title)}</h1>
+                <p class="vacancy-hero-lead">Seu próximo desafio começa aqui.</p>
+                <div class="vacancy-meta-large">
+                  <span><strong>Modalidade</strong>${safe(workMode(job))}</span>
+                  ${location ? `<span><strong>Localidade</strong>${safe(location)}</span>` : ''}
+                  ${contract ? `<span><strong>Contratação</strong>${safe(contract)}</span>` : ''}
+                  <span><strong>Vaga</strong>#${safe(job.id)}</span>
+                </div>
+                <div class="vacancy-top-apply">
+                  ${vacancyApplyButton(job.id, 'vacancy-apply-main')}
+                  <span class="vacancy-hero-cta-note">Candidatura pelo GEX Recruiter</span>
+                </div>
+              </div>
+              <div class="vacancy-hero-art" aria-hidden="true">
+                <div class="vacancy-hero-orbit orbit-one"></div>
+                <div class="vacancy-hero-orbit orbit-two"></div>
+                <img src="assets/gex-simbolo.png" alt="" />
+                <span class="vacancy-hero-art-label">GEX <span>RECRUITER</span></span>
+                <span class="vacancy-hero-art-caption">DESAFIOS QUE MOVEM O FUTURO.</span>
+              </div>
+            </div>
+          </header>
+
           <section class="vacancy-description" aria-label="Descrição da vaga">
             <h2>Sobre a oportunidade</h2>
             ${description ? `<div class="vacancy-description-content">${description}</div>` :
