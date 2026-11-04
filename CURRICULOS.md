@@ -109,3 +109,16 @@ Para evitar exclusão de um currículo em um processo seletivo ainda ativo, vali
 O GitHub Actions inclui `tests/live-preview-integration.mjs`, um teste que acessa **somente a API de prévia**. Ele consulta `/health?check=resume` e, depois, `/health?check=conversion`. O segundo teste usa um PDF PDF simples gerado inteiramente pelo sistema, com texto fictício, passa pelo conversor Workers AI e insere/relê uma única linha fictícia no D1 de testes (IDs 2147483647). Requisições posteriores reutilizam essa linha, sem consumir novamente processamento da IA. O teste não aciona a Recrutei e não usa dados pessoais.
 
 Esse processo é exclusivo do ambiente de prévia, pois depende de `RESUME_DIAGNOSTIC_ENABLED="true"`, variável que não está prevista em produção. O upload para candidatos permanece desativado até concluir teste real da integração Recrutei e revisão de segurança. Nunca usar essa rota para candidatos reais.
+
+
+## Homologação da Recrutei — diagnóstico confirmado em 04/11/2026
+
+- O CI da prévia confirmou Workers AI → conversão de PDF fictício → leitura/gravação D1: **PASS**.
+- A tentativa **somente de leitura** `GET /api/diagnostico-perfil` retornou 502 com `lookup_http_status=null`, e o diagnóstico seguro `recrutei_credentials_configured=false`. Isso significa que **faltam as credenciais da Recrutei no ambiente Base de Prévias**; a API Recrutei não chegou a responder ao diagnóstico.
+- No painel Cloudflare, em `Workers & Pages → gex-talents-api → Configurações → Variáveis e segredos em tempo de execução → Base de Prévias`, adicionar como **Segredo** (não variável comum), com os valores oficiais mantidos de forma segura: `RECRUTEI_API_KEY`, `RECRUTEI_API_SECRET`, `RECRUTEI_EMAIL` e `RECRUTEI_PASSWORD`. **Não enviar valores de segredo por chat, print ou no GitHub.**
+- Se os valores de produção não estiverem disponíveis em um cofre de credenciais, a Cloudflare não permite recuperar os valores criptografados pelo painel; solicitar as credenciais ao responsável autorizado ou renová-las pela Recrutei.
+- **Não alterar `APPLICATIONS_ENABLED=false` e `RESUME_UPLOAD_ENABLED=false` na prévia**: os diagnósticos são de leitura, e qualquer escrita deve ser explicitamente homologada com um cadastro fictício existente.
+- Corrigida a separação de identificadores conforme o guia Recrutei: parâmetro `talent_id` na **query** recebe o ID da **prospecção** quando fornecido; `talent_id` no **JSON** permanece o ID do talento. Se o campo personalizado não persistir, o Worker também registra uma observação de currículo no Recrutei (pendente validar em conta real).
+- Registro do teste: [GitHub Actions do CI de prévia](https://github.com/Recursoshumanos-2026/GEX-Recruiter/actions).
+
+O banco D1 de produção e o binding foram configurados no código após a confirmação do ID pelo RH. A funcionalidade continua **OFF** em produção até a homologação final.
