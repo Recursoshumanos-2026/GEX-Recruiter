@@ -1,5 +1,6 @@
 /* Focused job detail view: keep the main careers homepage unchanged. */
 body.vacancy-detail-mode .hero,
+body.vacancy-detail-mode #sobre,
 body.vacancy-detail-mode #cultura,
 body.vacancy-detail-mode #beneficios,
 body.vacancy-detail-mode .talent-pool,
