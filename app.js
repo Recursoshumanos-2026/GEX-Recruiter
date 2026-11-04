@@ -288,8 +288,8 @@ function safeJobDescription(input) {
         skipThroughLevel = null;
       }
       const normalized = child.textContent.normalize('NFD')
-        .replace(/[\\u0300-\\u036f]/g, '').toLowerCase()
-        .replace(/[^a-z0-9 ]/g, ' ').replace(/\\s+/g, ' ').trim();
+        .replace(/[\u0300-\u036f]/g, '').toLowerCase()
+        .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
       if (/^(nosso jeito de ser gex|aqui nossos gexs encontram|beneficios|beneficios da gex|nossos beneficios)$/.test(normalized)) {
         skipThroughLevel = level;
       }
@@ -728,7 +728,7 @@ async function loadJobs() {
     if (requestedId && jobs.some(item => String(item.id) === String(requestedId))) {
       try {
         const detailsResponse = await fetch(
-          `${CONFIG.API_BASE_URL.replace(/\\/$/, '')}/api/vagas/${encodeURIComponent(requestedId)}`
+          `${CONFIG.API_BASE_URL.replace(/\/$/, '')}/api/vagas/${encodeURIComponent(requestedId)}`
         );
         if (detailsResponse.ok) {
           const detail = (await detailsResponse.json()).data;
