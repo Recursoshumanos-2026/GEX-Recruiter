@@ -172,3 +172,37 @@
   cursor:pointer;
 }
 .resume-upload-hint{color:var(--text-muted);font-size:12px;line-height:1.6;font-weight:400}
+
+/* Presentation mode is intentionally read-only. No real data submission occurs. */
+.presentation-preview-banner{
+  padding:11px 18px;
+  color:#b9e9ff;
+  background:linear-gradient(90deg,#073c62,#072a45);
+  border-bottom:1px solid rgba(91,197,255,.28);
+  text-align:center;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.035em;
+  line-height:1.5;
+}
+.demo-preview-inline{
+  margin:20px 0 0;
+  padding:14px 16px;
+  border:1px solid rgba(92,190,244,.32);
+  border-radius:13px;
+  background:rgba(36,125,189,.11);
+  color:var(--text-secondary);
+  line-height:1.55;
+  font-size:13px;
+}
+.demo-preview-inline strong{
+  display:block;
+  margin-bottom:4px;
+  color:#70d4ff;
+  font-size:14px;
+}
+.demo-preview-inline[hidden]{display:none!important}
+.resume-demo-mode .resume-upload-field input[type=file]{
+  border-color:#40baff;
+  background:rgba(22,117,207,.17);
+}
