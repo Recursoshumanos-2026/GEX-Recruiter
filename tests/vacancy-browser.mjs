@@ -195,6 +195,8 @@ try {
     await page.locator('#closeDialog').click();
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth),true);
     assert.deepEqual(errors,[]);
+    await page.evaluate(() => window.scrollTo({top: 0, behavior: 'instant'}));
+    assert.equal(await page.evaluate(() => window.scrollY), 0);
     await page.screenshot({path:resolve(root,screenshotDir,`vaga-dados-${width}.png`),fullPage:true,animations:'disabled'});
     await page.locator('.jd-flex-schedule').screenshot({
       path: resolve(root, screenshotDir, `horario-flexivel-${width}.png`),
