@@ -25,3 +25,30 @@ jobs:
         run: npm run check
       - name: Mock-only automated tests
         run: npm test
+
+  visual-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Chromium for browser test
+        run: npx playwright install --with-deps chromium
+      - name: Run safe mocked browser checks
+        run: node tests/vacancy-browser.mjs
+        env:
+          SCREENSHOT_DIR: screenshots
+      - name: Upload desktop and mobile screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gex-vacancy-visual-review
+          path: screenshots/
+          if-no-files-found: ignore
