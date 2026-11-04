@@ -12,8 +12,10 @@ RESUME_UPLOAD_ENABLED = "false"
 [ai]
 binding = "AI"
 
-# After creating a PRIVATE R2 bucket, add this binding:
-# [[r2_buckets]]
-# binding = "RESUME_BUCKET"
-# bucket_name = "gex-talents-curriculos"
-# DO NOT enable r2.dev or a public custom domain for candidate resumes.
+# D1 Free storage: create a database in Cloudflare > D1, apply worker/schema.sql
+# and replace the database_id with its real value. Keep the feature OFF until tested.
+# [[d1_databases]]
+# binding = "RESUME_DB"
+# database_name = "gex-talents-curriculos-gratis"
+# database_id = "UUID_DO_BANCO_D1"
+# This does not add any public endpoint to candidate curricula.
