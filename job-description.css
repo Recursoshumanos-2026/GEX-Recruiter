@@ -1,0 +1,294 @@
+/* GEX Recruiter · editorial Job Description layout.
+   Keeps ATS copy intact while making long vacancies scannable and comfortable.
+   Uses semantic headings/lists and native details controls for long lists. */
+
+body.vacancy-detail-mode .vacancy-description {
+  width:100%;
+  max-width:1080px;
+  margin:0 auto;
+  padding:0 clamp(4px,1.5vw,18px) 4px;
+  border:0;
+}
+
+body.vacancy-detail-mode .vacancy-description .jd-overline {
+  display:block;
+  font:700 11px/1.5 "Geist Mono",monospace;
+  letter-spacing:.18em;
+  color:#68c8f4;
+  margin:0 0 14px;
+}
+
+body.vacancy-detail-mode .vacancy-description-content {
+  width:100%;
+  font-size:18px;
+  line-height:1.8;
+  color:#cbd8e8;
+  overflow-wrap:anywhere;
+}
+
+body.vacancy-detail-mode .jd-article {
+  border-top:1px solid rgba(119,173,228,.26);
+}
+
+body.vacancy-detail-mode .jd-chapter {
+  position:relative;
+  display:grid;
+  grid-template-columns:minmax(0,.9fr) minmax(0,1.7fr);
+  gap:clamp(28px,4.7vw,70px);
+  padding:clamp(42px,5vw,64px) 0;
+  border-bottom:1px solid rgba(119,173,228,.18);
+}
+
+body.vacancy-detail-mode .jd-chapter:last-child {
+  border-bottom:0;
+  padding-bottom:18px;
+}
+
+body.vacancy-detail-mode .jd-chapter--intro {
+  display:block;
+  padding:clamp(27px,4vw,42px) 0 clamp(42px,5vw,64px);
+}
+
+body.vacancy-detail-mode .jd-chapter-heading {
+  min-width:0;
+}
+
+body.vacancy-detail-mode .jd-chapter-index {
+  display:block;
+  margin-bottom:17px;
+  font:700 11px/1.5 "Geist Mono",monospace;
+  color:#67b9ec;
+  letter-spacing:.18em;
+}
+
+body.vacancy-detail-mode .vacancy-description-content .jd-chapter-title {
+  color:#f5f8ff;
+  font-size:clamp(28px,3vw,35px);
+  font-weight:750;
+  letter-spacing:-.04em;
+  line-height:1.21;
+  margin:0;
+  max-width:335px;
+}
+
+body.vacancy-detail-mode .jd-chapter--intro .jd-chapter-title {
+  max-width:none;
+  font-size:clamp(34px,3.8vw,43px);
+  margin-bottom:25px;
+}
+
+body.vacancy-detail-mode .jd-chapter-body {
+  min-width:0;
+  max-width:800px;
+}
+
+body.vacancy-detail-mode .jd-chapter--intro .jd-chapter-body {
+  max-width:850px;
+}
+
+body.vacancy-detail-mode .jd-chapter-body p {
+  margin:0 0 21px;
+  color:#c8d6e8;
+  font-size:clamp(17px,1.32vw,19px);
+  line-height:1.85;
+  letter-spacing:.002em;
+}
+
+body.vacancy-detail-mode .jd-chapter-body p:last-child {
+  margin-bottom:0;
+}
+
+body.vacancy-detail-mode .jd-chapter-body strong,
+body.vacancy-detail-mode .jd-chapter-body b {
+  color:#eef5ff;
+  font-weight:650;
+}
+
+body.vacancy-detail-mode .jd-chapter-body .jd-list {
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:0;
+  list-style:none;
+  margin:0;
+  padding:0;
+}
+
+body.vacancy-detail-mode .jd-chapter-body .jd-list li {
+  position:relative;
+  margin:0;
+  padding:14px 7px 14px 20px;
+  border-bottom:1px solid rgba(119,173,228,.15);
+  color:#cbd9e8;
+  font-size:clamp(16px,1.2vw,17.5px);
+  line-height:1.73;
+  letter-spacing:.001em;
+  list-style:none;
+}
+
+body.vacancy-detail-mode .jd-chapter-body .jd-list li:first-child {
+  padding-top:7px;
+}
+
+body.vacancy-detail-mode .jd-chapter-body .jd-list li:last-child {
+  border-bottom:0;
+}
+
+body.vacancy-detail-mode .jd-chapter-body .jd-list li::before {
+  content:"";
+  display:block;
+  position:absolute;
+  left:0;
+  top:21px;
+  height:16px;
+  width:3px;
+  border-radius:4px;
+  background:linear-gradient(180deg,#60d3f6,#2378da);
+  opacity:.7;
+}
+
+body.vacancy-detail-mode .jd-chapter-body .jd-list li:first-child::before {
+  top:13px;
+}
+
+body.vacancy-detail-mode .jd-more {
+  margin-top:15px;
+  width:max-content;
+  max-width:100%;
+}
+
+body.vacancy-detail-mode .jd-more-toggle {
+  display:inline-flex;
+  align-items:center;
+  gap:16px;
+  border:1px solid rgba(88,167,235,.35);
+  border-radius:11px;
+  padding:13px 17px;
+  color:#91d8fb;
+  background:linear-gradient(120deg,rgba(22,93,156,.20),rgba(16,57,105,.12));
+  cursor:pointer;
+  font:600 14px/1.2 "Geist",sans-serif;
+  transition:border-color .2s ease,background .2s ease,color .2s ease;
+  list-style:none;
+}
+
+body.vacancy-detail-mode .jd-more-toggle::-webkit-details-marker {
+  display:none;
+}
+
+body.vacancy-detail-mode .jd-more-toggle::after {
+  content:"+";
+  display:inline-flex;
+  justify-content:center;
+  align-items:center;
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  color:#c3efff;
+  font-size:18px;
+  line-height:1;
+}
+
+body.vacancy-detail-mode .jd-more[open] .jd-more-toggle::after {
+  content:"−";
+}
+
+body.vacancy-detail-mode .jd-more-toggle:hover {
+  border-color:rgba(80,199,255,.68);
+  color:#e1f7ff;
+  background:rgba(21,115,190,.25);
+}
+
+body.vacancy-detail-mode .jd-more-toggle:focus-visible {
+  outline:2px solid #6fd2ff;
+  outline-offset:4px;
+}
+
+body.vacancy-detail-mode .jd-more .jd-collapse-label {
+  display:none;
+}
+
+body.vacancy-detail-mode .jd-more[open] .jd-expand-label {
+  display:none;
+}
+
+body.vacancy-detail-mode .jd-more[open] .jd-collapse-label {
+  display:inline;
+}
+
+body.vacancy-detail-mode .jd-list--extra {
+  margin-top:18px!important;
+  border-top:1px solid rgba(119,173,228,.15);
+}
+
+body.vacancy-detail-mode .jd-chapter-body a {
+  color:#70cafe;
+  text-underline-offset:3px;
+}
+
+@media(max-width:840px) {
+  body.vacancy-detail-mode .vacancy-description {
+    padding-inline:4px;
+  }
+
+  body.vacancy-detail-mode .jd-chapter {
+    grid-template-columns:1fr;
+    gap:24px;
+    padding:36px 0;
+  }
+
+  body.vacancy-detail-mode .jd-chapter--intro {
+    padding-top:28px;
+  }
+
+  body.vacancy-detail-mode .vacancy-description-content .jd-chapter-title {
+    max-width:unset;
+    font-size:clamp(27px,4vw,35px);
+  }
+
+  body.vacancy-detail-mode .jd-chapter--intro .jd-chapter-title {
+    font-size:clamp(32px,5vw,42px);
+  }
+
+  body.vacancy-detail-mode .jd-chapter-index {
+    margin-bottom:10px;
+  }
+}
+
+@media(max-width:520px) {
+  body.vacancy-detail-mode .vacancy-description-content {
+    font-size:17px;
+  }
+
+  body.vacancy-detail-mode .vacancy-description-content .jd-chapter-title {
+    font-size:28px;
+  }
+
+  body.vacancy-detail-mode .jd-chapter--intro .jd-chapter-title {
+    font-size:33px;
+  }
+
+  body.vacancy-detail-mode .jd-chapter-body p {
+    font-size:17px;
+    line-height:1.75;
+    margin-bottom:18px;
+  }
+
+  body.vacancy-detail-mode .jd-chapter-body .jd-list li {
+    font-size:16px;
+    line-height:1.68;
+    padding:13px 3px 13px 17px;
+  }
+
+  body.vacancy-detail-mode .jd-chapter-body .jd-list li::before {
+    width:2px;
+  }
+
+  body.vacancy-detail-mode .jd-chapter {
+    padding:33px 0;
+    gap:20px;
+  }
+}
+
+@media(prefers-reduced-motion:reduce) {
+  body.vacancy-detail-mode .jd-more-toggle { transition:none!important; }
+}
