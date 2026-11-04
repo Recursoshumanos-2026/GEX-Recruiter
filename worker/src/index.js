@@ -679,6 +679,14 @@ async function createProspect(env, rawPayload) {
     'vacancy_id'
   ];
 
+  // Once enabled for new candidate applications, curriculum is mandatory.
+  if (resumeAvailable(env) && String(rawPayload?.form_version) === '2' &&
+      !rawPayload?.resume) {
+    const error = new Error('Anexe seu currículo em PDF ou DOCX.');
+    error.status = 400;
+    throw error;
+  }
+
   const completeForm =
     String(payload.form_version) === '2';
 
@@ -954,6 +962,7 @@ export default {
             candidate_form_version: 2,
             curriculum_storage: resumeAvailable(env),
             resume_upload_enabled: resumeAvailable(env),
+            resume_required: resumeAvailable(env),
             resume_formats: ['pdf','docx'],
             resume_max_bytes: 5242880,
             gex_talents_tag: true
