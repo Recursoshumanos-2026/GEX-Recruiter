@@ -30,6 +30,10 @@ const talentPool =
 const main =
   document.querySelector('main');
 
+const headerActions = document.querySelector('#vacancyHeaderActions');
+const headerBack = document.querySelector('#vacancyHeaderBack');
+const headerShare = document.querySelector('#vacancyHeaderShare');
+
 const dialog =
   document.querySelector('#applyDialog');
 
@@ -498,6 +502,7 @@ function vacancyApplyButton(id, extraClass = '') {
 
 function renderGeneralJobs() {
   document.body.classList.remove("vacancy-detail-mode");
+  if (headerActions) headerActions.hidden = true;
 
   if (main && talentPool) {
   main.insertBefore(
@@ -686,6 +691,8 @@ function renderGeneralJobs() {
 
 function renderSpecificVacancy(id) {
   document.body.classList.add('vacancy-detail-mode');
+  if (headerActions) headerActions.hidden = false;
+  if (headerBack) headerBack.href = allJobsUrl() + '#vagas';
   if (main) main.prepend(jobsSection);
   jobsHeading.style.display = 'none';
   jobsToolbar.style.display = 'none';
@@ -696,6 +703,7 @@ function renderSpecificVacancy(id) {
   const job = jobs.find(item => String(item.id) === String(id) &&
     Number(item.vacancy_status_id) === 1);
   if (!job) {
+    if (headerShare) headerShare.hidden = true;
     empty.hidden = false;
     grid.innerHTML = '';
     empty.querySelector('h3').textContent = 'Esta oportunidade não está mais disponível.';
@@ -703,6 +711,10 @@ function renderSpecificVacancy(id) {
     return;
   }
   empty.hidden = true;
+  if (headerShare) {
+    headerShare.hidden = false;
+    headerShare.onclick = () => shareVacancy(job.id, headerShare);
+  }
   document.title = `${job.title} | GEX Recruiter`;
   const meta = document.querySelector('meta[name="description"]');
   if (meta) meta.content = `${job.title} — oportunidade na GEX Corporation.`;
@@ -713,10 +725,6 @@ function renderSpecificVacancy(id) {
   const contract = typeof job.contract_model === 'string' ? job.contract_model : '';
   grid.innerHTML = `
     <article class="vacancy-landing" id="vaga-${safe(job.id)}">
-      <div class="vacancy-landing-top">
-        <a class="vacancy-back-link" href="${safe(allJobsUrl())}#vagas">← Todas as oportunidades</a>
-        <button type="button" class="vacancy-share-top" data-share="${safe(job.id)}">Compartilhar vaga</button>
-      </div>
       <div class="vacancy-landing-content vacancy-landing-content--single">
         <div class="vacancy-main-content vacancy-main-content--wide">
 
