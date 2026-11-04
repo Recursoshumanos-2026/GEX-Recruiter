@@ -116,7 +116,12 @@ function publicVacancy(v) {
     remote: v.remote,
     vacancy_status_id: v.vacancy_status_id,
     slug: v.slug ?? null,
-    department: v.department ?? null
+    department: v.department ?? null,
+    // Recrutei fields are passed through only when provided as strings.
+    // Never guess missing job descriptions or expose arbitrary ATS objects.
+    description: typeof v.description === 'string' ? v.description :
+      typeof v.job_description === 'string' ? v.job_description : null,
+    contract_model: typeof v.contract_model === 'string' ? v.contract_model : null
   };
 }
 
