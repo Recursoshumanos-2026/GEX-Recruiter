@@ -18,7 +18,7 @@ RESUME_RETENTION_MONTHS = "12"
 # Segredos da Recrutei são configurados exclusivamente no painel da Cloudflare.
 [previews.vars]
 ALLOWED_ORIGIN = "https://gex-talents-previa-questionario.yasmimbsouza80.chatgpt.site"
-APPLICATIONS_ENABLED = "true"
+APPLICATIONS_ENABLED = "false"
 PROSPECT_CHANNEL_ID = "8"
 RESUME_UPLOAD_ENABLED = "false"
 # Preview permanece sem exclusao real.
@@ -31,7 +31,7 @@ RESUME_DIAGNOSTIC_ENABLED = "true"
 PROFILE_DIAGNOSTIC_ENABLED = "true"
 PROFILE_DIAGNOSTIC_APPLICATION_ID = "15905660"
 PROFILE_DIAGNOSTIC_VACANCY_ID = "158928"
-PROFILE_DIAGNOSTIC_WRITE_ENABLED = "true"
+PROFILE_DIAGNOSTIC_WRITE_ENABLED = "false"
 
 # Enables PDF/DOCX -> Markdown conversion when RESUME_UPLOAD_ENABLED is true.
 # Execute all safe local unit tests before constructing a Worker preview.
