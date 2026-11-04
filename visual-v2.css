@@ -154,6 +154,11 @@ body:not(.vacancy-detail-mode) .hero-symbol {
   z-index: 1;
 }
 
+/* O número da vaga fica ancorado no canto direito, sem cobrir a área. */
+[data-slot="spotlight"] > .job-code {
+  position: absolute;
+}
+
 [data-slot="spotlight"]:hover::before,
 [data-slot="spotlight"]:hover::after,
 [data-slot="spotlight"]:focus-within::before,
