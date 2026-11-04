@@ -55,3 +55,17 @@ jobs:
           name: gex-vacancy-visual-review
           path: screenshots/
           if-no-files-found: ignore
+
+      - name: Optional preview with real publicly published Job Description
+        continue-on-error: true
+        run: node tests/vacancy-browser.mjs
+        env:
+          GEX_PUBLIC_PREVIEW: 'true'
+          SCREENSHOT_DIR: screenshots-real
+      - name: Upload real-description preview
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gex-vacancy-real-jd-review
+          path: screenshots-real/
+          if-no-files-found: ignore
