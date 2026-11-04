@@ -996,6 +996,11 @@ export default {
           ok: true,
           environment: 'preview',
           resume_upload_enabled: resumeAvailable(env),
+          // Presence only; never expose API keys, passwords, identities or values.
+          recrutei_credentials_configured: [
+            'RECRUTEI_API_KEY','RECRUTEI_API_SECRET',
+            'RECRUTEI_EMAIL','RECRUTEI_PASSWORD'
+          ].every(key => typeof env?.[key] === 'string' && env[key].length > 0),
           d1_table_ready: false,
           pdf_supported: false,
           docx_supported: false
