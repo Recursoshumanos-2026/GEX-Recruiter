@@ -27,7 +27,7 @@ const formFor = file => {
 };
 
 function fakeEnv(options={}) {
-  const r2Objects=[];
+  const dbRows=[];
   const env={
     APPLICATIONS_ENABLED:'true',PROSPECT_CHANNEL_ID:'8',
     ALLOWED_ORIGIN:ORIGIN,RESUME_UPLOAD_ENABLED:'true',
@@ -36,16 +36,27 @@ function fakeEnv(options={}) {
       assert.equal(input.name.includes('Pessoa'),false);
       return {data:'# Pessoa fictícia\n\n## Experiência profissional\n\nTrabalhou com atendimento e operações.',format:'markdown'};
     }},
-    RESUME_BUCKET:{async put(key,markdown,metadata) {
-      if (options.r2Fail) throw Error('R2 simulated failure');
-      r2Objects.push({key,markdown,metadata});
+    RESUME_DB:{prepare(sql) {
+      return {
+        async first() {
+          if(options.tableMissing) throw Error('Missing D1 table');
+          return null;
+        },
+        bind(...values) {
+          return { async run() {
+            if(options.d1Fail) throw Error('D1 simulated failure');
+            dbRows.push({sql,values});
+            return {success:true};
+          }};
+        }
+      };
     }}
   };
-  return {env,r2Objects};
+  return {env,dbRows};
 }
 
 async function application(file,options={}) {
-  const { env,r2Objects }=fakeEnv(options);
+  const { env,dbRows }=fakeEnv(options);
   const calls=[];
   const prior=globalThis.fetch;
   globalThis.fetch=async(url,init={})=>{
@@ -69,7 +80,7 @@ async function application(file,options={}) {
     const result=await worker.fetch(new Request('https://worker.invalid/api/candidatar',{
       method:'POST',headers:{Origin:ORIGIN},body:formFor(file)
     }),env);
-    return {status:result.status,body:await result.json(),calls,r2Objects,env};
+    return {status:result.status,body:await result.json(),calls,dbRows,env};
   }finally{globalThis.fetch=prior}
 }
 
@@ -83,28 +94,28 @@ test('accept only small PDF/DOCX files with valid format',async()=>{
   await assert.rejects(()=>convertResume(env,new File(['not really an archive'],'curriculo.docx',{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})),/não é um PDF/);
 });
 
-test('private Markdown storage returns opaque key and no public URL',async()=>{
-  const {env,r2Objects}=fakeEnv();
+test('private D1 Markdown storage uses parameterized SQL and no public URL',async()=>{
+  const {env,dbRows}=fakeEnv();
   const saved=await storeResume(env,'# Currículo demonstrativo',33,158928);
-  assert.match(saved.key,/^curriculos\/158928\/33\/[a-f0-9-]+\.md$/);
+  assert.match(saved.id,/^[a-f0-9-]{36}$/);
   assert.equal(saved.url,undefined);
-  assert.equal(r2Objects[0].markdown,'# Currículo demonstrativo');
-  assert.equal(r2Objects[0].metadata.httpMetadata.contentType,'text/markdown; charset=utf-8');
-  assert.ok(!saved.key.includes('candidate'));
+  assert.equal(dbRows[0].sql,'INSERT INTO candidate_resumes (id, vacancy_id, application_id, markdown) VALUES (?, ?, ?, ?)');
+  assert.deepEqual(dbRows[0].values,[saved.id,158928,33,'# Currículo demonstrativo']);
+  assert.equal(dbRows[0].values.some(value=>String(value).includes('candidate@example.invalid')),false);
 });
 
-test('Markdown resume enters Recrutei custom informations field and R2 storage',async()=>{
+test('Markdown resume enters Recrutei custom informations field and D1 storage',async()=>{
   const r=await application(rawPdf());
   assert.equal(r.status,201);
   assert.equal(r.body.application_created,true);
   assert.equal(r.body.resume_completed,true);
   assert.equal(r.body.resume_custom_field_completed,true);
   assert.equal(r.body.resume_observation_completed,false);
-  assert.equal(r.r2Objects.length,1);
+  assert.equal(r.dbRows.length,1);
   const update=r.calls.find(c=>c.path==='/api/v2/curriculum/filled');
   const payload=JSON.parse(update.init.body);
   assert.equal(payload.informations.length,1);
-  assert.deepEqual(payload.informations[0],resumeField(r.r2Objects[0].markdown));
+  assert.deepEqual(payload.informations[0],resumeField(r.dbRows[0].values[3]));
   assert.equal(r.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
   assert.equal(r.calls.filter(c=>c.path==='/api/v2/talents-observations').length,1);
 });
@@ -123,14 +134,22 @@ test('when Recrutei custom field returns HTTP 404, fallback observation stores e
   assert.equal(r.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
 });
 
-test('R2 storage failure never retries or misreports successful resume attachment',async()=>{
-  const r=await application(rawPdf(),{r2Fail:true});
+test('D1 storage failure never retries or misreports successful resume attachment',async()=>{
+  const r=await application(rawPdf(),{d1Fail:true});
   assert.equal(r.status,201);
   assert.equal(r.body.application_created,true);
   assert.equal(r.body.resume_stored,false);
   assert.equal(r.body.resume_completed,false);
   assert.equal(r.body.resume_custom_field_completed,false);
   assert.equal(r.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
+});
+
+test('missing D1 table is rejected before creating Recrutei candidate',async()=>{
+  const r=await application(rawPdf(),{tableMissing:true});
+  assert.equal(r.status,503);
+  assert.equal(r.body.application_created,undefined);
+  assert.equal(r.calls.filter(c=>c.path==='/api/v2/prospects').length,0);
+  assert.equal(r.dbRows.length,0);
 });
 
 test('disabled feature rejects multipart requests before candidate creation',async()=>{
@@ -151,7 +170,7 @@ test('health advertises resume upload only when both private storage and convers
   const {env}=fakeEnv();
   let r=await worker.fetch(new Request('https://worker.invalid/health'),env);
   assert.equal((await r.json()).resume_upload_enabled,true);
-  delete env.RESUME_BUCKET;
+  delete env.RESUME_DB;
   r=await worker.fetch(new Request('https://worker.invalid/health'),env);
   assert.equal((await r.json()).resume_upload_enabled,false);
 });
@@ -162,7 +181,7 @@ test('invalid PDF does not create a candidate in Recrutei',async()=>{
   assert.equal(r.status,400);
   assert.equal(r.body.application_created,undefined);
   assert.equal(r.calls.filter(c=>c.path==='/api/v2/prospects').length,0);
-  assert.equal(r.r2Objects.length,0);
+  assert.equal(r.dbRows.length,0);
 });
 
 test('Markdown conversion failure returns validation status before candidate creation',async()=>{
