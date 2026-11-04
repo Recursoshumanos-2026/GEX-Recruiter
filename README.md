@@ -212,4 +212,4 @@ Os botões de candidatura e os questionários permanecem ligados ao ID original 
 
 ## Currículos em PDF/DOCX (nova revisão)
 
-O fluxo de conversão Cloudflare Workers AI → Markdown → armazenamento R2 privado → Recrutei está implementado de forma **desativada até a configuração da Cloudflare e homologação do campo personalizado**. Veja [CURRICULOS.md](CURRICULOS.md) para passos de implantação, segurança, LGPD e testes. Não ativar a flag sem bucket privado, proteções contra abuso e testes reais de homologação.
+O fluxo de conversão Cloudflare Workers AI → Markdown → armazenamento **Cloudflare D1 Free privado** → Recrutei está implementado de forma **desativada até a configuração do banco e homologação do campo personalizado**. A GEX optou por manter a infraestrutura de currículos no plano gratuito, sem ativar a assinatura R2 com cobrança por consumo. Veja [CURRICULOS.md](CURRICULOS.md) para configuração, migração SQL, segurança, limites do plano Free, LGPD e testes. Não ativar a flag sem banco D1 privado, proteções contra abuso e testes reais de homologação.
