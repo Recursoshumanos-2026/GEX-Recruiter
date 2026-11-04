@@ -9,7 +9,7 @@ const screenshotDir = process.env.SCREENSHOT_DIR || 'screenshots';
 await mkdir(resolve(root, screenshotDir), { recursive: true });
 const vacancy = { id: 158883, title: 'Analista de Dados Sênior',
   vacancy_status_id: 1, remote: 1, department: 'Dados',
-  description: '<h3>Principais responsabilidades</h3><ul><li>Desenvolver pipelines de dados</li></ul><p>Atuação estratégica.</p><script>window.__injected=true</script><a href="javascript:alert(1)">Link inválido</a>' };
+  description: '<h3>Principais responsabilidades</h3><ul><li>Desenvolver pipelines de dados</li></ul><p>Atuação estratégica.</p><script>window.__injected=true</script><a href="javascript:alert(1)"></a>' };
 const requests = [];
 const contentTypes = { '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png' };
