@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node tests/worker.test.mjs && node tests/questionnaire-controls.test.mjs",
+    "test": "node tests/worker.test.mjs && node tests/questionnaire-controls.test.mjs && node tests/vacancy-details.test.mjs",
     "test:ui": "node tests/browser.mjs",
     "check": "node --check app.js && node --check questionnaires.js && node --check worker/src/index.js"
   },
