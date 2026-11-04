@@ -202,10 +202,21 @@ try {
     assert.equal(benefitSurfaces.rowBottom, '0px');
     assert.equal(benefitSurfaces.decoration, false);
     assert.equal(await page.locator('.vacancy-hero-cta-note').count(),0);
-    assert.equal(await page.locator('.vacancy-hero-art-label').count(),0);
-    assert.equal(await page.locator('.vacancy-hero-official-logo').count(),1);
-    assert.equal(await page.locator('.vacancy-hero-official-logo').getAttribute('src'),'assets/gex-logo-branco.svg');
-    assert.equal(await page.locator('.vacancy-hero-official-logo').evaluate(el => el.complete && el.naturalWidth > 0),true);
+    assert.equal(await page.locator('.vacancy-hero-art-label').count(),1);
+    assert.equal(await page.locator('.vacancy-hero-art .vacancy-hero-symbol').count(),1);
+    assert.equal(await page.locator('.vacancy-hero-symbol').getAttribute('src'),'assets/gex-simbolo.png');
+    assert.equal(await page.locator('.vacancy-hero-symbol').evaluate(el => el.complete && el.naturalWidth > 0),true);
+    assert.equal(await page.locator('.vacancy-hero-wordmark').getAttribute('src'),'assets/gex-wordmark-branco.svg');
+    assert.equal(await page.locator('.vacancy-hero-wordmark').evaluate(el => el.complete && el.naturalWidth > 0),true);
+    assert.equal(await page.locator('.vacancy-hero-orbit').count(),2);
+    assert.match(await page.locator('.vacancy-hero-art-label').textContent(), /RECRUITER/);
+    const [officialSVG, wordmarkSVG] = await Promise.all([
+      readFile(resolve(root,'assets/gex-logo-branco.svg'),'utf8'),
+      readFile(resolve(root,'assets/gex-wordmark-branco.svg'),'utf8')
+    ]);
+    const allPaths = [...officialSVG.matchAll(/<path d="[^"]*"\/>/g)].map(x => x[0]);
+    const wordPaths = [...wordmarkSVG.matchAll(/<path d="[^"]*"\/>/g)].map(x => x[0]);
+    assert.deepEqual(wordPaths, allPaths.slice(3,8), 'GEX letters must be exact original brand vectors');
     assert.equal(await page.locator('.vacancy-benefits h2').textContent(), 'Benefícios que fazem a diferença.');
     assert.equal(await page.locator('body > main > #sobre').isVisible(), false);
     assert.equal(await page.locator('body > main > #cultura').isVisible(), false);
