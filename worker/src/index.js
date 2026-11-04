@@ -583,6 +583,55 @@ async function testExistingApplicationResume(request, env) {
   return response;
 }
 
+
+async function testDocxStorageIsolation(request, env) {
+  const config = profileDiagnosticConfig(env);
+  if (env.RESUME_E2E_TEST_ENABLED !== 'true' ||
+      env.APPLICATIONS_ENABLED === 'true' || env.RESUME_UPLOAD_ENABLED === 'true' || !config)
+    return json({message:'Rota não encontrada'},404,env);
+  const url = new URL(request.url);
+  if (request.headers.get('Origin') !== url.origin ||
+      !request.headers.get('Content-Type')?.startsWith('multipart/form-data;'))
+    return json({message:'Formato ou origem não permitidos'},403,env);
+  const form = await request.formData();
+  if (form.getAll('token').length !== 1 || form.getAll('curriculo').length !== 1 ||
+      [...form.keys()].length !== 2 || !await e2eTestTokenValid(form.get('token')))
+    return json({message:'Autorização inválida'},403,env);
+  const file=form.get('curriculo');
+  if (typeof file?.name !== 'string' || !/\.docx$/i.test(file.name))
+    return json({message:'Somente arquivo DOCX fictício'},415,env);
+
+  // Somente banco de testes. Nenhum perfil da Recrutei é acessado ou alterado.
+  if (typeof env.RESUME_DB?.prepare !== 'function') 
+    return json({message:'Banco da prévia indisponível'},503,env);
+  const claim=await env.RESUME_DB.prepare(
+    'INSERT OR IGNORE INTO resume_e2e_test_runs (test_id, created_at) VALUES (?, ?)'
+  ).bind('isolated-docx-d1-20261104',new Date().toISOString()).run();
+  if (claim?.meta?.changes !== 1)
+    return json({ok:false,already_executed:true},409,env);
+
+  let conversionOk=false,storageOk=false;
+  try {
+    const markdown=await convertResume({...env,RESUME_UPLOAD_ENABLED:'true'},file);
+    conversionOk=markdown.length>=20;
+    // Identificador artificial separado dos IDs da Recrutei e do PDF de teste.
+    const fakeD1Application=880011004;
+    const fakeD1Vacancy=880011004;
+    const saved=await storeResume({...env,RESUME_UPLOAD_ENABLED:'true'},
+      markdown,fakeD1Application,fakeD1Vacancy);
+    const read=await env.RESUME_DB.prepare(
+      'SELECT markdown FROM candidate_resumes WHERE id = ?'
+    ).bind(saved.id).first();
+    storageOk=read?.markdown===markdown;
+  } catch {}
+  const result=json({ok:conversionOk&&storageOk,format:'docx',
+    conversion_ok:conversionOk,private_d1_write_and_readback_ok:storageOk,
+    isolated_test_data:true,recrutei_write_attempted:false,
+    application_created:false,public_upload_enabled:false},200,env);
+  result.headers.set('Cache-Control','no-store');
+  return result;
+}
+
 async function testProspectProfile(request, env) {
   const config = profileDiagnosticConfig(env, true);
   if (!config) return json({ message: 'Rota não encontrada' }, 404, env);
@@ -1010,6 +1059,9 @@ export default {
     try {
       if (request.method === 'POST' && url.pathname === '/api/homologar-arquivo-curriculo') {
         return testExistingApplicationResume(request, env);
+      }
+      if (request.method === 'POST' && url.pathname === '/api/homologar-armazenamento-docx') {
+        return testDocxStorageIsolation(request, env);
       }
       if (request.method === 'GET' && url.pathname === '/api/diagnostico-perfil') {
         return diagnoseProspectProfile(env);
