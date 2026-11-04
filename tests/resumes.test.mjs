@@ -169,10 +169,14 @@ test('disabled feature rejects multipart requests before candidate creation',asy
 test('health advertises resume upload only when both private storage and conversion exist',async()=>{
   const {env}=fakeEnv();
   let r=await worker.fetch(new Request('https://worker.invalid/health'),env);
-  assert.equal((await r.json()).resume_upload_enabled,true);
+  const enabled = await r.json();
+  assert.equal(enabled.resume_upload_enabled,true);
+  assert.deepEqual(enabled.resume_connections,{workers_ai:true,d1_database:true});
   delete env.RESUME_DB;
   r=await worker.fetch(new Request('https://worker.invalid/health'),env);
-  assert.equal((await r.json()).resume_upload_enabled,false);
+  const missingDb = await r.json();
+  assert.equal(missingDb.resume_upload_enabled,false);
+  assert.deepEqual(missingDb.resume_connections,{workers_ai:true,d1_database:false});
 });
 
 test('invalid PDF does not create a candidate in Recrutei',async()=>{
