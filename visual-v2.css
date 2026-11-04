@@ -1,0 +1,320 @@
+/* GEX Recruiter · refinamento de interface
+ * Spotlight adaptado do componente MIT de Kevin Girelli (21st.dev/corsair-ui).
+ * Animações específicas inspiradas nos componentes MIT de lucide-animated.
+ * Nenhuma dependência externa ou runtime React é necessário.
+ */
+
+:root {
+  --gex-sky: #5fa9ff;
+  --gex-electric: #2d7ee9;
+  --gex-glow: rgba(65, 151, 255, .22);
+}
+
+/* Capa: profundidade e luz, preservando o espaço em branco do título. */
+body:not(.vacancy-detail-mode) .hero {
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse 46% 54% at 90% 45%, rgba(35, 113, 221, .23), transparent 75%),
+    radial-gradient(ellipse 52% 55% at 10% 92%, rgba(29, 91, 171, .13), transparent 74%),
+    linear-gradient(115deg, #050b17 3%, #071327 50%, #061026 100%);
+}
+
+body:not(.vacancy-detail-mode) .hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: linear-gradient(rgba(113, 172, 255, .045) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(113, 172, 255, .045) 1px, transparent 1px);
+  background-size: 76px 76px;
+  mask-image: linear-gradient(90deg, transparent, #000 44%, #000);
+}
+
+body:not(.vacancy-detail-mode) .hero-copy {
+  max-width: 850px;
+}
+
+body:not(.vacancy-detail-mode) .hero-copy .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(103, 168, 255, .26);
+  border-radius: 999px;
+  background: rgba(35, 102, 203, .1);
+  padding: 8px 13px;
+  box-shadow: 0 0 25px rgba(35, 102, 203, .07);
+}
+
+body:not(.vacancy-detail-mode) .hero h1 {
+  letter-spacing: -.065em;
+  text-wrap: balance;
+}
+
+body:not(.vacancy-detail-mode) .hero h1 span {
+  color: var(--gex-sky);
+  background: linear-gradient(100deg, #e2f1ff 0%, #65aeff 35%, #2478e9 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+body:not(.vacancy-detail-mode) .hero-symbol {
+  filter: drop-shadow(0 20px 70px rgba(13, 95, 224, .15));
+  animation: gex-float-symbol 14s ease-in-out infinite;
+}
+
+@keyframes gex-float-symbol {
+  0%, 100% { transform: translateY(-50%) translateX(0); }
+  50% { transform: translateY(calc(-50% - 13px)) translateX(9px); }
+}
+
+/* Adaptação da borda de luz em movimento do Animated Border (21st.dev). */
+.hero-actions .btn-primary,
+.talent-pool .btn-light {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  box-shadow: 0 15px 36px rgba(21, 96, 205, .20);
+}
+
+.hero-actions .btn-primary::before,
+.talent-pool .btn-light::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border: 2px solid transparent;
+  border-radius: inherit;
+  pointer-events: none;
+  background: conic-gradient(from var(--gex-angle), transparent 0 65%, rgba(206, 235, 255, .9) 79%, transparent 94%) border-box;
+  mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: gex-light-border 6s linear infinite;
+}
+
+@property --gex-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes gex-light-border { to { --gex-angle: 360deg; } }
+
+.hero-actions .btn,
+.talent-pool .btn-light {
+  transition: transform .24s cubic-bezier(.2, .8, .2, 1), box-shadow .24s ease, background .24s ease;
+}
+
+.hero-actions .btn:hover,
+.hero-actions .btn:focus-visible,
+.talent-pool .btn-light:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 19px 40px rgba(25, 104, 222, .28);
+}
+
+/* 21st.dev Spotlight: ponteiro define duas variáveis; o desenho é CSS. */
+[data-slot="spotlight"] {
+  --spotlight-x: 50%;
+  --spotlight-y: 50%;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  transition: transform .28s cubic-bezier(.18, .8, .22, 1),
+              border-color .28s ease, box-shadow .28s ease;
+}
+
+[data-slot="spotlight"]::before,
+[data-slot="spotlight"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity .28s ease;
+}
+
+[data-slot="spotlight"]::before {
+  background: radial-gradient(320px circle at var(--spotlight-x) var(--spotlight-y),
+              rgba(64, 148, 249, .19), rgba(64, 148, 249, .045) 33%, transparent 75%);
+}
+
+[data-slot="spotlight"]::after {
+  padding: 1px;
+  inset: -1px;
+  background: radial-gradient(290px circle at var(--spotlight-x) var(--spotlight-y),
+              rgba(99, 173, 255, .76), transparent 67%);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+[data-slot="spotlight"] > * {
+  position: relative;
+  z-index: 1;
+}
+
+[data-slot="spotlight"]:hover::before,
+[data-slot="spotlight"]:hover::after,
+[data-slot="spotlight"]:focus-within::before,
+[data-slot="spotlight"]:focus-within::after {
+  opacity: 1;
+}
+
+[data-slot="spotlight"]:hover,
+[data-slot="spotlight"]:focus-within {
+  transform: translateY(-5px);
+  border-color: rgba(92, 161, 249, .45);
+  box-shadow: 0 20px 46px rgba(4, 19, 48, .12);
+}
+
+.feature-card {
+  min-height: 262px;
+  padding: 27px;
+  border-radius: 20px;
+}
+
+.feature-card h3 { font-size: 20px; line-height: 1.28; }
+.feature-card .tag { border: 1px solid rgba(79, 153, 246, .14); }
+
+.icon-chip.gex-icon-chip,
+.benefit-icon.gex-benefit-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(27, 103, 211, .18), rgba(26, 105, 213, .07));
+  border: 1px solid rgba(64, 143, 242, .15);
+  color: #4b9bff;
+}
+
+.benefit-card {
+  min-height: 176px;
+  border-radius: 18px;
+  padding: 23px;
+}
+
+.benefit-card strong { font-size: 17px; }
+
+.job-card {
+  border-radius: 20px;
+  padding: 27px;
+}
+
+.job-card h3 a { transition: color .25s ease; }
+.job-card:hover h3 a { color: var(--gex-electric); }
+.job-card .job-apply-button { transition: transform .24s ease, background .24s ease; }
+.job-card .job-apply-button:hover { transform: translateX(3px); }
+
+/* Lucide Animated: cada ícone tem um gesto específico, não um salto genérico. */
+.gex-animated-icon {
+  transform-origin: center;
+  transition: filter .3s ease;
+}
+
+.icon-playing .gex-animated-icon { filter: drop-shadow(0 3px 6px rgba(57, 147, 253, .2)); }
+.feature-card.icon-playing .gex-animated-icon,
+.benefit-card.icon-playing .gex-animated-icon { transform: none; }
+
+.culture-grid .feature-card:nth-child(1).icon-playing svg path:last-child {
+  stroke-dasharray: 34;
+  animation: gex-brain-trace 1.35s ease-in-out;
+}
+
+@keyframes gex-brain-trace {
+  0%, 100% { stroke-dashoffset: 0; }
+  45% { stroke-dashoffset: 17; }
+}
+
+.culture-grid .feature-card:nth-child(2).icon-playing svg {
+  animation: gex-rocket-flight 1.65s ease-in-out;
+}
+
+.culture-grid .feature-card:nth-child(2).icon-playing svg path:first-child {
+  transform-origin: 5px 18px;
+  animation: gex-flame 1.65s ease-in-out;
+}
+
+@keyframes gex-rocket-flight {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(2px, -3px); }
+  55% { transform: translate(-1px, -1px); }
+  75% { transform: translate(1px, -2px); }
+}
+
+@keyframes gex-flame {
+  0%, 100% { transform: scale(1); }
+  45% { transform: scale(1.17); }
+}
+
+.culture-grid .feature-card:nth-child(3).icon-playing svg,
+.benefits-grid .benefit-card:nth-child(2).icon-playing svg {
+  animation: gex-heart-beat .45s ease-in-out 2;
+}
+
+@keyframes gex-heart-beat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.09); }
+}
+
+.culture-grid .feature-card:nth-child(4).icon-playing svg path:last-child,
+.benefits-grid .benefit-card:nth-child(2).icon-playing svg path:last-child {
+  stroke-dasharray: 40;
+  animation: gex-chart-draw .75s ease-out;
+}
+
+@keyframes gex-chart-draw {
+  from { stroke-dashoffset: 40; opacity: .35; }
+  to { stroke-dashoffset: 0; opacity: 1; }
+}
+
+.benefits-grid .benefit-card:nth-child(1).icon-playing svg,
+.benefits-grid .benefit-card:nth-child(3).icon-playing svg,
+.benefits-grid .benefit-card:nth-child(5).icon-playing svg {
+  animation: gex-wallet-lift .6s ease-in-out;
+}
+
+@keyframes gex-wallet-lift {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  45% { transform: translateY(-3px) rotate(-4deg); }
+}
+
+.benefits-grid .benefit-card:nth-child(4).icon-playing svg {
+  animation: gex-cake-wiggle .75s ease-in-out;
+}
+
+@keyframes gex-cake-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(-5deg); }
+  65% { transform: rotate(4deg); }
+}
+
+/* O mobile mantém os cards legíveis e o efeito nunca é necessário para navegar. */
+@media (max-width: 1100px) {
+  .culture-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .benefits-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  body:not(.vacancy-detail-mode) .hero::before { background-size: 54px 54px; opacity: .5; }
+  .feature-card { min-height: 225px; }
+  .benefits-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 520px) {
+  .culture-grid, .benefits-grid { grid-template-columns: 1fr; }
+  .benefit-card { min-height: 136px; }
+  .feature-card { min-height: 210px; }
+}
+
+@media (hover: none), (pointer: coarse) {
+  [data-slot="spotlight"]::after { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:not(.vacancy-detail-mode) .hero-symbol,
+  .hero-actions .btn-primary::before,
+  .talent-pool .btn-light::before { animation: none; }
+  [data-slot="spotlight"], .gex-animated-icon { transition: none !important; }
+  [data-slot="spotlight"]:hover, [data-slot="spotlight"]:focus-within { transform: none; }
+  .icon-playing .gex-animated-icon, .icon-playing .gex-animated-icon path { animation: none !important; }
+}
