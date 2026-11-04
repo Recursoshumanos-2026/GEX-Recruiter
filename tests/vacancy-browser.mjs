@@ -9,7 +9,7 @@ const screenshotDir = process.env.SCREENSHOT_DIR || 'screenshots';
 await mkdir(resolve(root, screenshotDir), { recursive: true });
 const vacancy = { id: 158883, title: 'Analista de Dados Sênior',
   vacancy_status_id: 1, remote: 1, department: 'Dados',
-  description: '<h2>Nosso Jeito de Ser GEX</h2><p>Conteúdo institucional duplicado</p><h2>Sobre a vaga</h2><p>Você fará parte de um time que utiliza dados para orientar decisões e evoluir nossos processos.</p><h3>Principais responsabilidades</h3><ul><li>Desenvolver pipelines de dados</li><li>Garantir qualidade, disponibilidade e rastreabilidade da informação</li><li>Colaborar com áreas de negócio e tecnologia</li></ul><h3>Requisitos</h3><ul><li>Experiência com SQL e modelagem de dados</li><li>Conhecimento de integração e automação de fluxos</li><li>Autonomia e atenção à qualidade das entregas</li></ul><h3>Diferenciais</h3><p>Vivência com arquitetura escalável e melhoria contínua.</p><h2>Aqui, nossos GEXs encontram</h2><p>Clude redundante</p><h2>Como será nosso combinado</h2><p>Modelo PJ</p><h2>Benefícios</h2><p>Mais repetição</p><script>window.__injected=true</script><a href="javascript:alert(1)"></a>' };
+  description: '<h2>Nosso Jeito de Ser GEX</h2><p>Conteúdo institucional duplicado</p><h2>Sobre a vaga</h2><p>Você fará parte de um time que utiliza dados para orientar decisões e evoluir nossos processos.</p><h3>Principais responsabilidades</h3><ul><li>Desenvolver pipelines de dados</li><li>Garantir qualidade, disponibilidade e rastreabilidade da informação</li><li>Colaborar com áreas de negócio e tecnologia</li></ul><h3>Requisitos</h3><ul><li>Experiência com SQL e modelagem de dados</li><li>Conhecimento de integração e automação de fluxos</li><li>Autonomia e atenção à qualidade das entregas</li></ul><h3>Diferenciais</h3><p>Vivência com arquitetura escalável e melhoria contínua.</p><h2>Aqui, nossos GEXs encontram</h2><p>Clude redundante</p><h2>Como será nosso combinado</h2><p><strong>Tipo de contratação:</strong> PJ<br><strong>Trabalho:</strong> 100% remoto<br>⏰ <strong>Horário:</strong> Flexível / Comercial</p><h2>Benefícios</h2><p>Mais repetição</p><script>window.__injected=true</script><a href="javascript:alert(1)"></a>' };
 const requests = [];
 const useLivePublicJob = process.env.GEX_PUBLIC_PREVIEW === 'true';
 if (useLivePublicJob) {
@@ -83,6 +83,21 @@ try {
     const firstResponsibility = await page.locator('.vacancy-description-content li').first().textContent();
     assert.ok(firstResponsibility.length > 8);
     assert.match(await page.locator('.vacancy-description-content').textContent(), /pipelines/i);
+    // Company schedule is presented as an inviting flexible-hours statement.
+    const agreement = page.locator('.jd-chapter').filter({
+      has: page.locator('.jd-chapter-title', { hasText: 'Como será nosso combinado' })
+    });
+    assert.equal(await agreement.count(), 1);
+    assert.equal(await agreement.locator('.jd-flex-schedule').count(), 1);
+    const agreementCopy = await agreement.textContent();
+    assert.ok(agreementCopy.includes('Tipo de contratação:'));
+    assert.ok(agreementCopy.includes('100% remoto'));
+    assert.ok(agreementCopy.includes('Flexibilidade para sua rotina'));
+    assert.ok(agreementCopy.includes('autonomia com responsabilidade'));
+    assert.ok(agreementCopy.includes('HORÁRIO FLEXÍVEL'));
+    assert.ok(!agreementCopy.includes('Comercial'));
+    assert.ok(!agreementCopy.includes('⏰'));
+    assert.equal(await agreement.locator('svg, .lucide-clock').count(),0);
     const fullDescription = await page.locator('.vacancy-description-content').textContent();
     // Editorial Job Description: readable chapters, larger type and no bullet-heavy wall.
     const chapters = page.locator('.jd-chapter');
@@ -146,6 +161,10 @@ try {
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth),true);
     assert.deepEqual(errors,[]);
     await page.screenshot({path:resolve(root,screenshotDir,`vaga-dados-${width}.png`),fullPage:true,animations:'disabled'});
+    await page.locator('.jd-flex-schedule').screenshot({
+      path: resolve(root, screenshotDir, `horario-flexivel-${width}.png`),
+      animations: 'disabled'
+    });
     await page.locator('.vacancy-description').screenshot({
       path: resolve(root, screenshotDir, `job-description-${width}.png`),
       animations: 'disabled'
