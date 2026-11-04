@@ -139,3 +139,11 @@ Quando a atualização complementar falha, `profile_error` informa o status HTTP
 mensagens de validação não são incluídos nesse novo diagnóstico. O retorno
 `profile_warning` existente foi mantido. A causa do nascimento ausente no teste
 real ainda não foi confirmada; CPF fictício é apenas uma hipótese.
+
+
+Na homologação, a rota `GET /api/diagnostico-perfil` só fica disponível quando
+`PROFILE_DIAGNOSTIC_ENABLED`, `PROFILE_DIAGNOSTIC_APPLICATION_ID` e
+`PROFILE_DIAGNOSTIC_VACANCY_ID` são configurados explicitamente na prévia. Ela
+consulta somente o cadastro fictício fixado e devolve metadados sem valores
+pessoais ou IDs; não altera registros e ignora IDs enviados por querystring.
+A configuração de produção não declara essas variáveis.

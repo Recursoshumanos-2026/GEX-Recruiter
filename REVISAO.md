@@ -72,7 +72,7 @@ versão antiga do backend seja usada por engano.
 
 ## Resultados das verificações
 
-- **37 testes do Worker aprovados**, com `fetch` substituído por uma API simulada:
+- **51 testes do Worker aprovados**, com `fetch` substituído por uma API simulada:
   criação, ordem, multipart, IDs, HTML escapado, todas as seleções, validações,
   preservação do perfil/tag, outras vagas, falhas posteriores à criação e bloqueio de
   candidaturas na prévia desabilitada.
@@ -123,7 +123,7 @@ produção, mantenha os dois arquivos consistentes.
 
 Validação do ajuste: equivalência das variáveis de produção e do caminho resolvido
 para o entrypoint; configuração interpretada pelo Wrangler 4.157.0; bundle de
-`wrangler deploy --dry-run` executado da raiz; sintaxe e 37 testes aprovados.
+`wrangler deploy --dry-run` executado da raiz; sintaxe e 51 testes aprovados.
 As mudanças estão restritas à branch do PR, sem merge ou publicação em produção.
 A confirmação do novo build remoto depende do resultado da Cloudflare.
 
@@ -144,7 +144,7 @@ O backend agora responde HTTP 503 com `code: APPLICATIONS_DISABLED`,
 `applications_enabled: false` e `application_created: false`, antes de qualquer
 chamada à Recrutei. O front-end exibe a informação de bloqueio, preserva os campos
 preenchidos e desabilita os botões de candidatura, sem sugerir uma nova tentativa.
-O caso de prévia desativada integra os 37 testes do Worker aprovados; a sintaxe dos
+O caso de prévia desativada integra os 51 testes do Worker aprovados; a sintaxe dos
 scripts também foi verificada. Este ajuste não corrige nem diagnostica por si só
 os campos complementares que não apareceram na ficha.
 
@@ -162,9 +162,34 @@ de campos conhecidos, sem valores rejeitados ou resposta bruta da API. O campo
 `profile_warning` existente permanece preservado. Exceções de rede ou ausência dos
 IDs retornam status nulo e lista vazia; o sucesso não inclui `profile_error`.
 
-Os 37 testes simulados do Worker passaram. A prévia privada ganhou um resumo do
+Os 51 testes simulados do Worker passaram. A prévia privada ganhou um resumo do
 resultado do envio, separado por candidatura, perfil, tag e observação. Esse
 observador não altera o envio nem o repete; registra apenas presença dos campos de
 entrada, sem seus valores ou headers. Quatro testes locais desse observador
 passaram, incluindo falha de rede, bloqueio e preservação do retorno original.
 Ainda não foi criada outra candidatura real e o envio da prévia permanece bloqueado.
+
+
+## Consulta de diagnóstico somente leitura na prévia
+
+O Console do navegador mostrou o aviso de que a atualização complementar falhou
+com a mensagem externa “Não foi possível encontrar essa informação!”. Ele também
+mostrou `app.js?v=7`, anterior à página que inclui o painel de conferência.
+Ainda não foi confirmado qual informação/identificador a API não encontrou.
+Não foi alterado o payload de escrita com base em hipóteses sobre CPF ou datas.
+
+Para conferir o registro já existente, a prévia habilita temporariamente
+`GET /api/diagnostico-perfil`, com candidatura e vaga fixadas na configuração.
+A consulta faz somente `GET /api/v1/applications/{id}`, valida os identificadores e
+um nome de teste, e retorna apenas status, indicadores de presença/comparação e
+tipos de campos. Não retorna nomes, e-mail, telefone, CPF, nascimento, remuneração,
+IDs ou resposta bruta. Sem as três variáveis explícitas, a rota responde 404 antes
+de acessar a Recrutei; essas variáveis existem somente em `previews.vars`.
+Os 51 testes simulados passaram, incluindo escopo fixo, ausência de vazamento,
+tratamento de incompatibilidades e ausência de escritas nessa consulta.
+
+A nova rota privada do formulário é `/integracao-atual/`. O painel identifica a
+revisão 2 antes de qualquer envio e restaura somente metadados da sessão após
+recarregamento, sem valores informados ou mensagens da API armazenadas.
+Os 7 testes locais do observador passaram. A prévia permanece habilitada conforme
+instrução expressa do usuário durante a homologação; o portal oficial não mudou.

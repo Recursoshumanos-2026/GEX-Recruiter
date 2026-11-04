@@ -241,3 +241,106 @@ test('health da prévia informa candidaturas desabilitadas', async () => {
   assert.equal(response.status, 200);
   assert.equal((await response.json()).applications_enabled, false);
 });
+
+const diagnosticEnv = {
+  ...env, PROFILE_DIAGNOSTIC_ENABLED: 'true',
+  PROFILE_DIAGNOSTIC_APPLICATION_ID: '15905660', PROFILE_DIAGNOSTIC_VACANCY_ID: '158928'
+};
+const diagnosticApplication = () => ({
+  id: 15905660, vacancy_id: 158928, talent_id: 7654321, prospect_id: 2345678,
+  talent: {
+    id: 7654321, is_prospect: 1, birthday: '1988-04-19', ssn: '111.222.333-44',
+    email: 'private-diagnostic@example.invalid', telephone: '11987654321',
+    prospect: { id: 2345678, name: 'TESTE 2 — Pessoa reservada', birthday: null },
+    professional_profile: { intended_remuneration: '9876.54' }
+  }
+});
+async function runDiagnostic(options = {}) {
+  const calls = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), init });
+    if (new URL(url).pathname.endsWith('/login-api')) return json({ token: 'fake-test-token' });
+    if (options.throw) throw new Error('private upstream failure');
+    return json(options.body ?? diagnosticApplication(), options.status ?? 200);
+  };
+  try {
+    const response = await worker.fetch(new Request(
+      `https://preview.invalid/api/diagnostico-perfil${options.query || ''}`,
+      { method: options.method || 'GET' }
+    ), options.env ?? diagnosticEnv);
+    return { status: response.status, body: await response.json(), calls };
+  } finally { globalThis.fetch = original; }
+}
+for (const overrides of [
+  { PROFILE_DIAGNOSTIC_ENABLED: undefined },
+  { PROFILE_DIAGNOSTIC_ENABLED: 'false' },
+  { PROFILE_DIAGNOSTIC_APPLICATION_ID: undefined },
+  { PROFILE_DIAGNOSTIC_APPLICATION_ID: '-1' },
+  { PROFILE_DIAGNOSTIC_VACANCY_ID: '0' },
+  { PROFILE_DIAGNOSTIC_APPLICATION_ID: '15905660\n' }
+]) test('diagnóstico indisponível sem configuração positiva e explícita: ' + JSON.stringify(overrides), async () => {
+  const result = await runDiagnostic({ env: { ...diagnosticEnv, ...overrides } });
+  assert.equal(result.status, 404);
+  assert.equal(result.calls.length, 0);
+});
+test('diagnóstico ignora IDs do solicitante e só consulta o teste fixo via GET', async () => {
+  const result = await runDiagnostic({ query: '?application_id=999&vacancy_id=999' });
+  assert.equal(result.status, 200);
+  const reads = result.calls.filter(call => !call.url.endsWith('/login-api'));
+  assert.equal(reads.length, 1);
+  assert.equal(reads[0].url, 'https://api.recrutei.com.br/api/v1/applications/15905660');
+  assert.equal(reads[0].init.method, 'GET');
+  assert.equal(reads[0].init.headers['Content-Type'], 'application/json');
+  assert.equal(reads[0].init.body, undefined);
+  assert.equal(result.body.application_matches_config, true);
+  assert.equal(result.body.identifiers.application_talent_matches_talent, true);
+  assert.equal(result.body.identifiers.application_prospect_matches_talent_prospect, true);
+  assert.equal(result.body.identifiers.talent_matches_talent_prospect, false);
+  assert.equal(result.body.talent_is_prospect, true);
+  assert.deepEqual(result.body.fields['talent.birthday'], { exists: true, has_value: true, type: 'string' });
+  assert.deepEqual(result.body.fields['talent.prospect.birthday'], { exists: true, has_value: false, type: 'null' });
+  assert.deepEqual(result.body.fields['prospect.birthday'], { exists: false, has_value: false, type: 'missing' });
+  const publicResult = JSON.stringify(result.body);
+  for (const secret of ['1988-04-19', '111.222.333-44', 'private-diagnostic@example.invalid',
+    '11987654321', 'Pessoa reservada', '9876.54', '15905660', '158928', '7654321', '2345678']) {
+    assert.ok(!publicResult.includes(secret));
+  }
+});
+test('diagnóstico aceita envelope data e nome em prospect da candidatura', async () => {
+  const application = diagnosticApplication();
+  delete application.talent.prospect;
+  application.prospect = { id: 2345678, name: 'Teste2 Reservado' };
+  const result = await runDiagnostic({ body: { data: application } });
+  assert.equal(result.status, 200);
+  assert.equal(result.body.identifiers.talent_prospect_id_present, false);
+  assert.equal(result.body.identifiers.application_prospect_relation_id_present, true);
+});
+for (const mismatch of ['application', 'vacancy', 'name']) {
+  test(`diagnóstico rejeita ${mismatch} divergente sem retornar dados ou matriz`, async () => {
+    const application = diagnosticApplication();
+    if (mismatch === 'application') application.id = 999;
+    if (mismatch === 'vacancy') application.vacancy_id = 999;
+    if (mismatch === 'name') application.talent.prospect.name = 'Pessoa real reservada';
+    const result = await runDiagnostic({ body: application });
+    assert.equal(result.status, 409);
+    assert.equal(result.body.fields, undefined);
+    assert.equal(result.body.identifiers, undefined);
+    assert.ok(!JSON.stringify(result.body).includes('reservada'));
+    assert.ok(!JSON.stringify(result.body).includes('1988-04-19'));
+  });
+}
+test('diagnóstico não aceita método POST e não faz chamadas externas', async () => {
+  const result = await runDiagnostic({ method: 'POST' });
+  assert.equal(result.status, 404);
+  assert.equal(result.calls.length, 0);
+});
+for (const failure of [{ status: 403, body: { message: 'private upstream failure' } }, { throw: true }]) {
+  test('falha de consulta diagnóstica retorna somente status e mensagem genérica: ' + JSON.stringify(failure), async () => {
+    const result = await runDiagnostic(failure);
+    assert.equal(result.status, 502);
+    assert.equal(result.body.lookup_http_status, failure.throw ? null : 403);
+    assert.ok(!JSON.stringify(result.body).includes('private upstream failure'));
+    assert.equal(result.body.fields, undefined);
+  });
+}

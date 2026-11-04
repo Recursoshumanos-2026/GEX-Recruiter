@@ -221,6 +221,89 @@ function profileValidationFields(body) {
   );
 }
 
+function diagnosticField(object, key) {
+  const exists = object != null && Object.hasOwn(object, key);
+  const value = exists ? object[key] : undefined;
+  return {
+    exists,
+    has_value: exists && value != null &&
+      (typeof value !== 'string' || value.trim().length > 0),
+    type: !exists ? 'missing' : value === null ? 'null' :
+      Array.isArray(value) ? 'array' : typeof value
+  };
+}
+
+async function diagnoseProspectProfile(env) {
+  const applicationId = String(env.PROFILE_DIAGNOSTIC_APPLICATION_ID || '');
+  const vacancyId = String(env.PROFILE_DIAGNOSTIC_VACANCY_ID || '');
+  const positiveId = value => value === value.trim() && /^[1-9][0-9]*$/.test(value) &&
+    Number.isSafeInteger(Number(value));
+  if (env.PROFILE_DIAGNOSTIC_ENABLED !== 'true' ||
+      !positiveId(applicationId) || !positiveId(vacancyId)) {
+    return json({ message: 'Rota não encontrada' }, 404, env);
+  }
+
+  let lookupStatus = null;
+  try {
+    const response = await recrutei(env, `/api/v1/applications/${applicationId}`, {
+      method: 'GET', headers: { 'Content-Type': 'application/json' }
+    });
+    lookupStatus = response.status;
+    if (!response.ok) throw new Error('Lookup failed');
+    const body = await response.json();
+    const application = body?.data ?? body;
+    const talent = application?.talent;
+    const prospect = talent?.prospect;
+    const name = prospect?.name || application?.prospect?.name || talent?.user?.name;
+    const applicationMatches = String(application?.id) === applicationId;
+    const vacancyMatches = String(application?.vacancy_id) === vacancyId;
+    if (!applicationMatches || !vacancyMatches || typeof name !== 'string' ||
+        !/^teste(?:\s|\d|$)/i.test(name.trim())) {
+      return json({
+        ok: false, lookup_http_status: lookupStatus,
+        application_matches_config: applicationMatches,
+        vacancy_matches_config: vacancyMatches,
+        message: 'O registro retornado não corresponde ao teste configurado.'
+      }, 409, env);
+    }
+
+    const hasId = value => positiveId(String(value || ''));
+    const sameId = (left, right) => hasId(left) && hasId(right)
+      ? String(left) === String(right) : null;
+    return json({
+      ok: true, lookup_http_status: lookupStatus,
+      application_matches_config: true, vacancy_matches_config: true,
+      identifiers: {
+        application_talent_id_present: hasId(application.talent_id),
+        talent_id_present: hasId(talent?.id),
+        application_talent_matches_talent: sameId(application.talent_id, talent?.id),
+        application_prospect_id_present: hasId(application.prospect_id),
+        talent_prospect_id_present: hasId(prospect?.id),
+        application_prospect_matches_talent_prospect: sameId(application.prospect_id, prospect?.id),
+        talent_matches_talent_prospect: sameId(talent?.id, prospect?.id),
+        application_prospect_relation_id_present: hasId(application.prospect?.id),
+        talent_prospect_matches_application_prospect: sameId(prospect?.id, application.prospect?.id)
+      },
+      talent_is_prospect: [true, 1, '1'].includes(talent?.is_prospect) ? true :
+        [false, 0, '0'].includes(talent?.is_prospect) ? false : null,
+      fields: {
+        'talent.birthday': diagnosticField(talent, 'birthday'),
+        'talent.prospect.birthday': diagnosticField(prospect, 'birthday'),
+        'prospect.birthday': diagnosticField(application.prospect, 'birthday'),
+        'talent.professional_profile.intended_remuneration': diagnosticField(talent?.professional_profile, 'intended_remuneration'),
+        'talent.professional_profile.intended': diagnosticField(talent?.professional_profile, 'intended'),
+        'talent.prospect.intended_remuneration': diagnosticField(prospect, 'intended_remuneration'),
+        'prospect.intended_remuneration': diagnosticField(application.prospect, 'intended_remuneration')
+      }
+    }, 200, env);
+  } catch {
+    return json({
+      ok: false, lookup_http_status: lookupStatus,
+      message: 'Não foi possível consultar o registro de teste.'
+    }, 502, env);
+  }
+}
+
 async function updateProspectProfile(env, payload, createBody) {
   const { talentId, applicationId } = profileIds(
     createBody,
@@ -553,6 +636,10 @@ export default {
     }
 
     try {
+      if (request.method === 'GET' && url.pathname === '/api/diagnostico-perfil') {
+        return diagnoseProspectProfile(env);
+      }
+
       if (
         request.method === 'GET' &&
         url.pathname === '/api/vagas'
