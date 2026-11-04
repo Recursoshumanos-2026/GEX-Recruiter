@@ -31,7 +31,9 @@ export async function cleanupExpiredResumes(env, options = {}) {
     return { status:'disabled', deleted:0 };
   }
   if (typeof env?.RESUME_DB?.prepare !== 'function') {
-    throw new Error('RESUME_DB não está conectado à rotina de retenção.');
+    // No production database binding yet: skip safely and report in logs.
+    // Nothing is ever deleted in Recrutei or another external system.
+    return { status:'no_database_binding',deleted:0 };
   }
   // For a first dry-run, calculate only how many expired rows exist.
   const dryRun = env.RESUME_RETENTION_DRY_RUN !== 'false';
