@@ -1,4 +1,5 @@
 import { questionnaireFor, validateAnswers } from '../../questionnaires.js';
+import { resumeAvailable, convertResume, storeResume, resumeField } from './resumes.js';
 
 const API_BASE = 'https://api.recrutei.com.br';
 let tokenCache = { token: null, expiresAt: 0 };
@@ -220,7 +221,7 @@ function profileIds(body, vacancyId) {
   return { talentId, applicationId };
 }
 
-function buildProfilePayload(payload, talentId, applicationId) {
+function buildProfilePayload(payload, talentId, applicationId, resumeMarkdown = null) {
   const basicInfos = [];
   const additional = [];
 
@@ -279,7 +280,8 @@ function buildProfilePayload(payload, talentId, applicationId) {
     talent_id: Number(talentId),
     application_id: Number(applicationId),
     basic_infos: basicInfos,
-    additional
+    additional,
+    ...(resumeMarkdown ? { informations: [resumeField(resumeMarkdown)] } : {})
   };
 }
 
@@ -406,7 +408,7 @@ async function diagnoseProspectProfile(env) {
     }, 200, env);
 }
 
-async function updateProspectProfile(env, payload, createBody) {
+async function updateProspectProfile(env, payload, createBody, resumeMarkdown = null) {
   const { talentId, applicationId } = profileIds(
     createBody,
     payload.vacancy_id
@@ -422,12 +424,14 @@ async function updateProspectProfile(env, payload, createBody) {
   const profilePayload = buildProfilePayload(
     payload,
     talentId,
-    applicationId
+    applicationId,
+    resumeMarkdown
   );
 
   if (
     !profilePayload.basic_infos.length &&
-    !profilePayload.additional.length
+    !profilePayload.additional.length &&
+    !profilePayload.informations?.length
   ) {
     return { ok: true };
   }
