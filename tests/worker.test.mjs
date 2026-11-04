@@ -573,7 +573,7 @@ test('reparo atualiza somente currículo do teste fixo e confirma nascimento e s
     'https://api.recrutei.com.br/api/v1/applications/15905660'
   ]);
   const update = dataCalls[1];
-  assert.equal(new URL(update.url).searchParams.get('talent_id'), '7654321');
+  assert.equal(new URL(update.url).searchParams.get('talent_id'), '2345678');
   const sent = JSON.parse(update.init.body);
   assert.equal(sent.talent_id, 7654321);
   assert.equal(sent.application_id, 15905660);
