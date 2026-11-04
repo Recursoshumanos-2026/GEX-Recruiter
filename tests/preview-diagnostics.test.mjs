@@ -40,6 +40,7 @@ test('diagnosis verifies D1 schema and PDF/DOCX support without revealing candid
   assert.equal(body.pdf_supported,true);
   assert.equal(body.docx_supported,true);
   assert.equal(body.resume_upload_enabled,false);
+  assert.equal(body.recrutei_credentials_configured,false);
   assert.ok(!JSON.stringify(body).includes('private-person-id'));
   assert.equal(events.filter(e=>e.startsWith('SELECT id')).length,1);
 });
