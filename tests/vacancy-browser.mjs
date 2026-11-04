@@ -60,6 +60,7 @@ try {
     assert.equal(await page.locator('.vacancy-description-content script').count(),0);
     assert.equal(await page.locator('.vacancy-description-content a[href^="javascript"]').count(),0);
     assert.equal(await page.locator('.vacancy-benefits .benefit-card').count(),5);
+    assert.equal(await page.locator('body > main > #sobre').isVisible(), false);
     assert.equal(await page.locator('body > main > #cultura').isVisible(), false);
     assert.equal(await page.locator('body > main > #beneficios').isVisible(), false);
     assert.equal(await page.locator('[data-apply="158883"]').count(),2);
