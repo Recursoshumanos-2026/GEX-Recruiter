@@ -655,7 +655,7 @@ async function addResumeObservation(env, payload, createBody, markdown) {
   form.set('action','1');
   form.set('description',
     '<p><strong>GEX Talents | Currículo convertido em Markdown</strong></p>' +
-    '<p>Este currículo foi enviado pelo candidato. O arquivo convertido também foi salvo em armazenamento privado da GEX.</p>' +
+    '<p>Texto extraído do currículo enviado pelo candidato. Conteúdo armazenado nesta observação da Recrutei.</p>' +
     '<pre>' + escapeHtml(excerpt + trailer) + '</pre>');
   const response = await recrutei(env, '/api/v2/talents-observations', {
     method:'POST', body:form
@@ -851,7 +851,10 @@ async function createProspect(env, rawPayload) {
         addQuestionnaireObservation(env, payload, createBody, answers))
     : null;
 
-  const resumeObservation = markdown && !profileCompleted
+  // Keep one HR-readable observation even if the custom field succeeds:
+  // this is the safest way to keep the curriculum visible in Recrutei when
+  // profile updates are silently ignored or unsupported for prospects.
+  const resumeObservation = markdown
     ? await completeApplicationStep(() =>
         addResumeObservation(env, payload, createBody, markdown))
     : null;
