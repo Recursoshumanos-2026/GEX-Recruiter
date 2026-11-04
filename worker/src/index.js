@@ -961,6 +961,40 @@ export default {
         );
       }
 
+      if (request.method === 'GET' && url.pathname === '/health' &&
+          url.searchParams.get('check') === 'resume' &&
+          env.RESUME_DIAGNOSTIC_ENABLED === 'true') {
+        const status = {
+          ok: true,
+          environment: 'preview',
+          resume_upload_enabled: resumeAvailable(env),
+          d1_table_ready: false,
+          pdf_supported: false,
+          docx_supported: false
+        };
+        if (typeof env?.RESUME_DB?.prepare === 'function') {
+          try {
+            // Probes table readiness without retrieving or returning candidate data.
+            await env.RESUME_DB.prepare('SELECT id FROM candidate_resumes LIMIT 1').first();
+            status.d1_table_ready = true;
+          } catch {}
+        }
+        if (typeof env?.AI?.toMarkdown === 'function') {
+          try {
+            const supported = await env.AI.toMarkdown().supported();
+            const formats = Array.isArray(supported) ? supported :
+              Array.isArray(supported?.results) ? supported.results : [];
+            status.pdf_supported = formats.some(item =>
+              item.extension === '.pdf' || item.extension === 'pdf');
+            status.docx_supported = formats.some(item =>
+              item.extension === '.docx' || item.extension === 'docx');
+          } catch {}
+        }
+        const response = json(status,200,env);
+        response.headers.set('Cache-Control','no-store');
+        return response;
+      }
+
       if (url.pathname === '/health') {
         return json(
           {
