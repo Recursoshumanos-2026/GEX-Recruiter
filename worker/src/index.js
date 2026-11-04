@@ -490,111 +490,6 @@ async function updateProspectProfile(env, payload, createBody, resumeMarkdown = 
   return { ok: true };
 }
 
-
-// Teste temporário e isolado no Preview. Não habilita inscrições nem upload real.
-// Uma única execução, restrita a uma candidatura fictícia previamente confirmada.
-const RESUME_LINK_TEST_SHA256 = 'a468ad6a0d6d5fa08129546047c60989330e0f989d15246d3565e441fa8a631e';
-const RESUME_LINK_TEST_MARKDOWN =
-  '# Currículo fictício — validação GEX Talents\\n\\n' +
-  'Documento de homologação: sem nome, contatos, CPF ou dados de pessoa real.\\n' +
-  'Competências fictícias: Excel, atendimento e organização de processos.';
-
-async function matchesResumeLinkTestToken(token) {
-  if (typeof token !== 'string' || !/^[a-f0-9]{48}$/.test(token)) return false;
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
-  const value = Array.from(new Uint8Array(digest))
-    .map(byte => byte.toString(16).padStart(2, '0')).join('');
-  return value === RESUME_LINK_TEST_SHA256;
-}
-
-async function runResumeLinkTest(request, env) {
-  const config = profileDiagnosticConfig(env);
-  if (env.RESUME_LINK_TEST_ENABLED !== 'true' || !config)
-    return json({ message: 'Rota não encontrada' }, 404, env);
-
-  if (request.method === 'GET') {
-    const page = `<!doctype html><html lang="pt-BR"><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Homologação interna de currículo · GEX</title>
-<style>body{background:#0b1020;color:#eaf2ff;font:16px system-ui,sans-serif;
-max-width:550px;margin:9vh auto;padding:24px}h1{font-size:24px}
-p{line-height:1.6;color:#aabbd6}form{background:#151f33;border:1px solid #354561;
-padding:24px;border-radius:14px}label{display:block;margin-bottom:12px}
-input,button{box-sizing:border-box;width:100%;font:inherit;padding:13px;border-radius:8px}
-input{color:#fff;background:#101b2f;border:1px solid #536785}
-button{margin-top:16px;background:#36a3ff;color:#061426;font-weight:bold;border:0}
-small{display:block;margin-top:18px;color:#b0c0d9}</style>
-<h1>Homologação interna do currículo</h1><p>Somente uma candidatura fictícia,
-já cadastrada. Nenhuma candidatura real será criada. O upload público permanece desligado.</p>
-<form method="post"><label for="token">Código temporário de autorização</label>
-<input id="token" name="token" type="password" required autocomplete="off" spellcheck="false">
-<button type="submit">Executar teste único</button></form>
-<small>Ambiente de prévia · esta tela não pertence ao portal público de vagas.</small></html>`;
-    return new Response(page, { status: 200, headers: {
-      'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store',
-      'X-Frame-Options': 'DENY',
-      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'"
-    } });
-  }
-  if (request.method !== 'POST') return json({ message: 'Método não aceito' }, 405, env);
-  const url = new URL(request.url);
-  if (request.headers.get('Origin') !== url.origin)
-    return json({ message: 'Origem não permitida' }, 403, env);
-  if (!request.headers.get('Content-Type')?.startsWith('application/x-www-form-urlencoded'))
-    return json({ message: 'Formato não permitido' }, 415, env);
-  if (Number(request.headers.get('Content-Length') || 0) > 1024)
-    return json({ message: 'Entrada excessiva' }, 413, env);
-  const form = await request.formData();
-  if ([...form.keys()].length !== 1 || !await matchesResumeLinkTestToken(form.get('token')))
-    return json({ message: 'Autorização inválida' }, 403, env);
-
-  // Confirma uma segunda vez o ID, a vaga e o prefixo "Teste" antes de gravar.
-  const lookup = await lookupConfiguredTestApplication(env, config);
-  if (!lookup.ok) return diagnosticLookupFailure(lookup, env);
-  const application = lookup.application;
-  const talentId = application.talent?.id ?? application.talent_id;
-  if (!positiveId(talentId) || !positiveId(application?.talent?.prospect?.id) ||
-      (application.talent_id != null && String(application.talent_id) !== String(talentId)))
-    return json({ message: 'Identificadores fictícios não confirmados' }, 409, env);
-
-  if (typeof env.RESUME_DB?.prepare !== 'function')
-    return json({ message: 'Banco privado de prévia indisponível' }, 503, env);
-  await env.RESUME_DB.prepare(
-    'CREATE TABLE IF NOT EXISTS resume_link_test_runs (test_id TEXT PRIMARY KEY, created_at TEXT NOT NULL)'
-  ).run();
-  const claim = await env.RESUME_DB.prepare(
-    'INSERT OR IGNORE INTO resume_link_test_runs (test_id, created_at) VALUES (?, ?)'
-  ).bind('recrutei-resume-validation-20261104', new Date().toISOString()).run();
-  if (claim?.meta?.changes !== 1)
-    return json({ ok: false, already_executed: true, application_created: false }, 409, env);
-
-  const createBody = { data: {
-    talent: { id: talentId, prospect: application.talent?.prospect },
-    application: { id: config.applicationId, prospect: application.prospect,
-      prospect_id: application.prospect_id }
-  } };
-  const payload = { vacancy_id: config.vacancyId };
-  const profile = await completeApplicationStep(() =>
-    updateProspectProfile(env, payload, createBody, RESUME_LINK_TEST_MARKDOWN));
-  const observation = await completeApplicationStep(() =>
-    addResumeObservation(env, payload, createBody, RESUME_LINK_TEST_MARKDOWN));
-  const readback = await lookupConfiguredTestApplication(env, config);
-  const result = {
-    ok: profile.ok || observation.ok,
-    environment: 'preview',
-    application_created: false,
-    fixture_still_valid: readback.ok,
-    resume_custom_field_request_succeeded: profile.ok,
-    resume_observation_request_succeeded: observation.ok,
-    custom_field_http_status: profile.diagnostics?.http_status ?? null,
-    executed_once: true,
-    public_upload_enabled: false
-  };
-  const response = json(result, 200, env);
-  response.headers.set('Cache-Control', 'no-store');
-  return response;
-}
-
 async function testProspectProfile(request, env) {
   const config = profileDiagnosticConfig(env, true);
   if (!config) return json({ message: 'Rota não encontrada' }, 404, env);
@@ -1020,10 +915,6 @@ export default {
     }
 
     try {
-      if ((request.method === 'GET' || request.method === 'POST') &&
-          url.pathname === '/api/teste-vinculo-curriculo') {
-        return runResumeLinkTest(request, env);
-      }
       if (request.method === 'GET' && url.pathname === '/api/diagnostico-perfil') {
         return diagnoseProspectProfile(env);
       }
