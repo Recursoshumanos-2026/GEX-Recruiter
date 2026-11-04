@@ -114,6 +114,7 @@ Esse processo é exclusivo do ambiente de prévia, pois depende de `RESUME_DIAGN
 ## Homologação da Recrutei — diagnóstico confirmado em 04/11/2026
 
 - O CI da prévia confirmou Workers AI → conversão de PDF fictício → leitura/gravação D1: **PASS**.
+- Ao ajustar segredos na **Base de Prévias** no painel Cloudflare, gerar uma nova implantação de prévia para validar se a configuração foi incorporada. Conferir apenas `recrutei_credentials_configured` no diagnóstico; nunca imprimir ou publicar o conteúdo das credenciais.
 - A tentativa **somente de leitura** `GET /api/diagnostico-perfil` retornou 502 com `lookup_http_status=null`, e o diagnóstico seguro `recrutei_credentials_configured=false`. Isso significa que **faltam as credenciais da Recrutei no ambiente Base de Prévias**; a API Recrutei não chegou a responder ao diagnóstico.
 - No painel Cloudflare, em `Workers & Pages → gex-talents-api → Configurações → Variáveis e segredos em tempo de execução → Base de Prévias`, adicionar como **Segredo** (não variável comum), com os valores oficiais mantidos de forma segura: `RECRUTEI_API_KEY`, `RECRUTEI_API_SECRET`, `RECRUTEI_EMAIL` e `RECRUTEI_PASSWORD`. **Não enviar valores de segredo por chat, print ou no GitHub.**
 - Se os valores de produção não estiverem disponíveis em um cofre de credenciais, a Cloudflare não permite recuperar os valores criptografados pelo painel; solicitar as credenciais ao responsável autorizado ou renová-las pela Recrutei.
