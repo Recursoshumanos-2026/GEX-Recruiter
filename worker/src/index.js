@@ -136,6 +136,10 @@ function publicVacancy(v) {
  * no ATS credentials or personal data are sent to the public host.
  */
 const PUBLIC_CAREERS_ROOT = 'https://jobs.recrutei.com.br/gex-corporation/vacancy/';
+// Confirmed public JD snapshot, used only when the public Recrutei HTML is unavailable.
+const PUBLIC_JD_SNAPSHOTS = Object.freeze({
+  '158928': "<h2>Sobre a vaga</h2><p>O time de Atendimento da GEX é responsável por garantir uma experiência positiva aos nossos clientes, atuando de forma próxima, ágil e resolutiva em cada contato.</p><p>Como Analista de Atendimento ao Cliente, sua missão será atender e acompanhar as demandas dos clientes, esclarecer dúvidas, solucionar problemas e contribuir para a retenção e satisfação da nossa base.</p><h2>Como será o seu dia a dia</h2><ul><li>Realizar atendimento aos clientes por meio dos canais disponibilizados pela operação.</li><li>Esclarecer dúvidas e orientar os clientes sobre produtos, processos e demais solicitações.</li><li>Identificar necessidades e buscar soluções de forma ágil e eficiente.</li><li>Acompanhar as demandas até a resolução, garantindo que o cliente receba o devido retorno.</li><li>Atuar na retenção de clientes, buscando compreender os motivos de insatisfação e apresentar alternativas quando aplicável.</li><li>Identificar oportunidades de oferta de outros produtos de acordo com o perfil e a necessidade do cliente.</li><li>Registrar corretamente os atendimentos e manter as informações atualizadas nos sistemas utilizados pela operação.</li><li>Seguir os processos, orientações e padrões de qualidade estabelecidos pela área.</li><li>Contribuir para uma experiência positiva e para o alcance dos resultados da operação.</li></ul><h2>O que esperamos de você</h2><ul><li>Experiência com atendimento ao cliente, Customer Service, retenção ou áreas relacionadas.</li><li>Excelente comunicação verbal e escrita.</li><li>Perfil empático, paciente e resolutivo.</li><li>Facilidade para lidar com clientes insatisfeitos e situações de objeção.</li><li>Organização e responsabilidade com os acompanhamentos.</li><li>Agilidade para lidar com diferentes demandas ao longo do dia.</li><li>Facilidade para trabalhar com sistemas e ferramentas digitais.</li><li>Foco em qualidade de atendimento e resultados.</li><li>Autonomia e comprometimento com a rotina de trabalho.</li></ul><h2>Diferenciais que vão te destacar</h2><ul><li>Experiência anterior com retenção de clientes.</li><li>Vivência em operações de atendimento remoto ou digital.</li><li>Experiência com metas e indicadores de atendimento.</li><li>Conhecimento em ferramentas de CRM.</li><li>Experiência com vendas ou oferta de produtos durante o atendimento.</li><li>Inglês será considerado um diferencial, principalmente para operações com clientes internacionais.</li></ul><h2>Como será nosso combinado</h2><ul><li>Tipo de contratação: PJ.</li><li>Modelo de trabalho: 100% remoto.</li><li>Horário: flexível.</li></ul>"
+});
 function publicJobSlug(v) {
   const id = String(v.id);
   let slug = typeof v.slug === 'string' ? v.slug : '';
@@ -153,9 +157,9 @@ async function publicRecruteiDetails(v) {
   if (!slug) return null;
   try {
     const response = await fetch(PUBLIC_CAREERS_ROOT + slug, {
-      method: 'GET', redirect: 'error',
+      method: 'GET', redirect: 'follow',
       headers: { Accept: 'text/html' },
-      signal: AbortSignal.timeout(8000)
+      signal: AbortSignal.timeout(12000)
     });
     if (!response.ok ||
         Number(response.headers.get('content-length') || 0) > 500000) return null;
@@ -188,7 +192,7 @@ async function getVacancyDetails(env, id) {
   const publicDetails = await publicRecruteiDetails(candidate);
   return {
     ...data,
-    description: publicDetails?.description || data.description,
+    description: publicDetails?.description || data.description || PUBLIC_JD_SNAPSHOTS[String(candidate.id)] || null,
     contract_model: data.contract_model || publicDetails?.contract_model || null
   };
 }
