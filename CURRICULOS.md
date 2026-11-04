@@ -92,14 +92,20 @@ O Worker já possui um handler `scheduled()` protegido. Quando autorizado e impl
 - Com `RESUME_RETENTION_ENABLED="true"`, mas sem `RESUME_RETENTION_DRY_RUN="false"`: **simula**, retornando apenas a contagem de currículos elegíveis, sem excluir.
 - Somente com ambas as flags explicitamente aprovadas, remove até 500 registros vencidos por execução, em lotes de 100, sem imprimir currículos, IDs ou e-mails nos logs.
 
-Valores propostos para uma futura revisão de configuração:
-```toml
-RESUME_RETENTION_ENABLED = "false"
-RESUME_RETENTION_DRY_RUN = "true"
-RESUME_RETENTION_MONTHS = "12"
-```
-A configuração do agendamento automático **ainda não foi ativada na Cloudflare**. Não agendar nem mudar essas flags antes da revisão de RH/LGPD, testes com documentos fictícios e conferência da tabela. O código e testes estão na branch de revisão.
+Configuração já preparada na branch de revisão:
+- **Produção, após futura implantação:** `RESUME_RETENTION_ENABLED="true"`, `RESUME_RETENTION_DRY_RUN="false"`, `RESUME_RETENTION_MONTHS="12"`. O Cron está previsto para uma execução diária, sem intervenção de colaboradores. Se ainda não houver `RESUME_DB` conectado em produção, ele simplesmente não excluirá nenhum registro.
+- **Prévia:** `RESUME_RETENTION_ENABLED="true"`, `RESUME_RETENTION_DRY_RUN="true"` e prazo de 12 meses; só contabiliza registros que venceriam, sem excluir.
+- **Estado atual do site oficial:** nenhum desses commits foi mesclado ou implantado na produção, portanto a limpeza real não está em execução na Cloudflare. A ativação efetiva depende de implantação e ligação de um banco D1 de produção que possua o esquema do `worker/schema.sql`.
+
+O escopo já foi confirmado pelo RH: após a ativação, a Cloudflare exclui somente sua cópia de Markdown, preservando toda informação na Recrutei. É necessária revisão final de privacidade antes de receber currículos reais; titular pode solicitar eliminação antecipada nos sistemas conforme direitos legais.
 
 **Regra expressamente escolhida pelo RH:** a exclusão automática de 12 meses é **exclusiva do banco Cloudflare D1**. O sistema **não solicita exclusão nem modifica dados na Recrutei**: candidato, candidatura, observações e informações já registradas na Recrutei permanecem lá, conforme as regras próprias da plataforma e a política de retenção da GEX. Essa retenção separada precisa constar no aviso de privacidade. Em caso de pedido de exclusão de dados do titular ou obrigação legal, a GEX deverá tratar também a Recrutei conforme aplicável; a automação do D1 não substitui esse procedimento.
 
 Para evitar exclusão de um currículo em um processo seletivo ainda ativo, validar antes a regra temporal e um mecanismo que proteja candidaturas com retenção legítima. Pedidos de exclusão por titulares e obrigações legais podem exigir tratamento diferente.
+
+
+## Verificação ponta a ponta sem candidatos reais
+
+O GitHub Actions inclui `tests/live-preview-integration.mjs`, um teste que acessa **somente a API de prévia**. Ele consulta `/health?check=resume` e, depois, `/health?check=conversion`. O segundo teste usa um PDF PDF simples gerado inteiramente pelo sistema, com texto fictício, passa pelo conversor Workers AI e insere/relê uma única linha fictícia no D1 de testes (IDs 2147483647). Requisições posteriores reutilizam essa linha, sem consumir novamente processamento da IA. O teste não aciona a Recrutei e não usa dados pessoais.
+
+Esse processo é exclusivo do ambiente de prévia, pois depende de `RESUME_DIAGNOSTIC_ENABLED="true"`, variável que não está prevista em produção. O upload para candidatos permanece desativado até concluir teste real da integração Recrutei e revisão de segurança. Nunca usar essa rota para candidatos reais.
