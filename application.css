@@ -142,3 +142,33 @@
   border:1px solid var(--control-border);border-radius:10px;background:var(--surface-card-2);
   color:var(--text-primary);font:inherit;line-height:1.5;resize:vertical;outline:none}
 .questionnaire-grid textarea:focus{border-color:var(--brand-blue);box-shadow:0 0 0 3px rgba(30,111,217,.14)}
+
+/* Optional feature-gated curriculum upload in the existing candidate form. */
+.resume-upload-section[hidden]{display:none!important}
+.resume-upload-field{display:grid;gap:11px;color:var(--text-strong);font-weight:600}
+.resume-upload-field input[type=file]{
+  width:100%;
+  min-height:56px;
+  padding:12px 14px;
+  border:1px dashed rgba(77,171,248,.52);
+  border-radius:12px;
+  background:rgba(20,91,166,.10);
+  color:var(--text-secondary);
+  font:500 13px/1.4 "Geist",sans-serif;
+  cursor:pointer;
+}
+.resume-upload-field input[type=file]:focus-visible{
+  outline:2px solid #58cfff;
+  outline-offset:3px;
+}
+.resume-upload-field input[type=file]::file-selector-button{
+  padding:8px 12px;
+  margin-right:12px;
+  background:rgba(34,131,218,.25);
+  border:1px solid rgba(93,177,255,.38);
+  border-radius:9px;
+  color:#deefff;
+  font:600 13px/1.25 "Geist",sans-serif;
+  cursor:pointer;
+}
+.resume-upload-hint{color:var(--text-muted);font-size:12px;line-height:1.6;font-weight:400}
