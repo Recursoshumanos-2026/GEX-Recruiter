@@ -486,7 +486,6 @@ function vacancyBenefitsMarkup() {
           <span class="vacancy-benefits-eyebrow">BENEFÍCIOS NA GEX</span>
           <h2 id="vacancyBenefitsTitle">Benefícios que fazem <span>a diferença.</span></h2>
           <p>Mais bem-estar, saúde, equilíbrio e reconhecimento para você viver o seu melhor, dentro e fora do trabalho.</p>
-          <div class="vacancy-benefits-horizon" aria-hidden="true"></div>
         </div>
         <ul class="vacancy-benefits-list" aria-label="Benefícios disponíveis na GEX">
           ${entries}
@@ -743,14 +742,12 @@ function renderSpecificVacancy(id) {
                 </div>
                 <div class="vacancy-top-apply">
                   ${vacancyApplyButton(job.id, 'vacancy-apply-main')}
-                  <span class="vacancy-hero-cta-note">Candidatura pelo GEX Recruiter</span>
                 </div>
               </div>
               <div class="vacancy-hero-art" aria-hidden="true">
                 <div class="vacancy-hero-orbit orbit-one"></div>
                 <div class="vacancy-hero-orbit orbit-two"></div>
-                <img src="assets/gex-simbolo.png" alt="" />
-                <span class="vacancy-hero-art-label">GEX <span>RECRUITER</span></span>
+                <img class="vacancy-hero-official-logo" src="assets/gex-logo-branco.svg" alt="" />
                 <span class="vacancy-hero-art-caption">DESAFIOS QUE MOVEM O FUTURO.</span>
               </div>
             </div>
