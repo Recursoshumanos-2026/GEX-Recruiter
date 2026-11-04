@@ -101,12 +101,12 @@ try {
       });
       const activityDetails = activities.locator('details.jd-more');
       assert.equal(await activities.locator('li').count(), 23);
-      assert.equal(await activities.locator('li:visible').count(), 6);
+      assert.equal(await activities.locator('li:visible').count(), 4);
       assert.equal(await activityDetails.count(), 1);
       await activityDetails.locator('summary').click();
       assert.equal(await activities.locator('li:visible').count(), 23);
       await activityDetails.locator('summary').click();
-      assert.equal(await activities.locator('li:visible').count(), 6);
+      assert.equal(await activities.locator('li:visible').count(), 4);
     }
 
     assert.ok(fullDescription.includes('Sobre a vaga'));
