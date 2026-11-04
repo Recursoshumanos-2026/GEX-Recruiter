@@ -882,7 +882,7 @@ return;
   } catch (error) {
 
     applicationsEnabled =
-      false;
+      PRESENTATION_PREVIEW;
 
         resumeUploadEnabled = false;
       syncResumeInput();
