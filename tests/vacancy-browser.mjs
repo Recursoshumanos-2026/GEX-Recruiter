@@ -59,8 +59,17 @@ try {
     assert.equal(await page.evaluate(()=>window.__injected), undefined);
     assert.equal(await page.locator('.vacancy-description-content script').count(),0);
     assert.equal(await page.locator('.vacancy-description-content a[href^="javascript"]').count(),0);
-    assert.equal(await page.locator('.vacancy-benefits .benefit-bento-card').count(),5);
-    assert.equal(await page.locator('.benefit-bento-card--featured').count(),1);
+    assert.equal(await page.locator('.vacancy-benefits .vacancy-benefit-row').count(),5);
+    assert.equal(await page.locator('.vacancy-benefits .vacancy-benefit-icon svg').count(),5);
+    assert.deepEqual(await page.locator('.vacancy-benefit-copy h3').allTextContents(), [
+      'Flash', 'Clude', 'Wellhub + TotalPass', 'Day Off', 'Mimos especiais'
+    ]);
+    assert.equal(await page.locator('.benefit-bento-card').count(),0);
+    const benefitsLayout = await page.locator('.vacancy-benefits-layout').evaluate(element =>
+      getComputedStyle(element).gridTemplateColumns.split(' ').length);
+    assert.equal(benefitsLayout, width === 1440 ? 2 : 1);
+    assert.equal(await page.locator('.vacancy-benefits-list').evaluate(element =>
+      getComputedStyle(element).borderLeftWidth !== '0px'), width === 1440);
     assert.equal(await page.locator('.vacancy-benefits h2').textContent(), 'Benefícios que fazem a diferença.');
     assert.equal(await page.locator('body > main > #sobre').isVisible(), false);
     assert.equal(await page.locator('body > main > #cultura').isVisible(), false);
