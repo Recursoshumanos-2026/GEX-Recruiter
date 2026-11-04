@@ -82,3 +82,20 @@ jobs:
           name: gex-curriculo-form-review
           path: screenshots-resume/
           if-no-files-found: ignore
+
+  live-cloudflare-preview:
+    if: github.event_name == 'pull_request' && github.head_ref == 'feat/lucide-icons-gex'
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify actual Cloudflare PDF conversion and D1 round trip (synthetic data only)
+        run: node tests/live-preview-integration.mjs
+        env:
+          GEX_RUN_LIVE_PREVIEW: 'true'
