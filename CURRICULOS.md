@@ -1,66 +1,81 @@
-# Integração de currículos — GEX Talents (revisão, não publicar)
+# Currículos GEX Talents — Cloudflare D1 Free (revisão, sem publicação)
 
-## Fluxo
+## Decisão de custo
 
-1. A pessoa candidata anexa currículo **PDF ou DOCX**, máximo **5 MB**, no formulário da vaga.
-2. O Cloudflare Worker verifica o formato e a assinatura inicial do arquivo (PDF ou ZIP/DOCX).
-3. **Antes de criar a candidatura**, converte o arquivo em Markdown usando `env.AI.toMarkdown()` (Cloudflare Workers AI). Se não for possível extrair texto, a candidatura **não** é criada.
-4. A candidatura é criada na Recrutei pela API existente, mantendo a tag e o questionário.
-5. O Markdown **integral** é salvo em **bucket R2 privado**, na chave `curriculos/{vaga}/{candidatura}/{uuid}.md`. O original não é armazenado nesta integração; nenhum link público do R2 é gerado.
-6. O backend tenta salvar a versão Markdown (até 12 mil caracteres) no campo personalizado da Recrutei via `PUT /api/v2/curriculum/filled`, em `informations`:
-   ```json
-   {
-     "informations": [
-       {
-         "type": "text",
-         "title": "Currículo GEX Talents (Markdown)",
-         "value": "Conteúdo convertido..."
-       }
-     ]
-   }
-   ```
-7. Se essa rota falhar, o backend tenta **uma observação privada** no candidato, com Markdown em HTML escapado (até 24 mil caracteres), via `POST /api/v2/talents-observations`. O Markdown completo continua no R2.
-8. A resposta da candidatura informa separadamente se houve armazenamento privado, campo personalizado e/ou observação. **Não repetir a candidatura** se qualquer etapa posterior falhar.
+A GEX optou por **não ativar a assinatura R2 com cobrança por uso**. O fluxo passa a usar **Cloudflare D1 no plano Workers Free** para armazenar apenas o Markdown convertido, sem PDF/DOCX original.
 
-## Limitação real da Recrutei — importante
+- D1 Free: até **5 GB de armazenamento por conta**, no máximo **500 MB por banco**, 5 milhões de linhas lidas/dia e 100 mil gravadas/dia. Ao esgotar limites gratuitos, o serviço bloqueia operações em vez de cobrar excedentes. Ver [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) e [D1 limits](https://developers.cloudflare.com/d1/platform/limits/).
+- Workers Free: até 100 mil requisições/dia, 10 ms de CPU por request. A execução e o processamento de arquivos exigem homologação real no ambiente Free. Ver [Workers limits](https://developers.cloudflare.com/workers/platform/limits/).
+- Workers AI: o método `toMarkdown` é gratuito para a maioria dos formatos, mas documentos que demandam modelos de IA podem consumir a cota de 10 mil neurons gratuitos por dia. No plano Free, ao exceder a cota o processamento falha, sem cobrança automática; não migrar para Workers Paid sem nova autorização. Ver [Markdown conversion](https://developers.cloudflare.com/workers-ai/features/markdown-conversion/) e [AI pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/).
+- A Recrutei pode ter custos de assinatura já contratados. Isso não está incluído na gratuidade da Cloudflare.
+- **Não fazer upgrade nem cadastrar forma de pagamento para ativar R2 neste fluxo.**
 
-O endpoint documentado aceita `informations`, mas a integração existente da GEX retornou **HTTP 404** ao tentar atualizar dados complementares. Portanto, o campo personalizado **ainda não está homologado**. O fallback de observações busca evitar a perda do conteúdo no ATS, mas também deve ser validado com o suporte. **Não tratar testes simulados como confirmação de persistência real.** Pode ser necessário cadastrar o campo no painel da Recrutei e ajustar o ID correto da prospecção. Ver `SUPORTE-RECRUTEI.md`.
+## Etapas de processamento
 
-## Configurar na Cloudflare (pendente de acesso administrativo)
+1. Candidata ou candidato envia um currículo PDF ou DOCX de até 5 MB.
+2. O Worker confirma se o banco D1 existe e verifica o tipo e assinatura do arquivo, antes de criar a candidatura.
+3. Workers AI `toMarkdown` converte o conteúdo. Se falhar ou não extrair texto suficiente, o fluxo interrompe a candidatura (422).
+4. Recrutei cria a candidatura e preserva questionário e tag GEX Talents.
+5. O Markdown é armazenado em tabela D1 **privada** `candidate_resumes`, com UUID, IDs de vaga/candidatura e data de criação. O arquivo original não é guardado. Não há rota pública de download de currículos.
+6. Worker tenta persistir o Markdown (resumo até 12 mil caracteres) em `informations` via `PUT /api/v2/curriculum/filled`.
+7. Se a Recrutei recusar a atualização, o Markdown escapado (até 24 mil caracteres) é registrado como observação. O conteúdo integral permanece na D1.
+8. A resposta diferencia candidatura criada, currículo armazenado e registrado; falhas posteriores nunca criam uma segunda candidatura.
 
-1. Criar um bucket privado R2 chamado, por exemplo, `gex-talents-curriculos`. **Não habilitar `r2.dev` nem domínio público** para currículos. Verificar as permissões do Worker para gravar no bucket.
-2. Nos arquivos `wrangler.toml` (raiz e/ou worker), descomentar/adicionar:
+**Atenção:** a API da Recrutei já retornou HTTP 404 na atualização do perfil. O campo personalizado **ainda não foi homologado** em conta real. O fallback por observação também precisa ser validado especificamente para currículos. Não prometer que o candidato terá um currículo nativo anexado à Recrutei.
+
+## Próximo passo na Cloudflare (manual e gratuito)
+
+1. Ignorar a tela de assinatura R2 e escolher **Banco de dados SQLite D1** no menu lateral da Cloudflare.
+2. Criar banco D1 com o nome `gex-talents-curriculos-teste` (prévia com dados fictícios). No plano Workers Free, a criação do D1 não exige contratação de R2.
+3. No banco, acessar **Console** e executar o SQL do arquivo `worker/schema.sql` para criar a tabela `candidate_resumes` e o índice.
+4. Copiar o ID do banco (UUID). No `wrangler.toml` do Worker, descomentar/adicionar o binding com o ID real:
    ```toml
-   [[r2_buckets]]
-   binding = "RESUME_BUCKET"
-   bucket_name = "gex-talents-curriculos"
+   [[d1_databases]]
+   binding = "RESUME_DB"
+   database_name = "gex-talents-curriculos-teste"
+   database_id = "ID_REAL_DA_CLOUDFLARE"
    ```
-   Para ambientes de prévia, preferir **outro bucket de testes** e nunca misturar documentos fictícios com currículos reais.
-3. O binding da IA já está preparado:
+   O código já usa `RESUME_DB`. Não enviar IDs de credenciais, senhas ou tokens.
+5. O binding AI está preparado:
    ```toml
    [ai]
    binding = "AI"
    ```
-4. Com os bindings operacionais, validar o endpoint `GET /health`. Quando `RESUME_UPLOAD_ENABLED` for `false`, o campo de upload permanece oculto/desabilitado e nenhuma candidatura muda de comportamento.
-5. **Somente após homologação**, definir `RESUME_UPLOAD_ENABLED = "true"` no ambiente autorizado. Isso torna o currículo obrigatório nas candidaturas novas `form_version=2`.
-6. Definir política de retenção/exclusão de currículos e processamento de solicitações de titulares da LGPD. O R2 pode receber uma regra de ciclo de vida aprovada internamente; não definir prazo automaticamente sem decisão do RH/jurídico.
-7. Adicionar proteção contra abuso (rate limiting e Turnstile/WAF) antes de receber arquivos do público. O limite de arquivo está no backend, mas **não substitui** mitigação de uploads massivos e análise de segurança. A conversão não deve ser interpretada como verificação de vírus.
-8. Confirmar com jurídico/privacidade o texto de aviso ao candidato. A conversão usa Workers AI e os dados de currículo contêm informações pessoais; acesso ao bucket e à conta Cloudflare deve ser restrito ao RH.
+6. Manter `RESUME_UPLOAD_ENABLED = "false"` em produção e habilitar somente em ambiente de prévia após as etapas anteriores. No `/health`, confirmar `resume_upload_enabled: true` com o banco devidamente migrado. O código também faz preflight da tabela antes de criar o candidato.
+7. Fazer testes exclusivamente com PDF/DOCX e candidaturas fictícias, sem colocar currículos reais no banco de testes. Conferir o Markdown na D1 e na Recrutei e testar limite de quotas.
+8. Definir política de retenção e exclusão sob a LGPD antes de produção; acesso ao banco e ao Worker deve ser restrito aos responsáveis autorizados. Configurar limitação de envios/rate limiting, proteção contra abuso e validação de arquivos; isso não é antivírus.
+9. Só após validação e autorização, criar banco separado para produção, migrar schema, configurar binding de produção e liberar upload. **Manter conta/plano Workers Free.**
 
-## Segurança e experiência
+## Schema
 
-- Uploads e requisições multipart são aceitos apenas na origem configurada; CORS sozinho não é autenticação e **não** impede clientes não navegador.
-- Nomes de candidatos/arquivos nunca entram na chave R2. A chave contém IDs e UUID, não é publicada no site ou na resposta ao candidato.
-- Currículos com conversão inválida, com assinatura incompatível, acima de 5 MB ou quando a funcionalidade estiver desativada são rejeitados antes de criar a candidatura.
-- Após criação bem-sucedida, falhas no R2 ou Recrutei geram aviso, não uma segunda inscrição.
-- O arquivo original não é preservado: apenas o Markdown convertido. Se o RH precisar do PDF original, isso requer decisão e implementação adicional de armazenamento privado.
-- O conteúdo pode conter dados pessoais e deve ser revisado por humanos, sem utilizar a conversão automaticamente para reprovar candidatos.
+`worker/schema.sql` cria a tabela privada `candidate_resumes`:
 
-## Testes
+- `id`: UUID opaco.
+- `vacancy_id`: ID de vaga na Recrutei.
+- `application_id`: ID da candidatura.
+- `markdown`: currículo convertido.
+- `created_at`: timestamp.
 
-- `npm run check`
-- `npm test` (inclui `tests/resumes.test.mjs`: formatos, R2 privado, campo personalizado, fallback 404, falhas e configuração desabilitada)
-- Navegador: `GEX_RESUME_PREVIEW=true node tests/vacancy-browser.mjs`, com arquivo **fictício** e sem submissão de candidatura.
-- Antes de publicar: testar com conta de homologação e documentos fictícios; confirmar que o Markdown aparece na Recrutei no campo ou observação correta e que as permissões privadas do R2 funcionam.
+SQL usa parâmetros vinculados; sem dados pessoais em URLs públicas. Tamanho máximo do Markdown limitado a 120 mil caracteres (bem abaixo do limite de 2 MB por valor no D1).
 
-**Status: implementação no código e mocks, sem bucket de produção provisionado e sem teste end-to-end real com dados de candidatos.**
+## Proteção e limites
+
+- Upload obrigatório só quando `RESUME_UPLOAD_ENABLED=true` **e** bindings `AI` e `RESUME_DB` presentes.
+- `GET /health` não retorna currículos.
+- Se a tabela ainda não existir, upload falha antes de criar candidatura.
+- Arquivos inválidos / muito grandes / sem texto geram erro antes da criação na Recrutei.
+- Após criação de candidatura, uma falha de banco ou Recrutei gera aviso, mas o sistema não repete automaticamente a candidatura.
+- PDF/DOCX **não são preservados**. Se RH precisar do anexo original, isso demanda outro desenho.
+- Requisitos LGPD: retenção, exclusão, acesso mínimo, base legal e aviso de privacidade revisado.
+
+## Testes de revisão
+
+```bash
+npm run check
+npm test
+GEX_RESUME_PREVIEW=true node tests/vacancy-browser.mjs
+```
+
+Testes de código incluem mock de D1 Free, schema preflight, SQL parametrizado, conversão/erros, Recrutei 404 e fallback de observações; testes de interface usam arquivo fictício.
+
+**Status: implementação apenas na branch de revisão, sem D1 real provisionada e sem upload ativado no site oficial.**
