@@ -36,6 +36,10 @@ binding = "AI"
 # database_id = "UUID_DO_BANCO_D1"
 # This does not add any public endpoint to candidate curricula.
 
+# Workers AI configurado somente na Base de Prévias pelo painel Cloudflare.
+[previews.ai]
+binding = "AI"
+
 # Sincronizado com a associação "Base de Prévias" feita no painel Cloudflare.
 # Usado somente por Worker Previews; não cria binding D1 em produção.
 [[previews.d1_databases]]
