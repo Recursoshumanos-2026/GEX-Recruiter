@@ -9,6 +9,10 @@ ALLOWED_ORIGIN = "https://recursoshumanos-2026.github.io"
 APPLICATIONS_ENABLED = "true"
 PROSPECT_CHANNEL_ID = "8"
 RESUME_UPLOAD_ENABLED = "false"
+# Retencao automatica somente no D1, 12 meses; Recrutei nunca e alterada.
+RESUME_RETENTION_ENABLED = "true"
+RESUME_RETENTION_DRY_RUN = "false"
+RESUME_RETENTION_MONTHS = "12"
 
 # Prévia isolada: candidaturas reais permanecem bloqueadas até autorização.
 # Segredos da Recrutei são configurados exclusivamente no painel da Cloudflare.
@@ -17,6 +21,10 @@ ALLOWED_ORIGIN = "https://gex-talents-previa-questionario.yasmimbsouza80.chatgpt
 APPLICATIONS_ENABLED = "true"
 PROSPECT_CHANNEL_ID = "8"
 RESUME_UPLOAD_ENABLED = "false"
+# Preview permanece sem exclusao real.
+RESUME_RETENTION_ENABLED = "true"
+RESUME_RETENTION_DRY_RUN = "true"
+RESUME_RETENTION_MONTHS = "12"
 RESUME_DIAGNOSTIC_ENABLED = "true"
 
 # Consulta somente leitura, restrita ao registro fictício já usado na homologação.
