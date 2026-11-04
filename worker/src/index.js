@@ -148,13 +148,7 @@ function profileIds(body, vacancyId) {
     )?.id ||
     null;
 
-  const prospectId = [
-    body?.data?.talent?.prospect?.id,
-    body?.data?.application?.prospect?.id,
-    body?.data?.application?.prospect_id
-  ].find(positiveId) || null;
-
-  return { talentId, applicationId, prospectId };
+  return { talentId, applicationId };
 }
 
 function buildProfilePayload(payload, talentId, applicationId) {
@@ -344,7 +338,7 @@ async function diagnoseProspectProfile(env) {
 }
 
 async function updateProspectProfile(env, payload, createBody) {
-  const { talentId, applicationId, prospectId } = profileIds(
+  const { talentId, applicationId } = profileIds(
     createBody,
     payload.vacancy_id
   );
@@ -369,27 +363,9 @@ async function updateProspectProfile(env, payload, createBody) {
     return { ok: true };
   }
 
-  let targetProspectId = prospectId;
-  if (!targetProspectId) {
-    const lookup = await lookupApplication(env, applicationId);
-    const application = lookup.application;
-    if (!lookup.ok || String(application?.id) !== String(applicationId) ||
-        String(application?.vacancy_id) !== String(payload.vacancy_id) ||
-        String(application?.talent_id ?? application?.talent?.id) !== String(talentId) ||
-        (application?.talent?.id != null && String(application.talent.id) !== String(talentId))) {
-      return { ok: false, reason: 'Não foi possível confirmar a prospecção desta candidatura.',
-        diagnostics: { http_status: lookup.lookup_http_status, fields: [] } };
-    }
-    targetProspectId = [application.talent?.prospect?.id, application.prospect?.id,
-      application.prospect_id].find(positiveId);
-  }
-  if (!targetProspectId) {
-    return { ok: false, reason: 'ID da prospecção não retornado pela Recrutei.' };
-  }
-
   const response = await recrutei(
     env,
-    `/api/v2/curriculum/filled?talent_id=${encodeURIComponent(targetProspectId)}`,
+    `/api/v2/curriculum/filled?talent_id=${encodeURIComponent(talentId)}`,
     {
       method: 'PUT',
       headers: {

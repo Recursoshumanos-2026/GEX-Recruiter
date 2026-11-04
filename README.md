@@ -24,11 +24,12 @@ O GitHub Pages é somente o front-end. Isso é obrigatório para não expor `tok
 ## 1. Publicar a prévia no GitHub Pages
 
 1. Crie um repositório, por exemplo `GEX-Talents`.
-2. Envie os arquivos da raiz: `index.html`, `styles.css`, `app.js`, `config.js` e a pasta `assets`.
+2. Envie os arquivos públicos da raiz: `index.html`, `styles.css`, `tokens.css`, `application.css`, `app.js`, `questionnaires.js`, `config.js` e a pasta `assets`.
 3. No GitHub: **Settings → Pages → Deploy from a branch → main / root**.
 4. Abra o endereço gerado pelo GitHub Pages.
 
-A prévia abre em `DEMO_MODE: true`; portanto nenhum dado é enviado para a Recrutei.
+O `config.js` atual usa `DEMO_MODE: false` e aponta ao backend configurado. Para uma
+demonstração sem envio à Recrutei, use explicitamente `DEMO_MODE: true`.
 
 ## 2. Backend seguro
 
@@ -64,7 +65,7 @@ Depois faça commit no GitHub. O site passará a buscar as vagas reais.
 
 ## 4. Segurança antes de produção
 
-Troque `ALLOWED_ORIGIN = "*"` no `worker/wrangler.toml` pelo domínio do GitHub Pages. Exemplo:
+Configure `ALLOWED_ORIGIN` no backend com a origem do GitHub Pages. Exemplo:
 
 ```toml
 ALLOWED_ORIGIN = "https://recursoshumanos-2026.github.io"
@@ -74,8 +75,10 @@ Também valide com a Recrutei qual canal de aquisição (`PROSPECT_CHANNEL_ID`) 
 
 ## Observação sobre currículo e campos extras
 
-Nesta primeira versão, o envio usa apenas os campos documentados como obrigatórios pelo endpoint de criação de prospect: nome, e-mail, telefone, vaga, etapa e canal de aquisição. Não foi colocado upload de currículo “de fachada”. Depois de validarmos a criação real do candidato na conta da GEX, podemos evoluir para informações complementares e currículo usando os endpoints suportados pela Recrutei.
-Integração Cloudflare configurada.
+A criação usa nome, e-mail, telefone, vaga, etapa e canal de aquisição. O backend
+também tenta atualizar os dados complementares existentes; essa atualização ainda
+não foi homologada, pois retornou HTTP 404 no teste real. O formulário não oferece
+upload de currículo. A integração Cloudflare está configurada.
 
 ## Questionários por vaga (revisão, ainda sem publicação)
 
@@ -87,7 +90,7 @@ são obrigatórios; respostas curtas aceitam até 500 caracteres após remover e
 
 O navegador envia `questionnaire_answers` junto dos dados existentes. O Worker valida
 novamente as respostas antes de qualquer chamada à Recrutei e, após criar a candidatura,
-mantém o preenchimento complementar e a tag `GEX Talents`, acrescentando
+mantém a tentativa de preenchimento complementar e a tag `GEX Talents`, acrescentando
 `POST /api/v2/talents-observations` em multipart com HTML escapado.
 Nenhum token foi acrescentado ao front-end.
 
@@ -111,7 +114,8 @@ Pode-se selecionar outra referência com `GEX_BASELINE_REF`.
 Os testes usam exclusivamente respostas simuladas e um servidor local.
 
 Consulte `REVISAO.md` para resultados, limitações e ordem proposta de homologação.
-Nenhuma publicação ou candidatura real foi executada nesta implementação.
+Testes reais autorizados na prévia confirmaram candidatura, tag e as sete respostas.
+O perfil complementar permanece pendente; não houve merge ou publicação em produção.
 
 
 ### Compilação de prévias na Cloudflare
@@ -122,7 +126,8 @@ esse comando. A configuração original `worker/wrangler.toml` continua disponí
 para os comandos que já usam esse caminho; mantenha os parâmetros de produção
 consistentes entre ambos.
 
-As prévias usam `APPLICATIONS_ENABLED = "false"` até autorização de teste real.
+A prévia usa `APPLICATIONS_ENABLED = "true"` durante a homologação autorizada,
+conforme instrução do usuário para manter os envios disponíveis.
 Os segredos de produção não são herdados pelas prévias: configure-os somente no
 painel seguro da Cloudflare, na Base de Prévias, quando for preparar a homologação.
 A existência de uma URL de prévia não confirma por si só a integração com a Recrutei.
@@ -137,8 +142,9 @@ o envio, preservando o preenchimento.
 Quando a atualização complementar falha, `profile_error` informa o status HTTP
 (se houver) e somente nomes conhecidos dos campos recusados. Os valores das
 mensagens de validação não são incluídos nesse novo diagnóstico. O retorno
-`profile_warning` existente foi mantido. A causa do nascimento ausente no teste
-real ainda não foi confirmada; CPF fictício é apenas uma hipótese.
+`profile_warning` existente foi mantido. A conferência real identificou HTTP 404
+no PUT do perfil, `birthday_verified: false` e `salary_verified: null`.
+Isso não determina a causa nem comprova problema no CPF ou na data informada.
 
 
 Na homologação, a rota `GET /api/diagnostico-perfil` só fica disponível quando
@@ -149,8 +155,13 @@ pessoais ou IDs; não altera registros e ignora IDs enviados por querystring.
 A configuração de produção não declara essas variáveis.
 
 
-O preenchimento complementar usa o ID da prospecção no query da edição e mantém
-no corpo o ID do talento. IDs ausentes exigem leitura verificada, sem reutilizar o
-ID do talento como fallback de prospecção. A conferência temporária da prévia pode
+O preenchimento complementar preserva o contrato original: o ID do talento vai
+no query `talent_id` e no corpo, junto ao ID da candidatura. A hipótese de usar
+o ID da prospecção na query retornou 404 e foi retirada para preservar
+o comportamento das demais vagas; isso não é uma correção do perfil.
+A conferência temporária da prévia pode
 atualizar e reler apenas o cadastro fictício fixado, usando `/api/teste-perfil`;
 a rota é desabilitada sem configuração explícita e não cria candidaturas.
+
+O draft permanece sem produção até confirmar o preenchimento complementar.
+Consulte a mensagem pronta em [SUPORTE-RECRUTEI.md](SUPORTE-RECRUTEI.md).
