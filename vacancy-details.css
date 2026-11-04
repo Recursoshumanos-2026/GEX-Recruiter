@@ -320,3 +320,224 @@ body.vacancy-detail-mode .vacancy-bottom-action .vacancy-apply-main{
    transform:none!important;filter:none!important;
  }
 }
+
+
+/* ─────────────────────────────────────────────────────────────
+   GEX Talents — unified detail canvas & integrated navigation.
+   Only the individual vacancy view is affected; the homepage
+   and candidate application dialog remain unchanged.
+   ───────────────────────────────────────────────────────────── */
+body.vacancy-detail-mode{
+  background:
+    radial-gradient(ellipse at 96% 0%,rgba(20,79,152,.12),transparent 36%),
+    linear-gradient(180deg,#081425 0%,#0c121d 24%,#0c121d 77%,#091527 100%);
+}
+body.vacancy-detail-mode > main{
+  background:transparent;
+  overflow:clip;
+}
+body.vacancy-detail-mode .site-header{
+  background:rgba(7,18,34,.96);
+  border-bottom:1px solid rgba(93,163,226,.20);
+  box-shadow:none;
+}
+body.vacancy-detail-mode .site-header .header-inner{
+  width:min(1190px,calc(100% - 48px));
+  min-height:74px;
+  height:auto;
+  padding-block:11px;
+  gap:18px;
+}
+.vacancy-header-actions[hidden],
+body:not(.vacancy-detail-mode) .vacancy-header-actions{
+  display:none!important;
+}
+body.vacancy-detail-mode .vacancy-header-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:clamp(12px,2vw,24px);
+  margin-left:auto;
+  min-width:0;
+}
+body.vacancy-detail-mode .vacancy-header-back{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  color:#b2cbe6;
+  font-size:13px;
+  font-weight:600;
+  white-space:nowrap;
+  transition:color .2s ease;
+}
+body.vacancy-detail-mode .vacancy-header-back:hover{
+  color:#72d2ff;
+}
+body.vacancy-detail-mode .vacancy-header-share{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  min-height:40px;
+  padding:0 17px;
+  border:1px solid rgba(98,178,240,.35);
+  border-radius:11px;
+  background:rgba(26,82,137,.20);
+  color:#d8ebfb;
+  font-size:13px;
+  font-weight:650;
+  white-space:nowrap;
+  cursor:pointer;
+  transition:background .2s ease,border-color .2s ease,transform .2s ease;
+}
+body.vacancy-detail-mode .vacancy-header-share:hover{
+  background:rgba(35,111,182,.31);
+  border-color:rgba(98,188,251,.68);
+  transform:translateY(-1px);
+}
+body.vacancy-detail-mode .vacancy-header-share:focus-visible,
+body.vacancy-detail-mode .vacancy-header-back:focus-visible{
+  outline:2px solid #68d1fc;
+  outline-offset:4px;
+}
+body.vacancy-detail-mode .vacancy-header-actions svg{
+  flex:none;
+  width:16px;
+  height:16px;
+}
+body.vacancy-detail-mode .vacancy-nav-mobile{display:none}
+
+/* One uninterrupted canvas, not an inset page inside another black frame. */
+body.vacancy-detail-mode #vagas.specific-vacancy-section{
+  width:100%;
+  max-width:none;
+  margin:0;
+  padding:0;
+  min-height:calc(100vh - 74px);
+  min-height:calc(100dvh - 74px);
+}
+body.vacancy-detail-mode .jobs-grid--specific{
+  width:100%;
+  max-width:none;
+  margin:0;
+  padding:0;
+}
+body.vacancy-detail-mode .vacancy-landing{
+  width:100%;
+  overflow:visible;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+body.vacancy-detail-mode .vacancy-landing-content--single{
+  width:100%;
+  display:block;
+  margin:0;
+  padding:0;
+}
+body.vacancy-detail-mode .vacancy-main-content--wide{
+  width:100%;
+  max-width:none;
+  margin:0;
+  padding:0;
+}
+body.vacancy-detail-mode .vacancy-hero{
+  width:100%;
+  margin:0 0 clamp(42px,5vw,68px);
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+  background:
+    radial-gradient(ellipse at 83% 31%,rgba(29,115,211,.25),transparent 46%),
+    radial-gradient(ellipse at 12% 100%,rgba(12,84,163,.21),transparent 55%),
+    linear-gradient(125deg,#09182c,#0a1d37 52%,#08182e);
+}
+body.vacancy-detail-mode .vacancy-hero-inner{
+  max-width:1200px;
+  margin:auto;
+  padding:0 clamp(22px,4vw,58px);
+  min-height:355px;
+}
+body.vacancy-detail-mode .vacancy-hero-copy{
+  padding:clamp(44px,5vw,64px) 0;
+}
+body.vacancy-detail-mode .vacancy-description{
+  max-width:1140px;
+  width:100%;
+  margin:0 auto;
+  padding:0 28px 4px;
+}
+body.vacancy-detail-mode .vacancy-benefits{
+  max-width:1140px;
+  width:100%;
+  margin:clamp(58px,7vw,86px) auto 0;
+  padding:clamp(38px,5vw,60px) 28px 0;
+  border-top:1px solid rgba(120,173,222,.14);
+}
+body.vacancy-detail-mode .vacancy-bottom-action{
+  max-width:1084px;
+  margin:clamp(42px,5vw,60px) auto clamp(54px,7vw,94px);
+}
+body.vacancy-detail-mode footer{
+  background:transparent;
+  border-top:1px solid rgba(119,173,228,.16);
+}
+@media(max-width:760px){
+  body.vacancy-detail-mode .site-header .header-inner{
+    width:calc(100% - 30px);
+    min-height:64px;
+    padding-block:9px;
+    gap:10px;
+  }
+  body.vacancy-detail-mode .vacancy-header-actions{gap:10px}
+  body.vacancy-detail-mode .vacancy-nav-desktop{display:none}
+  body.vacancy-detail-mode .vacancy-nav-mobile{display:inline}
+  body.vacancy-detail-mode .vacancy-header-back{font-size:12px;gap:5px}
+  body.vacancy-detail-mode .vacancy-header-share{
+    min-height:36px;
+    font-size:12px;
+    padding-inline:10px;
+    gap:5px;
+  }
+  body.vacancy-detail-mode .vacancy-header-actions svg{
+    width:15px;height:15px;
+  }
+  body.vacancy-detail-mode .vacancy-hero{
+    margin-bottom:38px;
+  }
+  body.vacancy-detail-mode .vacancy-hero-inner{
+    padding:0 24px;
+    min-height:auto;
+  }
+  body.vacancy-detail-mode .vacancy-hero-copy{
+    padding:35px 0 40px;
+  }
+  body.vacancy-detail-mode .vacancy-description{
+    padding:0 24px 4px;
+  }
+  body.vacancy-detail-mode .vacancy-benefits{
+    padding:37px 24px 0;
+    margin-top:52px;
+  }
+  body.vacancy-detail-mode .vacancy-bottom-action{
+    margin:44px 24px 64px;
+  }
+}
+@media(max-width:420px){
+  body.vacancy-detail-mode .brand-product,
+  body.vacancy-detail-mode .brand-divider{
+    display:none;
+  }
+  body.vacancy-detail-mode .site-header .header-inner{
+    width:calc(100% - 28px);
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  body.vacancy-detail-mode .vacancy-header-share{
+    transition:none;
+  }
+  body.vacancy-detail-mode .vacancy-header-share:hover{
+    transform:none;
+  }
+}
