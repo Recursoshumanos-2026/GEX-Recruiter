@@ -1,0 +1,101 @@
+name: GEX Talents — PR validation
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Static syntax checks
+        run: npm run check
+      - name: Mock-only automated tests
+        run: npm test
+      - name: Optional live public job description contract
+        continue-on-error: true
+        run: node tests/public-job-live.test.mjs
+
+  visual-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Chromium for browser test
+        run: npx playwright install --with-deps chromium
+      - name: Run safe mocked browser checks
+        run: node tests/vacancy-browser.mjs
+        env:
+          SCREENSHOT_DIR: screenshots
+      - name: Upload desktop and mobile screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gex-vacancy-visual-review
+          path: screenshots/
+          if-no-files-found: ignore
+
+      - name: Optional preview with real publicly published Job Description
+        continue-on-error: true
+        run: node tests/vacancy-browser.mjs
+        env:
+          GEX_PUBLIC_PREVIEW: 'true'
+          SCREENSHOT_DIR: screenshots-real
+      - name: Upload real-description preview
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gex-vacancy-real-jd-review
+          path: screenshots-real/
+          if-no-files-found: ignore
+
+      - name: Mock-only resume upload form preview
+        run: node tests/vacancy-browser.mjs
+        env:
+          GEX_RESUME_PREVIEW: 'true'
+          SCREENSHOT_DIR: screenshots-resume
+      - name: Upload curriculum field preview
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gex-curriculo-form-review
+          path: screenshots-resume/
+          if-no-files-found: ignore
+
+  live-cloudflare-preview:
+    if: github.event_name == 'pull_request' && github.head_ref == 'feat/lucide-icons-gex'
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify actual Cloudflare PDF conversion and D1 round trip (synthetic data only)
+        run: node tests/live-preview-integration.mjs
+        env:
+          GEX_RUN_LIVE_PREVIEW: 'true'

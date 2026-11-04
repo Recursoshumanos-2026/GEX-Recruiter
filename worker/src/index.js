@@ -1,4 +1,7 @@
 import { questionnaireFor, validateAnswers } from '../../questionnaires.js';
+import { resumeAvailable, convertResume, assertResumeDatabase, storeResume, resumeField } from './resumes.js';
+import { cleanupExpiredResumes, RETENTION_CRON } from './retention.js';
+import { smokeResume } from './smoke.js';
 
 const API_BASE = 'https://api.recrutei.com.br';
 let tokenCache = { token: null, expiresAt: 0 };
@@ -116,10 +119,79 @@ function publicVacancy(v) {
     remote: v.remote,
     vacancy_status_id: v.vacancy_status_id,
     slug: v.slug ?? null,
-    department: v.department ?? null
+    department: v.department ?? null,
+    // Recrutei fields are passed through only when provided as strings.
+    // Never guess missing job descriptions or expose arbitrary ATS objects.
+    description: typeof v.description === 'string' ? v.description :
+      typeof v.job_description === 'string' ? v.job_description : null,
+    contract_model: typeof v.contract_model === 'string' ? v.contract_model : null
   };
 }
 
+
+/**
+ * Job description fallback for the *public* GEX Recrutei vacancy page.
+ * The documented private vacancies/filter response does not expose description.
+ * Fetches only a fixed company domain/path and reads the public Next.js data;
+ * no ATS credentials or personal data are sent to the public host.
+ */
+const PUBLIC_CAREERS_ROOT = 'https://jobs.recrutei.com.br/gex-corporation/vacancy/';
+function publicJobSlug(v) {
+  const id = String(v.id);
+  let slug = typeof v.slug === 'string' ? v.slug : '';
+  if (!slug) {
+    const titleSlug = String(v.title || '').normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    slug = id + '-' + titleSlug;
+  }
+  return new RegExp('^' + id + '-[a-z0-9-]{1,160}$').test(slug) ? slug : null;
+}
+
+async function publicRecruteiDetails(v) {
+  const slug = publicJobSlug(v);
+  if (!slug) return null;
+  try {
+    const response = await fetch(PUBLIC_CAREERS_ROOT + slug, {
+      method: 'GET', redirect: 'error',
+      headers: { Accept: 'text/html' },
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!response.ok ||
+        Number(response.headers.get('content-length') || 0) > 500000) return null;
+    const html = await response.text();
+    if (html.length > 500000) return null;
+    const nextData = html.match(/<script\b[^>]*\bid=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
+    if (!nextData) return null;
+    const page = JSON.parse(nextData[1])?.props?.pageProps?.retorno;
+    const job = page?.vacancy;
+    if (page?.error || page?.finished || page?.past ||
+        !job || String(job.id) !== String(v.id)) return null;
+    const description = typeof job.description === 'string' &&
+      job.description.length < 100000 ? job.description : null;
+    const regime = Number(job.show_regime) === 1 &&
+      typeof job.regime?.description === 'string'
+      ? job.regime.description : null;
+    return { description, contract_model: regime };
+  } catch (_) {
+    // Public job pages can change independently; show the neutral fallback.
+    return null;
+  }
+}
+
+async function getVacancyDetails(env, id) {
+  if (!positiveId(id)) return null;
+  const candidate = (await rawVacancies(env)).find(v =>
+    String(v.id) === String(id) && Number(v.vacancy_status_id) === 1);
+  if (!candidate) return null;
+  const data = publicVacancy(candidate);
+  const publicDetails = await publicRecruteiDetails(candidate);
+  return {
+    ...data,
+    description: publicDetails?.description || data.description,
+    contract_model: data.contract_model || publicDetails?.contract_model || null
+  };
+}
 function firstPipeStageId(vacancy) {
   const stages = [...(vacancy.pipe_stages || [])].sort(
     (a, b) => Number(a.order ?? 999) - Number(b.order ?? 999)
@@ -148,10 +220,20 @@ function profileIds(body, vacancyId) {
     )?.id ||
     null;
 
-  return { talentId, applicationId };
+  // Recrutei documents two different identifiers: the URL's "talent_id"
+  // represents the prospect record, while the JSON body's talent_id is the
+  // actual talent. Prefer the prospect ID from the POST /prospects response.
+  const prospectId =
+    body?.data?.talent?.prospect?.id ||
+    body?.data?.application?.prospect?.id ||
+    body?.data?.application?.prospect_id ||
+    body?.data?.prospect?.id ||
+    null;
+
+  return { talentId, applicationId, prospectId };
 }
 
-function buildProfilePayload(payload, talentId, applicationId) {
+function buildProfilePayload(payload, talentId, applicationId, resumeMarkdown = null) {
   const basicInfos = [];
   const additional = [];
 
@@ -210,7 +292,8 @@ function buildProfilePayload(payload, talentId, applicationId) {
     talent_id: Number(talentId),
     application_id: Number(applicationId),
     basic_infos: basicInfos,
-    additional
+    additional,
+    ...(resumeMarkdown ? { informations: [resumeField(resumeMarkdown)] } : {})
   };
 }
 
@@ -337,8 +420,8 @@ async function diagnoseProspectProfile(env) {
     }, 200, env);
 }
 
-async function updateProspectProfile(env, payload, createBody) {
-  const { talentId, applicationId } = profileIds(
+async function updateProspectProfile(env, payload, createBody, resumeMarkdown = null) {
+  const { talentId, applicationId, prospectId } = profileIds(
     createBody,
     payload.vacancy_id
   );
@@ -353,19 +436,26 @@ async function updateProspectProfile(env, payload, createBody) {
   const profilePayload = buildProfilePayload(
     payload,
     talentId,
-    applicationId
+    applicationId,
+    resumeMarkdown
   );
 
   if (
     !profilePayload.basic_infos.length &&
-    !profilePayload.additional.length
+    !profilePayload.additional.length &&
+    !profilePayload.informations?.length
   ) {
     return { ok: true };
   }
 
   const response = await recrutei(
     env,
-    `/api/v2/curriculum/filled?talent_id=${encodeURIComponent(talentId)}`,
+    // In this *query string*, Recrutei expects the prospect ID. In the
+    // body, talent_id remains the talent ID. For legacy responses without
+    // prospect details, retain the old fallback and use observation on error.
+    `/api/v2/curriculum/filled?talent_id=${encodeURIComponent(
+      positiveId(prospectId) ? prospectId : talentId
+    )}`,
     {
       method: 'PUT',
       headers: {
@@ -546,6 +636,34 @@ async function addQuestionnaireObservation(env, payload, createBody, answers) {
   };
 }
 
+// If the documented Recrutei custom-field endpoint rejects the update,
+ // keep the curriculum readable in a candidate observation, never as a public R2 link.
+async function addResumeObservation(env, payload, createBody, markdown) {
+  const { talentId, applicationId } = profileIds(createBody, payload.vacancy_id);
+  if (!positiveId(talentId) || !positiveId(applicationId)) {
+    return { ok: false, reason: 'IDs da candidatura não retornados para o currículo.' };
+  }
+  const limit = 24000;
+  const excerpt = markdown.slice(0, limit);
+  const trailer = markdown.length > limit
+    ? '\n[Conteúdo abreviado na observação; versão integral armazenada privadamente na GEX.]'
+    : '';
+  const form = new FormData();
+  form.set('application_id', String(applicationId));
+  form.set('talent_id', String(talentId));
+  form.set('talent_observation_type_id', '7');
+  form.set('action','1');
+  form.set('description',
+    '<p><strong>GEX Talents | Currículo convertido em Markdown</strong></p>' +
+    '<p>Texto extraído do currículo enviado pelo candidato. Conteúdo armazenado nesta observação da Recrutei.</p>' +
+    '<pre>' + escapeHtml(excerpt + trailer) + '</pre>');
+  const response = await recrutei(env, '/api/v2/talents-observations', {
+    method:'POST', body:form
+  });
+  return response.ok ? { ok:true } :
+    { ok:false, reason:'Não foi possível registrar o currículo na observação da Recrutei.' };
+}
+
 async function completeApplicationStep(operation) {
   try {
     return await operation();
@@ -577,6 +695,14 @@ async function createProspect(env, rawPayload) {
     'telephone',
     'vacancy_id'
   ];
+
+  // Once enabled for new candidate applications, curriculum is mandatory.
+  if (resumeAvailable(env) && String(rawPayload?.form_version) === '2' &&
+      !rawPayload?.resume) {
+    const error = new Error('Anexe seu currículo em PDF ou DOCX.');
+    error.status = 400;
+    throw error;
+  }
 
   const completeForm =
     String(payload.form_version) === '2';
@@ -632,6 +758,12 @@ async function createProspect(env, rawPayload) {
     );
   }
 
+  // Convert before creating a candidate: invalid / unconvertible resumes
+  // must never create partial applications.
+  const resumeFile = payload.resume;
+  if (resumeFile) await assertResumeDatabase(env);
+  const markdown = resumeFile ? await convertResume(env, resumeFile) : null;
+
   const form = new FormData();
 
   form.set(
@@ -665,13 +797,24 @@ async function createProspect(env, rawPayload) {
     );
   }
 
+  let resumeStored = false;
+  let resumeStoreWarning = null;
+  if (markdown) {
+    const { applicationId } = profileIds(createBody, payload.vacancy_id);
+    const stored = await completeApplicationStep(() =>
+      storeResume(env, markdown, applicationId, payload.vacancy_id)
+        .then(() => ({ ok:true })));
+    resumeStored = stored.ok;
+    if (!stored.ok) resumeStoreWarning = 'Não foi possível armazenar o currículo na GEX.';
+  }
+
   let profileCompleted = true;
   let profileWarning = null;
   let profileError = null;
 
-  if (completeForm) {
+  if (completeForm || markdown) {
     const profileResult = await completeApplicationStep(() =>
-      updateProspectProfile(env, payload, createBody)
+      updateProspectProfile(env, payload, createBody, markdown)
     );
 
     if (!profileResult.ok) {
@@ -708,9 +851,27 @@ async function createProspect(env, rawPayload) {
         addQuestionnaireObservation(env, payload, createBody, answers))
     : null;
 
+  // Keep one HR-readable observation even if the custom field succeeds:
+  // this is the safest way to keep the curriculum visible in Recrutei when
+  // profile updates are silently ignored or unsupported for prospects.
+  const resumeObservation = markdown
+    ? await completeApplicationStep(() =>
+        addResumeObservation(env, payload, createBody, markdown))
+    : null;
+  const resumeLinked = Boolean(markdown) &&
+    (profileCompleted || resumeObservation?.ok === true);
+
   return {
     ok: true,
     application_created: true,
+    ...(markdown ? {
+      resume_stored: resumeStored,
+      resume_custom_field_completed: profileCompleted,
+      resume_observation_completed: Boolean(resumeObservation?.ok),
+      resume_completed: Boolean(resumeStored && resumeLinked),
+      ...(!resumeLinked ? { resume_warning: resumeStoreWarning ||
+        'Currículo recebido, mas não foi possível confirmar seu vínculo na Recrutei.' } : {})
+    } : {}),
     ...(observationResult ? {
       observation_completed: observationResult.ok,
       ...(!observationResult.ok ? { observation_warning: observationResult.reason } : {})
@@ -729,6 +890,13 @@ async function createProspect(env, rawPayload) {
 }
 
 export default {
+  async scheduled(controller, env) {
+    if (controller.cron !== RETENTION_CRON) return;
+    const report = await cleanupExpiredResumes(env, { now:controller.scheduledTime });
+    // No resume content, names, emails or IDs in logs.
+    console.info('GEX Talents | retenção D1:', report.status,
+      report.status === 'dry_run' ? report.eligible : report.deleted);
+  },
   async fetch(request, env) {
     const url = new URL(request.url);
 
@@ -745,6 +913,18 @@ export default {
       }
       if (request.method === 'POST' && url.pathname === '/api/teste-perfil') {
         return testProspectProfile(request, env);
+      }
+
+      const detailId = request.method === 'GET' &&
+        url.pathname.startsWith('/api/vagas/')
+          ? url.pathname.slice('/api/vagas/'.length)
+          : null;
+      if (detailId && positiveId(detailId)) {
+        const result = await getVacancyDetails(env, detailId);
+        if (!result) return json({ message: 'Vaga não disponível' }, 404, env);
+        const reply = json({ data: result }, 200, env);
+        reply.headers.set('Cache-Control', 'public, max-age=300');
+        return reply;
       }
 
       if (
@@ -766,19 +946,86 @@ export default {
       ) {
         const contentType =
           request.headers.get('content-type') || '';
-
-        const payload =
-          contentType.includes('application/json')
-            ? await request.json()
-            : Object.fromEntries(
-                (await request.formData()).entries()
-              );
+        const contentLength = Number(request.headers.get('content-length') || 0);
+        if (contentLength > 6 * 1024 * 1024) {
+          return json({ message:'O currículo deve ter até 5 MB.' },413,env);
+        }
+        let payload;
+        if (contentType.includes('multipart/form-data')) {
+          // Do not accept untrusted cross-origin browser file submissions.
+          if (request.headers.get('Origin') !==
+              (env.ALLOWED_ORIGIN || 'https://recursoshumanos-2026.github.io')) {
+            return json({ message:'Origem não permitida.' },403,env);
+          }
+          if (!resumeAvailable(env)) {
+            return json({ message:'O envio de currículos não está habilitado neste ambiente.' },503,env);
+          }
+          const formData = await request.formData();
+          payload = Object.fromEntries(formData.entries());
+          if (typeof payload.questionnaire_answers === 'string') {
+            try { payload.questionnaire_answers = JSON.parse(payload.questionnaire_answers); }
+            catch { return json({ message:'Respostas da vaga inválidas.' },400,env); }
+          }
+        } else if (contentType.includes('application/json')) {
+          payload = await request.json();
+        } else {
+          return json({ message:'Formato de candidatura não suportado.' },415,env);
+        }
 
         return json(
           await createProspect(env, payload),
           201,
           env
         );
+      }
+
+      if (request.method === 'GET' && url.pathname === '/health' &&
+          url.searchParams.get('check') === 'conversion' &&
+          env.RESUME_DIAGNOSTIC_ENABLED === 'true') {
+        // One-shot synthetic test: no real candidate and no Recrutei API writes.
+        const result = await smokeResume(env);
+        const response = json(result,result.ok ? 200 : 503,env);
+        response.headers.set('Cache-Control','no-store');
+        return response;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/health' &&
+          url.searchParams.get('check') === 'resume' &&
+          env.RESUME_DIAGNOSTIC_ENABLED === 'true') {
+        const status = {
+          ok: true,
+          environment: 'preview',
+          resume_upload_enabled: resumeAvailable(env),
+          // Presence only; never expose API keys, passwords, identities or values.
+          recrutei_credentials_configured: [
+            'RECRUTEI_API_KEY','RECRUTEI_API_SECRET',
+            'RECRUTEI_EMAIL','RECRUTEI_PASSWORD'
+          ].every(key => typeof env?.[key] === 'string' && env[key].length > 0),
+          d1_table_ready: false,
+          pdf_supported: false,
+          docx_supported: false
+        };
+        if (typeof env?.RESUME_DB?.prepare === 'function') {
+          try {
+            // Probes table readiness without retrieving or returning candidate data.
+            await env.RESUME_DB.prepare('SELECT id FROM candidate_resumes LIMIT 1').first();
+            status.d1_table_ready = true;
+          } catch {}
+        }
+        if (typeof env?.AI?.toMarkdown === 'function') {
+          try {
+            const supported = await env.AI.toMarkdown().supported();
+            const formats = Array.isArray(supported) ? supported :
+              Array.isArray(supported?.results) ? supported.results : [];
+            status.pdf_supported = formats.some(item =>
+              item.extension === '.pdf' || item.extension === 'pdf');
+            status.docx_supported = formats.some(item =>
+              item.extension === '.docx' || item.extension === 'docx');
+          } catch {}
+        }
+        const response = json(status,200,env);
+        response.headers.set('Cache-Control','no-store');
+        return response;
       }
 
       if (url.pathname === '/health') {
@@ -789,7 +1036,17 @@ export default {
               env.APPLICATIONS_ENABLED === 'true' &&
               Boolean(env.PROSPECT_CHANNEL_ID),
             candidate_form_version: 2,
-            curriculum_storage: false,
+            curriculum_storage: resumeAvailable(env),
+            // Safe, non-sensitive connection diagnostics. These only report
+            // whether bindings exist; they never access candidate data.
+            resume_connections: {
+              workers_ai: typeof env?.AI?.toMarkdown === 'function',
+              d1_database: typeof env?.RESUME_DB?.prepare === 'function'
+            },
+            resume_upload_enabled: resumeAvailable(env),
+            resume_required: resumeAvailable(env),
+            resume_formats: ['pdf','docx'],
+            resume_max_bytes: 5242880,
             gex_talents_tag: true
           },
           200,
@@ -815,9 +1072,10 @@ export default {
             application_created: false
           } : {})
         },
-        [400, 503].includes(error.status) ? error.status : 500,
+        [400, 413, 415, 422, 503].includes(error.status) ? error.status : 500,
         env
       );
     }
   }
 };
+

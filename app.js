@@ -1,9 +1,28 @@
 import { questionnaireFor, validateAnswers } from './questionnaires.js?v=5';
 
 const CONFIG = window.GEX_TALENTS_CONFIG || {};
+// A shareable presentation preview: all file and form interactions stay local.
+// The regular site keeps its existing real application flow unchanged.
+const PRESENTATION_PREVIEW = new URLSearchParams(window.location.search).get('demo') === '1';
 
 let jobs = [];
 let applicationsEnabled = false;
+let resumeUploadEnabled = false;
+const resumeSection = document.querySelector('#resumeUploadSection');
+const resumeInput = document.querySelector('#resumeFile');
+function syncResumeInput() {
+  if (!resumeSection || !resumeInput) return;
+  const visible = resumeUploadEnabled || PRESENTATION_PREVIEW;
+  resumeSection.hidden = !visible;
+  resumeInput.disabled = !visible;
+  resumeInput.required = resumeUploadEnabled && !PRESENTATION_PREVIEW;
+  if (PRESENTATION_PREVIEW) {
+    resumeSection.classList.add('resume-demo-mode');
+    const hint = resumeSection.querySelector('.resume-upload-hint');
+    if (hint) hint.textContent = 'Demonstração: selecione um PDF ou DOCX de até 5 MB. O arquivo não será enviado nem armazenado.';
+  }
+}
+
 
 const DEFAULT_TITLE = 'GEX Recruiter | Carreiras';
 const DEFAULT_DESCRIPTION =
@@ -29,6 +48,10 @@ const talentPool =
 
 const main =
   document.querySelector('main');
+
+const headerActions = document.querySelector('#vacancyHeaderActions');
+const headerBack = document.querySelector('#vacancyHeaderBack');
+const headerShare = document.querySelector('#vacancyHeaderShare');
 
 const dialog =
   document.querySelector('#applyDialog');
@@ -247,7 +270,257 @@ function bindJobActions() {
 }
 
 
+// Render rich text from the ATS with a strict element/attribute allowlist.
+// No fetched HTML attributes or active content are copied into the page.
+function safeJobDescription(input) {
+  if (typeof input !== 'string' || !input.trim()) return '';
+  const parsed = new DOMParser().parseFromString(input, 'text/html');
+  const allowed = new Set(['P','H2','H3','H4','UL','OL','LI','STRONG','B','EM','I','BR','BLOCKQUOTE','A']);
+  const blocked = new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','SVG','FORM','INPUT','BUTTON','VIDEO','AUDIO','IMG','META','LINK']);
+  const clean = node => {
+    if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent);
+    if (node.nodeType !== Node.ELEMENT_NODE || blocked.has(node.tagName)) return document.createDocumentFragment();
+    const target = allowed.has(node.tagName) ? document.createElement(node.tagName.toLowerCase()) : document.createDocumentFragment();
+    if (node.tagName === 'A' && target.nodeType === Node.ELEMENT_NODE) {
+      const href = node.getAttribute('href') || '';
+      try {
+        const url = new URL(href, window.location.origin);
+        if (['https:', 'http:'].includes(url.protocol)) {
+          target.setAttribute('href', url.toString());
+          target.setAttribute('target', '_blank');
+          target.setAttribute('rel', 'noopener noreferrer');
+        }
+      } catch (_) {}
+    }
+    for (const child of node.childNodes) target.appendChild(clean(child));
+    return target;
+  };
+  const container = document.createElement('div');
+  for (const child of parsed.body.childNodes) container.appendChild(clean(child));
+
+  // The public Recrutei JD may repeat our institutional Story/Culture and
+  // benefits. Keep the vacancy-specific text, but show institutional sections
+  // only once in their dedicated areas of GEX Talents.
+  let skipThroughLevel = null;
+  for (const child of [...container.childNodes]) {
+    const heading = child.nodeType === Node.ELEMENT_NODE &&
+      /^H[234]$/.test(child.tagName);
+    if (heading) {
+      const level = Number(child.tagName[1]);
+      if (skipThroughLevel !== null && level <= skipThroughLevel) {
+        skipThroughLevel = null;
+      }
+      const normalized = child.textContent.normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '').toLowerCase()
+        .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+      if (/^(nosso jeito de ser gex|aqui nossos gexs encontram|beneficios|beneficios da gex|nossos beneficios)$/.test(normalized)) {
+        skipThroughLevel = level;
+      }
+    }
+    if (skipThroughLevel !== null) child.remove();
+  }
+  // Reformat the source description into readable editorial chapters.
+  // Keep every sanitized item; long lists remain available via an accessible
+  // native details/summary control instead of creating a huge wall of bullets.
+  const contentNodes = [...container.childNodes].filter(node =>
+    node.nodeType === Node.ELEMENT_NODE && node.textContent.trim()
+  );
+  const chapters = [];
+  let chapter = null;
+
+  const isParagraphHeading = (node, next) => {
+    if (node.tagName !== 'P' || !node.querySelector('strong,b')) return false;
+    const title = node.textContent.trim();
+    if (!title || title.length > 105) return false;
+    const onlyEmphasis = [...node.childNodes].every(child =>
+      (child.nodeType === Node.TEXT_NODE && !child.textContent.trim()) ||
+      (child.nodeType === Node.ELEMENT_NODE && ['STRONG', 'B'].includes(child.tagName))
+    );
+    return onlyEmphasis && (
+      /^(o que esperamos de voce|comportamentos e habilidades esperados|se ainda tiver tudo isso)/i.test(
+        title.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      ) || ['UL', 'OL'].includes(next?.tagName)
+    );
+  };
+
+  contentNodes.forEach((node, index) => {
+    const heading = /^H[234]$/.test(node.tagName) ||
+      isParagraphHeading(node, contentNodes[index + 1]);
+    if (heading) {
+      chapter = { title: node.textContent.trim(), nodes: [] };
+      chapters.push(chapter);
+    } else {
+      if (!chapter) {
+        chapter = { title: 'Sobre a oportunidade', nodes: [] };
+        chapters.push(chapter);
+      }
+      chapter.nodes.push(node);
+    }
+  });
+
+  if (!chapters.length) return container.innerHTML.trim();
+  const article = document.createElement('div');
+  article.className = 'jd-article';
+  const total = chapters.length;
+
+  chapters.forEach((group, index) => {
+    if (!group.nodes.length) return;
+    const section = document.createElement('section');
+    const isIntro = /^(sobre a vaga|sobre a oportunidade)$/i.test(
+      group.title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    );
+    section.className = 'jd-chapter' + (isIntro ? ' jd-chapter--intro' : '');
+    const heading = document.createElement('div');
+    heading.className = 'jd-chapter-heading';
+    const kicker = document.createElement('span');
+    kicker.className = 'jd-chapter-index';
+    kicker.textContent = String(index + 1).padStart(2, '0') +
+      ' / ' + String(total).padStart(2, '0');
+    const title = document.createElement('h3');
+    title.id = 'jd-section-' + index;
+    title.className = 'jd-chapter-title';
+    title.textContent = group.title.replace(/^[⭐★🌟]\s*/u, '');
+    section.setAttribute('aria-labelledby', title.id);
+    heading.append(kicker, title);
+
+    const body = document.createElement('div');
+    body.className = 'jd-chapter-body';
+
+    const isAgreementSection = /^como sera nosso combinado$/i.test(
+      group.title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+    );
+    let hasFlexibleSchedule = false;
+    const scheduleText = 'Aqui na GEX, valorizamos autonomia com responsabilidade. Você tem flexibilidade para organizar seus horários, sempre com foco em resultado e alinhamento com o time.';
+
+    for (const item of group.nodes) {
+      if (isAgreementSection && item.tagName === 'P') {
+        // ATS combines contract, workplace and hours into a single paragraph
+        // separated by <br>. Preserve contract/workplace while removing only
+        // the old schedule line (including the clock), when it says "flexível".
+        const lines = [[]];
+        for (const part of [...item.childNodes]) {
+          if (part.nodeType === Node.ELEMENT_NODE && part.tagName === 'BR') {
+            lines.push([]);
+          } else {
+            lines[lines.length - 1].push(part);
+          }
+        }
+        const hasFlexibleLine = lines.some(parts => {
+          const sample = document.createElement('span');
+          parts.forEach(part => sample.appendChild(part.cloneNode(true)));
+          const text = sample.textContent.normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '').toLowerCase();
+          return /horario/.test(text) && /flexivel/.test(text);
+        });
+        if (hasFlexibleLine) {
+          hasFlexibleSchedule = true;
+          for (const parts of lines) {
+            const line = document.createElement('p');
+            line.className = 'jd-agreement-line';
+            for (const part of parts) line.appendChild(part.cloneNode(true));
+            const label = line.textContent.normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            if (label.includes('horario') && label.includes('flexivel')) continue;
+            if (line.textContent.trim()) body.appendChild(line);
+          }
+          continue;
+        }
+      }
+      if (item.tagName === 'UL' || item.tagName === 'OL') {
+        item.classList.add('jd-list');
+        const entries = [...item.children].filter(child => child.tagName === 'LI');
+        if (entries.length > 8) {
+          const visibleCount = 4;
+          const remaining = entries.slice(visibleCount);
+          const extra = document.createElement(item.tagName.toLowerCase());
+          extra.className = 'jd-list jd-list--extra';
+          remaining.forEach(entry => extra.appendChild(entry));
+          body.appendChild(item);
+
+          const details = document.createElement('details');
+          details.className = 'jd-more';
+          const summary = document.createElement('summary');
+          summary.className = 'jd-more-toggle';
+          const expand = document.createElement('span');
+          expand.className = 'jd-expand-label';
+          expand.textContent = 'Ver mais ' + remaining.length + ' itens';
+          const collapse = document.createElement('span');
+          collapse.className = 'jd-collapse-label';
+          collapse.textContent = 'Mostrar menos';
+          summary.append(expand, collapse);
+          details.append(summary, extra);
+          body.appendChild(details);
+          continue;
+        }
+      }
+      body.appendChild(item);
+    }
+
+    if (hasFlexibleSchedule) {
+      const callout = document.createElement('aside');
+      callout.className = 'jd-flex-schedule';
+      callout.setAttribute('aria-label', 'Horário flexível');
+      const eyebrow = document.createElement('span');
+      eyebrow.className = 'jd-flex-schedule-eyebrow';
+      eyebrow.textContent = 'HORÁRIO FLEXÍVEL';
+      const title = document.createElement('h4');
+      title.textContent = 'Flexibilidade para sua rotina';
+      const description = document.createElement('p');
+      description.textContent = scheduleText;
+      callout.append(eyebrow, title, description);
+      body.appendChild(callout);
+    }
+
+    section.append(heading, body);
+    article.appendChild(section);
+  });
+  return article.outerHTML.trim();
+}
+
+
+function vacancyBenefitsMarkup() {
+  // Benefit copy and iconography stay synced with the existing institutional homepage.
+  const cards = [...document.querySelectorAll('#beneficios .benefits-grid .benefit-card')];
+  if (!cards.length) return '';
+
+  const entries = cards.map((card) => {
+    const title = card.querySelector('strong')?.textContent.trim();
+    const description = card.querySelector('span')?.textContent.trim();
+    const icon = card.querySelector('svg.gex-animated-icon')?.outerHTML || '';
+    if (!title) return '';
+    return `
+      <li class="vacancy-benefit-row">
+        <span class="vacancy-benefit-icon" aria-hidden="true">${icon}</span>
+        <div class="vacancy-benefit-copy">
+          <h3>${safe(title)}</h3>
+          <p>${safe(description || '')}</p>
+        </div>
+      </li>`;
+  }).join('');
+
+  return `
+    <section class="vacancy-benefits" aria-labelledby="vacancyBenefitsTitle">
+      <div class="vacancy-benefits-layout">
+        <div class="vacancy-benefits-intro">
+          <span class="vacancy-benefits-eyebrow">BENEFÍCIOS NA GEX</span>
+          <h2 id="vacancyBenefitsTitle">Benefícios que fazem <span>a diferença.</span></h2>
+          <p>Mais bem-estar, saúde, equilíbrio e reconhecimento para você viver o seu melhor, dentro e fora do trabalho.</p>
+        </div>
+        <ul class="vacancy-benefits-list" aria-label="Benefícios disponíveis na GEX">
+          ${entries}
+        </ul>
+      </div>
+    </section>`;
+}
+
+function vacancyApplyButton(id, extraClass = '') {
+  return `<button type="button" class="btn btn-primary ${extraClass}" data-apply="${safe(id)}"
+    ${applicationsEnabled ? '' : 'disabled'}>${applicationsEnabled ? 'Quero me candidatar →' : 'Candidatura em breve'}</button>`;
+}
+
 function renderGeneralJobs() {
+  document.body.classList.remove("vacancy-detail-mode");
+  if (headerActions) headerActions.hidden = true;
 
   if (main && talentPool) {
   main.insertBefore(
@@ -375,9 +648,7 @@ function renderGeneralJobs() {
               )}
             </span>
 
-            <h3>
-              ${safe(job.title)}
-            </h3>
+            <h3><a class="job-title-link" href="${safe(vacancyUrl(job.id))}">${safe(job.title)}</a></h3>
 
             <div class="job-meta">
 
@@ -415,22 +686,7 @@ function renderGeneralJobs() {
                   Compartilhar
                 </button>
 
-                <button
-                  type="button"
-                  class="job-apply-button"
-                  data-apply="${safe(job.id)}"
-                  ${
-                    applicationsEnabled
-                      ? ''
-                      : 'disabled'
-                  }
-                >
-                  ${
-                    applicationsEnabled
-                      ? 'Quero me candidatar →'
-                      : 'Candidatura em breve'
-                  }
-                </button>
+                <a class="job-apply-button job-details-link" href="${safe(vacancyUrl(job.id))}">Ver detalhes →</a>
 
               </div>
 
@@ -451,274 +707,97 @@ function renderGeneralJobs() {
 }
 
 
-function renderSpecificVacancy(
-  id
-) {
-  if (main) {
-  main.prepend(
-    jobsSection
-  );
-}
+function renderSpecificVacancy(id) {
+  document.body.classList.add('vacancy-detail-mode');
+  if (headerActions) headerActions.hidden = false;
+  if (headerBack) headerBack.href = allJobsUrl() + '#vagas';
+  if (main) main.prepend(jobsSection);
+  jobsHeading.style.display = 'none';
+  jobsToolbar.style.display = 'none';
+  jobsSection.classList.add('specific-vacancy-section');
+  grid.classList.add('jobs-grid--specific');
+  if (talentPool) talentPool.hidden = true;
 
-  const job =
-    jobs.find(
-      item =>
-        String(item.id) ===
-          String(id) &&
-        Number(
-          item.vacancy_status_id
-        ) === 1
-    );
-
-
-  jobsHeading.style.display =
-    'none';
-
-  jobsToolbar.style.display =
-    'none';
-
-
-  jobsSection.classList.add(
-    'specific-vacancy-section'
-  );
-
-
-  grid.classList.add(
-    'jobs-grid--specific'
-  );
-
-
-  if (talentPool) {
-    talentPool.hidden =
-      true;
-  }
-
-
+  const job = jobs.find(item => String(item.id) === String(id) &&
+    Number(item.vacancy_status_id) === 1);
   if (!job) {
-
-    empty.hidden =
-      false;
-
-    grid.innerHTML =
-      '';
-
-    empty
-      .querySelector('h3')
-      .textContent =
-      'Esta oportunidade não está mais disponível.';
-
-    empty
-      .querySelector('p')
-      .innerHTML =
-      `Confira <a href="${safe(allJobsUrl())}">todas as oportunidades abertas</a> na GEX.`;
-
+    if (headerShare) headerShare.hidden = true;
+    empty.hidden = false;
+    grid.innerHTML = '';
+    empty.querySelector('h3').textContent = 'Esta oportunidade não está mais disponível.';
+    empty.querySelector('p').innerHTML = `Confira <a href="${safe(allJobsUrl())}">todas as oportunidades abertas</a> na GEX.`;
     return;
   }
-
-
-  empty.hidden =
-    true;
-
-
-  document.title =
-    `${job.title} | GEX Recruiter`;
-
-
-  const description =
-    document.querySelector(
-      'meta[name="description"]'
-    );
-
-
-  if (description) {
-    description.content =
-      `${job.title} — oportunidade na GEX Corporation.`;
+  empty.hidden = true;
+  if (headerShare) {
+    headerShare.hidden = false;
+    headerShare.onclick = () => shareVacancy(job.id, headerShare);
   }
+  document.title = `${job.title} | GEX Recruiter`;
+  const meta = document.querySelector('meta[name="description"]');
+  if (meta) meta.content = `${job.title} — oportunidade na GEX Corporation.`;
 
-
-  const location =
-    locationLabel(job);
-
-
+  const description = safeJobDescription(job.description);
+  const location = locationLabel(job);
+  // Contract model must only be displayed when actually supplied by the ATS.
+  const contract = typeof job.contract_model === 'string' ? job.contract_model : '';
   grid.innerHTML = `
-
-    <article
-      class="vacancy-landing"
-      id="vaga-${safe(job.id)}"
-    >
-
-      <div class="vacancy-landing-top">
-
-        <a
-          class="vacancy-back-link"
-          href="${safe(allJobsUrl())}"
-        >
-          ← Todas as oportunidades
-        </a>
-
-        <button
-          type="button"
-          class="vacancy-share-top"
-          data-share="${safe(job.id)}"
-        >
-          Compartilhar vaga
-        </button>
-
-      </div>
-
-
+    <article class="vacancy-landing" id="vaga-${safe(job.id)}">
       <div class="vacancy-landing-content vacancy-landing-content--single">
-
         <div class="vacancy-main-content vacancy-main-content--wide">
 
-          <span class="eyebrow">
-            • OPORTUNIDADE NA GEX
-          </span>
-
-          <span class="vacancy-department">
-            ${safe(
-              job.department ||
-              'GEX CORPORATION'
-            )}
-          </span>
-
-          <h2>
-            ${safe(job.title)}
-          </h2>
-
-
-          <div class="vacancy-meta-large">
-
-            <span>
-              <strong>
-                Modelo
-              </strong>
-
-              ${safe(
-                workMode(job)
-              )}
-            </span>
-
-
-            ${
-              location
-                ? `
-                  <span>
-
-                    <strong>
-                      Localidade
-                    </strong>
-
-                    ${safe(location)}
-
-                  </span>
-                `
-                : ''
-            }
-
-
-            <span>
-
-              <strong>
-                Oportunidade
-              </strong>
-
-              #${safe(job.id)}
-
-            </span>
-
-          </div>
-
-
-          <div class="vacancy-primary-action">
-
-            <div>
-
-              <span class="vacancy-cta-label">
-                FAÇA PARTE DA GEX
-              </span>
-
-              <h3>
-                Quer se candidatar a esta oportunidade?
-              </h3>
-
-              <p>
-                Preencha seus dados e envie sua candidatura
-                diretamente pelo GEX Recruiter.
-              </p>
-
+          <header class="vacancy-hero">
+            <div class="vacancy-hero-inner">
+              <div class="vacancy-hero-copy">
+                <span class="vacancy-hero-overline"><span class="vacancy-hero-status-dot" aria-hidden="true"></span> OPORTUNIDADE ABERTA • GEX CORPORATION</span>
+                <span class="vacancy-department">${safe(job.department || 'GEX CORPORATION')}</span>
+                <h1 class="vacancy-title">${safe(job.title)}</h1>
+                <p class="vacancy-hero-lead">Conheça os desafios, requisitos e benefícios para descobrir se esta oportunidade combina com você.</p>
+                <div class="vacancy-meta-large">
+                  <span><strong>Modalidade</strong>${safe(workMode(job))}</span>
+                  ${location ? `<span><strong>Localidade</strong>${safe(location)}</span>` : ''}
+                  ${contract ? `<span><strong>Contratação</strong>${safe(contract)}</span>` : ''}
+                  <span><strong>Vaga</strong>#${safe(job.id)}</span>
+                </div>
+                <div class="vacancy-top-apply">
+                  ${vacancyApplyButton(job.id, 'vacancy-apply-main')}
+                  <a class="btn vacancy-discover-link" href="#descricao-vaga">
+                    Conheça a oportunidade
+                    <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16"/><path d="m5 13 7 7 7-7"/></svg>
+                  </a>
+                </div>
+              </div>
+              <div class="vacancy-hero-art" aria-hidden="true">
+                <div class="vacancy-hero-orbit orbit-one"></div>
+                <div class="vacancy-hero-orbit orbit-two"></div>
+                <img class="vacancy-hero-symbol" src="assets/gex-simbolo.png" alt="" />
+                <span class="vacancy-hero-art-label"><img class="vacancy-hero-wordmark" src="assets/gex-wordmark-branco.svg" alt="" /><span>RECRUITER</span></span>
+                <span class="vacancy-hero-art-caption">DESAFIOS QUE MOVEM O FUTURO.</span>
+              </div>
             </div>
+          </header>
 
-
-            <button
-              type="button"
-              class="btn btn-primary vacancy-apply-main"
-              data-apply="${safe(job.id)}"
-              ${
-                applicationsEnabled
-                  ? ''
-                  : 'disabled'
-              }
-            >
-              ${
-                applicationsEnabled
-                  ? 'Quero me candidatar →'
-                  : 'Candidatura em breve'
-              }
-            </button>
-
-
-            <small>
-              O processo seletivo é conduzido pelo
-              Time de RH da GEX Corporation.
-            </small>
-
+          <section class="vacancy-description" id="descricao-vaga" aria-label="Descrição da vaga">
+            <span class="jd-overline">CONHEÇA A OPORTUNIDADE</span>
+            ${description ? `<div class="vacancy-description-content">${description}</div>` :
+              '<p class="vacancy-description-missing">A descrição completa desta oportunidade ainda não está disponível. Consulte novamente em breve.</p>'}
+          </section>
+          ${vacancyBenefitsMarkup()}
+          <div class="vacancy-primary-action vacancy-bottom-action">
+            <div><span class="vacancy-cta-label">FAÇA PARTE DA GEX</span>
+              <h3>Gostou desta oportunidade?</h3>
+              <p>Envie sua candidatura diretamente pelo GEX Recruiter.</p>
+            </div>
+            ${vacancyApplyButton(job.id, 'vacancy-apply-main')}
           </div>
-
-
-          <div class="vacancy-about">
-
-            <h3>
-              Seu próximo desafio pode começar aqui.
-            </h3>
-
-            <p>
-              Estamos em busca de pessoas que queiram construir,
-              aprender rápido e assumir protagonismo junto com a GEX.
-              Se esta oportunidade combina com o seu momento,
-              queremos conhecer você.
-            </p>
-
-          </div>
-
         </div>
-
       </div>
-
-    </article>
-  `;
-
-const vacancyLanding =
-  grid.querySelector(
-    '.vacancy-landing'
-  );
-
-const vacancyActions =
-  grid.querySelector(
-    '.vacancy-landing-top'
-  );
-
-if (
-  vacancyLanding &&
-  vacancyActions
-) {
-  vacancyLanding.appendChild(
-    vacancyActions
-  );
-}
+    </article>`;
   bindJobActions();
+  // Navigating from a card must always start at the top of the detail page,
+  // not at the previous listing scroll position.
+  window.scrollTo({ top: 0, behavior: 'instant' });
 }
-
 
 function render() {
 
@@ -781,7 +860,9 @@ async function readBackendStatus() {
       applicationsEnabled =
         false;
 
-      return;
+            resumeUploadEnabled = false;
+      syncResumeInput();
+return;
     }
 
 
@@ -790,17 +871,22 @@ async function readBackendStatus() {
 
 
     applicationsEnabled =
-      Boolean(
+      PRESENTATION_PREVIEW || Boolean(
         body.applications_enabled
       );
+    resumeUploadEnabled = !PRESENTATION_PREVIEW && applicationsEnabled &&
+      body.resume_upload_enabled === true;
+    syncResumeInput();
 
 
   } catch (error) {
 
     applicationsEnabled =
-      false;
+      PRESENTATION_PREVIEW;
 
-  }
+        resumeUploadEnabled = false;
+      syncResumeInput();
+}
 }
 
 
@@ -831,6 +917,26 @@ async function loadJobs() {
     jobs =
       body.data || [];
 
+    // Only the opened vacancy needs a full public job description.
+    const requestedId = specificVacancyId();
+    if (requestedId && jobs.some(item => String(item.id) === String(requestedId))) {
+      try {
+        const detailsResponse = await fetch(
+          `${CONFIG.API_BASE_URL.replace(/\/$/, '')}/api/vagas/${encodeURIComponent(requestedId)}`
+        );
+        if (detailsResponse.ok) {
+          const detail = (await detailsResponse.json()).data;
+          if (detail && String(detail.id) === String(requestedId)) {
+            jobs = jobs.map(item => String(item.id) === String(requestedId)
+              ? { ...item, ...detail } : item);
+          }
+        } else if (detailsResponse.status === 404) {
+          jobs = jobs.filter(item => String(item.id) !== String(requestedId));
+        }
+      } catch (_) {
+        // Keep listing and neutral description fallback when the detail service fails.
+      }
+    }
 
   } catch (error) {
 
@@ -892,6 +998,13 @@ function openApply(id) {
 
   renderQuestionnaire(job.id);
 
+  if (PRESENTATION_PREVIEW) {
+    form.querySelector('.submit-btn').textContent = 'Simular candidatura';
+    form.querySelector('.submit-btn').disabled = false;
+    form.noValidate = true;
+    const box = document.querySelector('#demoPreviewNotice');
+    if (box) box.hidden = false;
+  }
   dialog.showModal();
 }
 
@@ -961,6 +1074,7 @@ function normalizeFormPayload() {
 
 
   delete payload.privacy;
+  delete payload.resume; // Binary file will be sent in multipart.
 
   const questionnaire = questionnaireFor(payload.vacancy_id);
   if (questionnaire) {
@@ -987,6 +1101,13 @@ form.addEventListener(
 
     event.preventDefault();
 
+    if (PRESENTATION_PREVIEW) {
+      formMessage.hidden = false;
+      formMessage.className = 'form-message success';
+      formMessage.textContent =
+        'Prévia concluída! Este é um teste visual: nenhum dado, candidatura ou currículo foi enviado à Recrutei ou à Cloudflare.';
+      return;
+    }
 
     formMessage.hidden =
       true;
@@ -1022,6 +1143,13 @@ form.addEventListener(
 
     const payload =
       normalizeFormPayload();
+    const resumeFile = resumeUploadEnabled ? resumeInput?.files?.[0] : null;
+    if (resumeFile && (resumeFile.size > 5 * 1024 * 1024 || !/\.(pdf|docx)$/i.test(resumeFile.name))) {
+      formMessage.className = 'form-message error';
+      formMessage.textContent = 'Selecione um currículo PDF ou DOCX de até 5 MB.';
+      formMessage.hidden = false;
+      return;
+    }
 
 
     const button =
@@ -1040,23 +1168,22 @@ form.addEventListener(
 
     try {
 
-      const response =
-        await fetch(
-          `${CONFIG.API_BASE_URL.replace(/\/$/, '')}/api/candidatar`,
-          {
-            method: 'POST',
-
-            headers: {
-              'Content-Type':
-                'application/json'
-            },
-
-            body:
-              JSON.stringify(
-                payload
-              )
-          }
-        );
+      const requestData = resumeFile ? new FormData() : null;
+      if (requestData) {
+        for (const [key, value] of Object.entries(payload)) {
+          requestData.set(key,
+            key === 'questionnaire_answers' ? JSON.stringify(value) : String(value));
+        }
+        requestData.set('resume', resumeFile, resumeFile.name);
+      }
+      const response = await fetch(
+        `${CONFIG.API_BASE_URL.replace(/\/$/, '')}/api/candidatar`,
+        {
+          method: 'POST',
+          ...(requestData ? {} : { headers: { 'Content-Type': 'application/json' } }),
+          body: requestData || JSON.stringify(payload)
+        }
+      );
 
 
       const body =
@@ -1089,9 +1216,7 @@ form.addEventListener(
       }
 
 
-      if (questionnaireFor(payload.vacancy_id)) {
-        form.dataset.applicationCreated = 'true';
-      }
+      form.dataset.applicationCreated = 'true';
 
       formMessage.className =
         'form-message success';
@@ -1130,6 +1255,15 @@ form.addEventListener(
 
       }
 
+
+      if (resumeFile && body.resume_completed !== true) {
+        formMessage.className = 'form-message error';
+        formMessage.textContent = 'Sua candidatura foi criada, mas não foi possível confirmar o armazenamento ou o registro do currículo. Não reenvie sua candidatura: entre em contato com o RH da GEX.';
+        return;
+      }
+      if (resumeFile && body.resume_observation_completed && !body.resume_custom_field_completed) {
+        formMessage.textContent = 'Candidatura enviada! Seu currículo foi registrado para análise do RH da GEX.';
+      }
 
       if (questionnaireFor(payload.vacancy_id) && body.observation_completed !== true) {
         formMessage.className = 'form-message error';
@@ -1217,5 +1351,21 @@ dialog.addEventListener(
   }
 );
 
+
+if (PRESENTATION_PREVIEW) {
+  document.body.classList.add('presentation-preview');
+  const notice=document.createElement('div');
+  notice.className='presentation-preview-banner';
+  notice.setAttribute('role','status');
+  notice.textContent='PRÉVIA PARA APRESENTAÇÃO · Formulário e upload demonstrativos, sem envio de dados';
+  document.querySelector('.site-header')?.after(notice);
+  resumeInput?.addEventListener('change',()=>{
+    const hint=resumeSection?.querySelector('.resume-upload-hint');
+    const file=resumeInput.files?.[0];
+    if(hint) hint.textContent=file
+      ? `Arquivo selecionado: ${file.name}. Apenas demonstração — nenhum currículo foi enviado.`
+      : 'Demonstração: selecione um PDF ou DOCX de até 5 MB. O arquivo não será enviado nem armazenado.';
+  });
+}
 
 loadJobs();

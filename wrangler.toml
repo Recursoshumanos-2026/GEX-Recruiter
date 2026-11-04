@@ -8,16 +8,60 @@ compatibility_date = "2026-10-01"
 ALLOWED_ORIGIN = "https://recursoshumanos-2026.github.io"
 APPLICATIONS_ENABLED = "true"
 PROSPECT_CHANNEL_ID = "8"
+RESUME_UPLOAD_ENABLED = "false"
+# Retencao automatica somente no D1, 12 meses; Recrutei nunca e alterada.
+RESUME_RETENTION_ENABLED = "true"
+RESUME_RETENTION_DRY_RUN = "false"
+RESUME_RETENTION_MONTHS = "12"
 
 # Prévia isolada: candidaturas reais permanecem bloqueadas até autorização.
 # Segredos da Recrutei são configurados exclusivamente no painel da Cloudflare.
 [previews.vars]
 ALLOWED_ORIGIN = "https://gex-talents-previa-questionario.yasmimbsouza80.chatgpt.site"
-APPLICATIONS_ENABLED = "true"
+APPLICATIONS_ENABLED = "false"
 PROSPECT_CHANNEL_ID = "8"
+RESUME_UPLOAD_ENABLED = "false"
+# Preview permanece sem exclusao real.
+RESUME_RETENTION_ENABLED = "true"
+RESUME_RETENTION_DRY_RUN = "true"
+RESUME_RETENTION_MONTHS = "12"
+RESUME_DIAGNOSTIC_ENABLED = "true"
 
 # Consulta somente leitura, restrita ao registro fictício já usado na homologação.
 PROFILE_DIAGNOSTIC_ENABLED = "true"
 PROFILE_DIAGNOSTIC_APPLICATION_ID = "15905660"
 PROFILE_DIAGNOSTIC_VACANCY_ID = "158928"
-PROFILE_DIAGNOSTIC_WRITE_ENABLED = "true"
+PROFILE_DIAGNOSTIC_WRITE_ENABLED = "false"
+
+# Enables PDF/DOCX -> Markdown conversion when RESUME_UPLOAD_ENABLED is true.
+# Execute all safe local unit tests before constructing a Worker preview.
+[build]
+command = "npm run check && npm test"
+
+[ai]
+binding = "AI"
+
+# Cloudflare D1 - banco privado de curriculos de producao.
+# Associacao ja criada manualmente na Cloudflare; manter sincronizada no deploy.
+# O upload permanece DESATIVADO ate homologacao da Recrutei.
+[[d1_databases]]
+binding = "RESUME_DB"
+database_name = "gex-talents-curriculos"
+database_id = "a9bbf8f5-4677-49d5-b1a5-cc4d967fec98"
+# Sem rota publica para leitura de curriculos.
+
+# Workers AI configurado somente na Base de Prévias pelo painel Cloudflare.
+[previews.ai]
+binding = "AI"
+
+# Sincronizado com a associação "Base de Prévias" feita no painel Cloudflare.
+# Usado somente por Worker Previews; não cria binding D1 em produção.
+[[previews.d1_databases]]
+binding = "RESUME_DB"
+database_name = "gex-talents-curriculos-teste"
+database_id = "5b71acd5-8203-48e5-9d33-3396cfa76ffb"
+
+# Verificação diária da retenção de currículos, 06:00 UTC.
+# Handler protegido: sem autorização explícita, não consulta nem exclui dados.
+[triggers]
+crons = ["0 6 * * *"]

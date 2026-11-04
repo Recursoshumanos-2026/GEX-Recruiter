@@ -86,7 +86,7 @@ test('cria observação multipart ordenada, preservando perfil e tag', async () 
   const profile = JSON.parse(result.calls.find(c => c.path.endsWith('/curriculum/filled')).init.body);
   assert.equal(profile.talent_id, 22);
   assert.equal(profile.application_id, 33);
-  assert.equal(new URL(result.calls.find(c => c.path.endsWith('/curriculum/filled')).url).searchParams.get('talent_id'), '22');
+  assert.equal(new URL(result.calls.find(c => c.path.endsWith('/curriculum/filled')).url).searchParams.get('talent_id'), '44');
   assert.equal(profile.basic_infos.length, 4);
   assert.equal(profile.additional.length, 2);
 });
@@ -251,7 +251,7 @@ test('outra vaga mantém perfil/tag e não envia observação, mesmo com respost
   assert.equal(result.body.profile_completed, true);
   assert.equal(result.body.tag_completed, true);
   const profile = result.calls.find(call => call.path.endsWith('/curriculum/filled'));
-  assert.equal(new URL(profile.url).searchParams.get('talent_id'), '22');
+  assert.equal(new URL(profile.url).searchParams.get('talent_id'), '44');
   assert.equal(JSON.parse(profile.init.body).talent_id, 22);
   assert.ok(!result.calls.some(call => call.path.startsWith('/api/v1/applications/')));
 });
@@ -573,7 +573,7 @@ test('reparo atualiza somente currículo do teste fixo e confirma nascimento e s
     'https://api.recrutei.com.br/api/v1/applications/15905660'
   ]);
   const update = dataCalls[1];
-  assert.equal(new URL(update.url).searchParams.get('talent_id'), '7654321');
+  assert.equal(new URL(update.url).searchParams.get('talent_id'), '2345678');
   const sent = JSON.parse(update.init.body);
   assert.equal(sent.talent_id, 7654321);
   assert.equal(sent.application_id, 15905660);

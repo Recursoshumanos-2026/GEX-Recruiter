@@ -1,0 +1,24 @@
+/* GEX Design System · Lucide-inspired animated SVG icons
+   Lightweight inline SVG, no React runtime or network dependency. */
+.gex-icon-chip,.gex-benefit-icon{
+  color:var(--brand-blue,#3284ec);
+  display:grid;
+  place-items:center;
+}
+.gex-animated-icon{
+  width:28px;height:28px;flex-shrink:0;
+  stroke:currentColor;transform-origin:center;
+  transition:transform .28s cubic-bezier(.2,.8,.2,1),filter .28s ease;
+}
+.feature-card:hover .gex-animated-icon,
+.feature-card:focus-within .gex-animated-icon,
+.benefit-card:hover .gex-animated-icon,
+.benefit-card:focus-within .gex-animated-icon{
+  transform:translateY(-3px) scale(1.09);
+  filter:drop-shadow(0 3px 7px rgba(40,125,235,.24));
+}
+@media(prefers-reduced-motion:reduce){
+  .gex-animated-icon{transition:none!important;transform:none!important}
+  .feature-card:hover .gex-animated-icon,
+  .benefit-card:hover .gex-animated-icon{transform:none!important}
+}
