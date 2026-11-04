@@ -944,6 +944,24 @@
       </section>
 
 
+      <section id="resumeUploadSection" class="application-section resume-upload-section" hidden
+        aria-labelledby="resumeUploadTitle">
+        <div class="application-section-heading">
+          <span>03</span>
+          <div>
+            <h3 id="resumeUploadTitle">Envie seu currículo</h3>
+            <p>Seu documento será convertido para texto e disponibilizado ao RH da GEX com acesso restrito.</p>
+          </div>
+        </div>
+        <label class="resume-upload-field" for="resumeFile">
+          Currículo em PDF ou DOCX *
+          <input type="file" id="resumeFile" name="resume"
+            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            disabled />
+          <span class="resume-upload-hint">Arquivo com até 5 MB. Não envie documentos com senhas.</span>
+        </label>
+      </section>
+
       <section id="vacancyQuestionnaire" class="application-section" hidden
         aria-labelledby="vacancyQuestionnaireTitle"></section>
 
@@ -957,7 +975,8 @@
 
         <span>
           Concordo com o tratamento dos meus dados pessoais
-          para participação no processo seletivo da GEX Corporation.
+          para participação no processo seletivo da GEX Corporation, incluindo
+          a conversão do currículo em texto para análise da candidatura.
         </span>
 
       </label>
