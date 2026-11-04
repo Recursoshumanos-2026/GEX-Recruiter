@@ -42,10 +42,20 @@ for(let attempt=1;attempt<=30;attempt++){
     assert.equal(result.body.d1_write_ok,true);
     const status=await fetchJSON('/health');
     assert.equal(status.body.resume_upload_enabled,false);
+    // Safe read-only Recrutei lookup of the pre-existing fictional test record.
+    // No POST/PUT and no candidate names, email, IDs or contents in logs.
+    const ats=await fetchJSON('/api/diagnostico-perfil');
+    const lookupVerified=ats.status===200 && ats.body?.ok===true &&
+      ats.body?.application_matches_config===true &&
+      ats.body?.vacancy_matches_config===true;
+    const distinctProspectId=lookupVerified &&
+      ats.body?.identifiers?.talent_matches_talent_prospect===false;
     console.log(JSON.stringify({
       live_preview:'PASS',
       pdf_to_markdown:'PASS',
       cloudflare_d1_round_trip:'PASS',
+      recrutei_readonly_test_record:lookupVerified ? 'PASS' : 'NOT_VERIFIED',
+      recrutei_distinct_prospect_id:distinctProspectId,
       recrutei_untouched:true,
       application_upload_disabled:true,
       fixture_cached:result.body.cached
