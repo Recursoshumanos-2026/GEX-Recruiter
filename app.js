@@ -740,6 +740,13 @@ function renderSpecificVacancy(id) {
                   ${contract ? `<span><strong>Contratação</strong>${safe(contract)}</span>` : ''}
                   <span><strong>Vaga</strong>#${safe(job.id)}</span>
                 </div>
+                <div class="vacancy-top-apply">
+                  ${vacancyApplyButton(job.id, 'vacancy-apply-main')}
+                  <a class="btn vacancy-discover-link" href="#descricao-vaga">
+                    Conheça a oportunidade
+                    <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16"/><path d="m5 13 7 7 7-7"/></svg>
+                  </a>
+                </div>
               </div>
               <div class="vacancy-hero-art" aria-hidden="true">
                 <div class="vacancy-hero-orbit orbit-one"></div>
@@ -751,7 +758,7 @@ function renderSpecificVacancy(id) {
             </div>
           </header>
 
-          <section class="vacancy-description" aria-label="Descrição da vaga">
+          <section class="vacancy-description" id="descricao-vaga" aria-label="Descrição da vaga">
             <span class="jd-overline">CONHEÇA A OPORTUNIDADE</span>
             ${description ? `<div class="vacancy-description-content">${description}</div>` :
               '<p class="vacancy-description-missing">A descrição completa desta oportunidade ainda não está disponível. Consulte novamente em breve.</p>'}
