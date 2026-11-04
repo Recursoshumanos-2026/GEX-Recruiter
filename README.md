@@ -1,6 +1,6 @@
 # GEX Talents - versão visual aprovada
 
-Esta versão incorpora a identidade visual aprovada do GEX Talents, com tipografia ampliada, cards proporcionais, emojis em Cultura e Benefícios e o símbolo GEX como elemento de marca.
+Esta versão mantém o GEX Design System, com ícones em SVG e páginas individuais de vagas em revisão.
 
 # GEX Talents — GitHub Pages + Recrutei
 
@@ -173,3 +173,39 @@ a rota é desabilitada sem configuração explícita e não cria candidaturas.
 
 O draft permanece sem produção até confirmar o preenchimento complementar.
 Consulte a mensagem pronta em [SUPORTE-RECRUTEI.md](SUPORTE-RECRUTEI.md).
+
+## Páginas individuais e sincronização do Job Description (revisão)
+
+O GEX Talents mantém a listagem de vagas pela API autenticada oficial da Recrutei
+(`POST /api/v2/vacancies/filter`). Para abrir `?vaga=ID`, o frontend consulta
+`GET /api/vagas/ID` no Cloudflare Worker. Essa rota verifica novamente se a vaga
+existe e está publicada antes de retornar os detalhes.
+
+Quando a API de listagem não fornecer a descrição, o Worker consulta **apenas a página
+pública da própria vaga na Recrutei**, em
+`https://jobs.recrutei.com.br/gex-corporation/vacancy/ID-slug`, extraindo
+`props.pageProps.retorno.vacancy.description` do JSON público `__NEXT_DATA__`.
+O host é fixo, o slug é validado, o ID retornado precisa coincidir, e a página não pode
+estar encerrada. **Nenhuma credencial da Recrutei é enviada para esse host**.
+O HTML recebido é sanitizado no frontend (lista permitida de tags, links HTTP/HTTPS)
+antes de ser exibido.
+
+Esta integração da página pública é um **fallback não documentado como API** e pode
+precisar de manutenção caso a estrutura da página da Recrutei mude. Se a fonte falhar,
+o sistema conserva o campo retornado pela API privada ou exibe uma mensagem neutra,
+sem inventar o conteúdo. O navegador armazena o detalhe em cache por até cinco minutos.
+
+A página individual não repete as seções institucionais `Nosso Jeito de Ser GEX`,
+`Aqui, nossos GEXs encontram` e `Benefícios` quando aparecerem na descrição da
+Recrutei; esses benefícios são exibidos uma única vez na seção visual aprovada.
+Os botões de candidatura e os questionários permanecem ligados ao ID original da vaga.
+
+### Homologação antes da publicação
+
+- `npm run check`, `npm test` e o teste de navegador automatizado devem passar.
+- Validar pelo menos uma vaga real aberta, uma encerrada e a responsividade.
+- Confirmar o comportamento da extração no Cloudflare Worker de prévia; o teste local
+  usa respostas simuladas da Recrutei e não expõe segredos.
+- O erro HTTP 404 na atualização de dados complementares de candidatos continua
+  pendente; não alterar a criação de candidaturas para mascarar essa falha.
+- Não realizar merge ou deploy em produção sem aprovação visual e funcional.
