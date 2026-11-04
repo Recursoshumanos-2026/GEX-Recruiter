@@ -1,6 +1,7 @@
 import { questionnaireFor, validateAnswers } from '../../questionnaires.js';
 import { resumeAvailable, convertResume, assertResumeDatabase, storeResume, resumeField } from './resumes.js';
 import { cleanupExpiredResumes, RETENTION_CRON } from './retention.js';
+import { smokeResume } from './smoke.js';
 
 const API_BASE = 'https://api.recrutei.com.br';
 let tokenCache = { token: null, expiresAt: 0 };
@@ -959,6 +960,16 @@ export default {
           201,
           env
         );
+      }
+
+      if (request.method === 'GET' && url.pathname === '/health' &&
+          url.searchParams.get('check') === 'conversion' &&
+          env.RESUME_DIAGNOSTIC_ENABLED === 'true') {
+        // One-shot synthetic test: no real candidate and no Recrutei API writes.
+        const result = await smokeResume(env);
+        const response = json(result,result.ok ? 200 : 503,env);
+        response.headers.set('Cache-Control','no-store');
+        return response;
       }
 
       if (request.method === 'GET' && url.pathname === '/health' &&
