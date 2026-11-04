@@ -6,6 +6,8 @@ const CONFIG = window.GEX_TALENTS_CONFIG || {};
 const PRESENTATION_PREVIEW = new URLSearchParams(window.location.search).get('demo') === '1';
 
 let jobs = [];
+let jobsLoadFailed = false;
+let demoFallbackActive = false;
 let applicationsEnabled = false;
 let resumeUploadEnabled = false;
 const resumeSection = document.querySelector('#resumeUploadSection');
@@ -133,15 +135,16 @@ function vacancyUrl(id) {
     'vaga',
     id
   );
+  if (PRESENTATION_PREVIEW) url.searchParams.set('demo', '1');
 
   return url.toString();
 }
 
 
 function allJobsUrl() {
-  return (
-    `${window.location.origin}${window.location.pathname}`
-  );
+  const url = new URL(`${window.location.origin}${window.location.pathname}`);
+  if (PRESENTATION_PREVIEW) url.searchParams.set('demo', '1');
+  return url.toString();
 }
 
 
@@ -566,8 +569,11 @@ function renderGeneralJobs() {
   }
 
 
-  statusPill.textContent =
-    'Vagas atualizadas';
+  statusPill.textContent = jobsLoadFailed
+    ? 'Não foi possível atualizar as vagas'
+    : demoFallbackActive
+      ? 'Prévia ilustrativa · sem envio de dados'
+      : 'Vagas atualizadas';
 
 
   const term =
@@ -699,9 +705,24 @@ function renderGeneralJobs() {
       .join('');
 
 
-  empty.hidden =
-    filtered.length > 0;
-
+  empty.hidden = filtered.length > 0 && !jobsLoadFailed;
+  const emptyTitle = empty.querySelector('h3');
+  const emptyMessage = empty.querySelector('p');
+  empty.querySelector('[data-retry-jobs]')?.remove();
+  if (jobsLoadFailed) {
+    emptyTitle.textContent = 'Não foi possível carregar as oportunidades.';
+    emptyMessage.textContent = 'Estamos com uma instabilidade temporária na conexão com a Recrutei. Tente novamente em instantes.';
+    const retryButton = document.createElement('button');
+    retryButton.type = 'button';
+    retryButton.className = 'btn';
+    retryButton.dataset.retryJobs = '';
+    retryButton.textContent = 'Tentar novamente';
+    retryButton.addEventListener('click', loadJobs);
+    empty.append(retryButton);
+  } else {
+    emptyTitle.textContent = 'Nenhuma vaga encontrada.';
+    emptyMessage.textContent = 'Tente outro termo de busca ou volte em breve para conferir novas oportunidades.';
+  }
 
   bindJobActions();
 }
@@ -724,8 +745,21 @@ function renderSpecificVacancy(id) {
     if (headerShare) headerShare.hidden = true;
     empty.hidden = false;
     grid.innerHTML = '';
-    empty.querySelector('h3').textContent = 'Esta oportunidade não está mais disponível.';
-    empty.querySelector('p').innerHTML = `Confira <a href="${safe(allJobsUrl())}">todas as oportunidades abertas</a> na GEX.`;
+    empty.querySelector('[data-retry-jobs]')?.remove();
+    if (jobsLoadFailed) {
+      empty.querySelector('h3').textContent = 'Não conseguimos consultar esta oportunidade agora.';
+      empty.querySelector('p').textContent = 'A conexão com a Recrutei está temporariamente indisponível. Tente novamente para verificar os detalhes.';
+      const retryButton = document.createElement('button');
+      retryButton.type = 'button';
+      retryButton.className = 'btn';
+      retryButton.dataset.retryJobs = '';
+      retryButton.textContent = 'Tentar novamente';
+      retryButton.addEventListener('click', loadJobs);
+      empty.append(retryButton);
+    } else {
+      empty.querySelector('h3').textContent = 'Esta oportunidade não está mais disponível.';
+      empty.querySelector('p').innerHTML = `Confira <a href="${safe(allJobsUrl())}">todas as oportunidades abertas</a> na GEX.`;
+    }
     return;
   }
   empty.hidden = true;
@@ -891,6 +925,9 @@ return;
 
 
 async function loadJobs() {
+  jobsLoadFailed = false;
+  demoFallbackActive = false;
+  statusPill.textContent = 'Atualizando vagas...';
 
   try {
 
@@ -916,6 +953,7 @@ async function loadJobs() {
 
     jobs =
       body.data || [];
+    jobsLoadFailed = false;
 
     // Only the opened vacancy needs a full public job description.
     const requestedId = specificVacancyId();
@@ -941,7 +979,23 @@ async function loadJobs() {
   } catch (error) {
 
     jobs = [];
-
+    jobsLoadFailed = true;
+    if (PRESENTATION_PREVIEW) {
+      // Keep the requested presentation usable even when ATS credentials fail.
+      // No vacancy data is invented for the real public career portal.
+      jobs = [{
+        id: 158928,
+        title: 'Analista de Atendimento — Demonstração',
+        department: 'Atendimento',
+        city: null,
+        state: null,
+        remote: 1,
+        vacancy_status_id: 1,
+        description: '<h2>Prévia demonstrativa</h2><p>Este exemplo permite visualizar a página da vaga, o questionário e a seleção de currículo. As vagas e descrições oficiais são carregadas da Recrutei quando a integração está disponível. Nenhuma informação preenchida aqui será enviada ou armazenada.</p>'
+      }];
+      jobsLoadFailed = false;
+      demoFallbackActive = true;
+    }
 
     statusPill.textContent =
       'Não foi possível carregar as vagas agora';
