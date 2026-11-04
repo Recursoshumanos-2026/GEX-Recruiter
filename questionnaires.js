@@ -40,6 +40,26 @@ export const QUESTIONNAIRES = {
       ] },
       { id: 'salary', label: 'Qual é a sua pretensão de remuneração mensal no modelo PJ?', type: 'text' }
     ]
+  },
+  '158921': {
+    title: 'Analista de CS - Afiliação',
+    questions: [
+      { id: 'pj', label: 'Aceita vaga PJ?', type: 'text' },
+      { id: 'salary', label: 'Qual é a sua pretensão de remuneração mensal no modelo PJ?', type: 'text' },
+      { id: 'age', label: 'Qual sua idade?', type: 'text' },
+      { id: 'experience', label: 'Você possui experiência profissional com Customer Success, atendimento ao cliente, suporte ou relacionamento com parceiros?', type: 'single', options: [
+        'Sim, tenho experiência em Customer Success', 'Sim, tenho experiência em atendimento/suporte',
+        'Sim, tenho experiência com relacionamento com parceiros', 'Tenho experiência em mais de uma dessas áreas', 'Não possuo experiência'
+      ] },
+      { id: 'clickup', label: 'Você possui experiência utilizando o ClickUp?', type: 'single', options: [
+        'Sim, utilizo ou já utilizei no dia a dia', 'Já utilizei, mas de forma básica',
+        'Conheço a ferramenta, mas nunca utilizei profissionalmente', 'Nunca utilizei'
+      ] },
+      { id: 'crm', label: 'Você já trabalhou com alguma ferramenta de CRM?', type: 'single', options: [
+        'Sim', 'Não'
+      ] },
+      { id: 'prioritization', label: 'Em uma rotina com várias solicitações chegando ao mesmo tempo, como você organiza e prioriza os atendimentos?', type: 'long' }
+    ]
   }
 };
 
@@ -64,7 +84,8 @@ export function validateAnswers(vacancyId, raw) {
           new Set(value).size !== value.length) invalid();
       answers[question.id] = question.options.filter(item => value.includes(item));
     } else {
-      if (typeof value !== 'string' || !value.trim() || value.trim().length > 500) invalid();
+      const maxLength = question.type === 'long' ? 5000 : 500;
+      if (typeof value !== 'string' || !value.trim() || value.trim().length > maxLength) invalid();
       const trimmed = value.trim();
       if (question.type === 'single' && !question.options.includes(trimmed)) invalid();
       answers[question.id] = trimmed;

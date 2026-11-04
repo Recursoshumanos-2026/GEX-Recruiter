@@ -526,7 +526,7 @@ async function addQuestionnaireObservation(env, payload, createBody, answers) {
       const answer = answers[question.id];
       const html = Array.isArray(answer)
         ? `<ul>${answer.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
-        : `<p>${escapeHtml(answer)}</p>`;
+        : `<p>${question.type === 'long' ? escapeHtml(answer).replace(/\r\n?|\n/g, '<br>') : escapeHtml(answer)}</p>`;
       return `<p><strong>${index + 1}. ${escapeHtml(question.label)}</strong></p>${html}`;
     }).join('');
   const form = new FormData();

@@ -83,12 +83,14 @@ upload de currículo. A integração Cloudflare está configurada.
 ## Questionários por vaga (revisão, ainda sem publicação)
 
 O cadastro compartilhado em `questionnaires.js` contém os questionários obrigatórios das vagas
-`158928` (Analista de Atendimento, sete perguntas) e `158883` (Analista de Dados Sênior,
-oito perguntas transcritas dos prints). Cada vaga recebe somente seu próprio questionário
+`158928` (Analista de Atendimento, sete perguntas), `158883` (Analista de Dados Sênior,
+oito perguntas) e `158921` (Analista de CS - Afiliação, sete perguntas transcritas dos prints). Cada vaga recebe somente seu próprio questionário
 e a observação correspondente; as demais vagas continuam sem perguntas ou observações.
 Para futuras vagas, acrescente uma entrada pelo ID, com título, IDs estáveis de perguntas,
-rótulos, tipos `text`, `single` ou `multiple` e alternativas. Todos os itens cadastrados
-são obrigatórios; respostas curtas aceitam até 500 caracteres após remover espaços externos.
+rótulos, tipos `text`, `long`, `single` ou `multiple` e alternativas. Todos os itens cadastrados
+são obrigatórios; respostas curtas aceitam até 500 caracteres e longas até 5000 após
+remover espaços externos. A pergunta longa de Afiliação usa textarea; suas quebras de
+linha são preservadas na observação depois do escape HTML.
 
 O navegador envia `questionnaire_answers` junto dos dados existentes. O Worker valida
 novamente as respostas antes de qualquer chamada à Recrutei e, após criar a candidatura,

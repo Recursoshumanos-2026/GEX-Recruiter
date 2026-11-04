@@ -205,10 +205,10 @@ test('vaga158928 preserva sete perguntas e não recebe as novas perguntas de dad
   assert.ok(!html.includes('LinkedIn (Cole o link do seu perfil)'));
   assert.ok(!html.includes('Analista de Dados Sênior'));
 });
-test('vaga158921 permanece sem questionário, mesmo recebendo respostas de158883', async () => {
-  const input = dataPayload(); input.vacancy_id = '158921';
+test('vaga não cadastrada permanece sem questionário, mesmo recebendo respostas de158883', async () => {
+  const input = dataPayload(); input.vacancy_id = '999998';
   const result = await run(input);
-  assert.equal(questionnaireFor('158921'), null);
+  assert.equal(questionnaireFor('999998'), null);
   assert.equal(result.status, 201);
   assert.equal(result.body.profile_completed, true);
   assert.equal(result.body.tag_completed, true);
@@ -631,4 +631,97 @@ test('reparo não infere salário ausente nos caminhos conhecidos', async () => 
   const application = diagnosticApplication(); application.talent.professional_profile = null;
   const result = await runProfileTest({ readbackBody: application });
   assert.equal(result.body.salary_verified, null);
+});
+
+const affiliationAnswers = () => ({
+  pj: 'Sim', salary: '9000', age: '32',
+  experience: 'Tenho experiência em mais de uma dessas áreas',
+  clickup: 'Já utilizei, mas de forma básica', crm: 'Sim',
+  prioritization: 'Organizo por urgência e impacto.\nAcompanho cada retorno no CRM.'
+});
+const affiliationPayload = () => ({ ...payload(), vacancy_id: '158921', questionnaire_answers: affiliationAnswers() });
+
+test('Afiliação registra as sete respostas, HTML seguro e parágrafos da resposta longa', async () => {
+  const input = affiliationPayload();
+  input.questionnaire_answers.prioritization = `  Priorizo <script>alert("x")</script> & demandas urgentes.\r\nOrganizo 'retornos'.\nAtualizo o CRM.  `;
+  const result = await run(input);
+  assert.equal(result.status, 201);
+  assert.equal(result.body.application_created, true);
+  assert.equal(result.body.profile_completed, true);
+  assert.equal(result.body.tag_completed, true);
+  assert.equal(result.body.observation_completed, true);
+  const observation = result.calls.find(call => call.path.endsWith('/talents-observations'));
+  const html = observation.init.body.get('description');
+  assert.ok(html.includes('<strong>Vaga:</strong> Analista de CS - Afiliação'));
+  const labels = [
+    'Aceita vaga PJ?',
+    'Qual é a sua pretensão de remuneração mensal no modelo PJ?',
+    'Qual sua idade?',
+    'Você possui experiência profissional com Customer Success, atendimento ao cliente, suporte ou relacionamento com parceiros?',
+    'Você possui experiência utilizando o ClickUp?',
+    'Você já trabalhou com alguma ferramenta de CRM?',
+    'Em uma rotina com várias solicitações chegando ao mesmo tempo, como você organiza e prioriza os atendimentos?'
+  ];
+  let previous = -1;
+  for (const [index, label] of labels.entries()) {
+    const position = html.indexOf(`${index + 1}. ${label}`);
+    assert.ok(position > previous); previous = position;
+    if (index < 6) assert.ok(html.includes(input.questionnaire_answers[Object.keys(affiliationAnswers())[index]]));
+  }
+  assert.ok(html.includes('Priorizo &lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; demandas urgentes.<br>Organizo &#39;retornos&#39;.<br>Atualizo o CRM.'));
+  assert.ok(!html.includes('<script>'));
+  assert.ok(!html.includes('LinkedIn (Cole o link do seu perfil)'));
+  assert.equal(observation.init.body.get('talent_id'), '22');
+  assert.equal(observation.init.body.get('application_id'), '33');
+  assert.equal(observation.init.body.get('talent_observation_type_id'), '7');
+  assert.equal(observation.init.body.get('action'), '1');
+});
+
+for (const id of Object.keys(affiliationAnswers())) {
+  test(`Afiliação exige ${id} antes de qualquer chamada externa`, async () => {
+    const input = affiliationPayload(); delete input.questionnaire_answers[id];
+    const result = await run(input);
+    assert.equal(result.status, 400);
+    assert.equal(result.calls.length, 0);
+  });
+}
+for (const [name, mutate] of [
+  ['resposta longa vazia', p => p.questionnaire_answers.prioritization = ' \n '],
+  ['resposta longa acima do limite', p => p.questionnaire_answers.prioritization = 'x'.repeat(5001)],
+  ['resposta longa em array', p => p.questionnaire_answers.prioritization = ['Resposta']],
+  ['resposta longa em objeto', p => p.questionnaire_answers.prioritization = {}],
+  ['resposta curta acima do limite anterior', p => p.questionnaire_answers.pj = 'x'.repeat(501)],
+  ['experiência desconhecida', p => p.questionnaire_answers.experience = 'Outra experiência'],
+  ['ClickUp com várias respostas', p => p.questionnaire_answers.clickup = ['Nunca utilizei']],
+  ['CRM desconhecido', p => p.questionnaire_answers.crm = 'Talvez']
+]) test(`Afiliação valida ${name} sem criar candidatura`, async () => {
+  const input = affiliationPayload(); mutate(input);
+  const result = await run(input);
+  assert.equal(result.status, 400);
+  assert.equal(result.calls.length, 0);
+});
+for (const length of [501, 5000]) {
+  test(`Afiliação aceita resposta longa de ${length} caracteres`, async () => {
+    const input = affiliationPayload(); input.questionnaire_answers.prioritization = 'x'.repeat(length);
+    const result = await run(input);
+    assert.equal(result.body.observation_completed, true);
+    const html = result.calls.find(call => call.path.endsWith('/talents-observations')).init.body.get('description');
+    assert.ok(html.includes(`<p>${'x'.repeat(length)}</p>`));
+  });
+}
+test('Afiliação com observação rejeitada confirma criação e pendência, sem repetir cadastro', async () => {
+  const result = await run(affiliationPayload(), { failPath: '/api/v2/talents-observations' });
+  assert.equal(result.body.application_created, true);
+  assert.equal(result.body.observation_completed, false);
+  assert.ok(result.body.observation_warning);
+  assert.equal(result.calls.filter(call => call.path.endsWith('/prospects')).length, 1);
+});
+for (const input of [
+  { ...affiliationPayload(), questionnaire_answers: dataAnswers() },
+  { ...dataPayload(), questionnaire_answers: affiliationAnswers() },
+  { ...payload(), questionnaire_answers: affiliationAnswers() }
+]) test(`questionário de outra vaga não substitui respostas da vaga ${input.vacancy_id}`, async () => {
+  const result = await run(input);
+  assert.equal(result.status, 400);
+  assert.equal(result.calls.length, 0);
 });

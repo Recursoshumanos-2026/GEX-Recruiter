@@ -1,6 +1,6 @@
 # GEX Talents — revisão dos questionários por vaga
 
-Atualização: 3 de novembro de 2026 (America/Sao_Paulo). Branch: `feat/questionario-158928`.
+Atualização: 4 de novembro de 2026 (America/Sao_Paulo). Branch: `feat/questionario-158928`.
 Base visual: `253641126defebd7761443fb913fb2550a32262b`.
 Status: draft para revisão, sem merge ou publicação em produção. A homologação
 completa permanece pendente por causa dos dados complementares.
@@ -28,7 +28,7 @@ Isso não identifica a causa nem comprova problema no CPF, na data ou na API. É
 
 | Arquivos | Comportamento |
 | --- | --- |
-| `questionnaires.js` | Cadastro por ID de vaga: sete perguntas de Atendimento e oito de Dados Sênior, com validação compartilhada. |
+| `questionnaires.js` | Cadastro por ID de vaga: sete perguntas de Atendimento, oito de Dados Sênior e sete de Afiliação, com validação compartilhada. |
 | `app.js`, `index.html`, `application.css` | Questionário próprio de cada vaga cadastrada e aviso de observação pendente; versão dos recursos atualizada para evitar cache antigo. |
 | `worker/src/index.js` | Validação antes da criação, observação multipart com HTML escapado, isolamento de falhas posteriores e diagnóstico limitado. |
 | `wrangler.toml` | Configuração de prévia na raiz apontando ao Worker existente, com candidaturas habilitadas nesta homologação. |
@@ -36,7 +36,7 @@ Isso não identifica a causa nem comprova problema no CPF, na data ou na API. É
 
 O site não foi recriado. Identidade visual, estrutura das páginas, logos e estilos
 gerais aprovados foram preservados. As vagas sem cadastro não recebem questionário
-ou observação. O formulário de Atendimento mantém suas sete perguntas. O helper compartilhado de perfil voltou ao contrato original:
+ou observação. Os questionários anteriores mantêm integralmente suas perguntas, tipos e alternativas. O helper compartilhado de perfil voltou ao contrato original:
 ID do talento no query `talent_id` e no corpo, junto ao ID da candidatura. A retirada
 da hipótese preserva o comportamento das outras vagas; não é uma correção do 404.
 
@@ -73,8 +73,26 @@ A pergunta 7 usa checkboxes conforme o print, sem eliminação automática. As r
 curtas mantêm a validação de texto existente; não são convertidas para os campos
 nativos do perfil. A observação identifica **Analista de Dados Sênior** e inclui as
 oito respostas, com HTML escapado e todas as seleções. Não foi criada candidatura
-real desta vaga durante a implementação. A vaga 158921 (Afiliação) permanece sem
-alteração, aguardando o conteúdo de seu questionário.
+real desta vaga durante a implementação. A vaga 158921 (Afiliação) possui o questionário descrito abaixo.
+
+### Analista de CS - Afiliação — 158921
+
+As sete perguntas dos dois prints foram transcritas, todas obrigatórias:
+
+1. Aceita vaga PJ? — resposta curta.
+2. Qual é a sua pretensão de remuneração mensal no modelo PJ? — resposta curta.
+3. Qual sua idade? — resposta curta.
+4. Você possui experiência profissional com Customer Success, atendimento ao cliente, suporte ou relacionamento com parceiros? — escolha única: Sim, tenho experiência em Customer Success; Sim, tenho experiência em atendimento/suporte; Sim, tenho experiência com relacionamento com parceiros; Tenho experiência em mais de uma dessas áreas; Não possuo experiência.
+5. Você possui experiência utilizando o ClickUp? — escolha única: Sim, utilizo ou já utilizei no dia a dia; Já utilizei, mas de forma básica; Conheço a ferramenta, mas nunca utilizei profissionalmente; Nunca utilizei.
+6. Você já trabalhou com alguma ferramenta de CRM? — escolha única: Sim; Não.
+7. Em uma rotina com várias solicitações chegando ao mesmo tempo, como você organiza e prioriza os atendimentos? — resposta longa.
+
+A pergunta 7 usa textarea obrigatório de seis linhas, com limite de 5000 caracteres
+no navegador e no Worker. O textarea ocupa a largura da grade e reutiliza os tokens
+dos controles existentes. Somente essa pergunta recebe o novo controle; os campos
+das outras vagas são preservados. O HTML escapa a resposta antes de converter suas
+quebras de linha para `<br>`. Não há eliminação automática nem escrita em campos
+nativos de perguntas personalizadas. Não foram criadas candidaturas reais nesta etapa.
 
 ### Registro das respostas
 
@@ -108,11 +126,16 @@ não habilita as rotas temporárias de diagnóstico e conferência abaixo.
 
 ## Verificações e limites
 
-- **104 testes do Worker aprovados**, incluindo 29 novos casos para Dados Sênior. Incluem
+- **126 testes do Worker aprovados**, incluindo 22 novos casos para Afiliação e resposta longa. Incluem
   preservação do query com ID do talento, outra vaga, retorno 404 sem dados pessoais,
   validações, multipart, HTML escapado e tratamento de falhas posteriores à criação.
   Os novos casos conferem as oito obrigatórias antes de chamadas externas, ordem e
-  título da observação, múltiplas seleções e isolamento entre as vagas.
+  título da observação, múltiplas seleções e isolamento entre as vagas. Afiliação
+  acrescenta limite de 5000, espaços em branco, tipos inválidos, HTML escapado com
+  quebras de linha, sete obrigatórias e pendência de observação sem duplicação.
+- **5 testes dos controles aprovados em Node VM**, usando as funções reais do app:
+  textarea obrigatório, ausência nas outras vagas, espaços inválidos, normalização
+  de respostas longas e limite consistente com o Worker. Total do repositório: 131 testes.
 - **7 testes Node VM do observador aprovados**, incluindo visibilidade inicial,
   privacidade, restauração e ausência de repetição.
 - **5 testes Node VM da conferência aprovados**, incluindo envio de somente dois
@@ -123,7 +146,7 @@ não habilita as rotas temporárias de diagnóstico e conferência abaixo.
   O formulário de outra vaga coincidiu com a base visual aprovada no mesmo
   navegador e viewport. Esse conjunto não foi repetido para o novo questionário.
   A infraestrutura de browser exigida pelo ambiente Sites não está disponível;
-  a nova tela ainda requer conferência visual na prévia.
+  as novas telas ainda requerem conferência visual na prévia.
 
 Os testes locais usam respostas simuladas e não comprovam o contrato externo.
 Nenhuma nova candidatura real foi criada nesta etapa de implementação e testes.
@@ -131,7 +154,7 @@ Os resultados reais conhecidos estão separados acima.
 
 ## Próximo passo
 
-Revisar visualmente o questionário 158883 na prévia, sem enviar uma candidatura.
+Revisar visualmente os questionários 158883 e 158921 na prévia, sem enviar uma candidatura.
 Para a pendência do perfil, solicitar ao suporte um cURL mínimo válido e confirmar IDs da query/corpo, grupos,
 formato da data e campo de remuneração. Não é necessária outra candidatura para
 analisar o cadastro existente. O draft permanece sem produção até resolver essa
