@@ -69,3 +69,16 @@ jobs:
           name: gex-vacancy-real-jd-review
           path: screenshots-real/
           if-no-files-found: ignore
+
+      - name: Mock-only resume upload form preview
+        run: node tests/vacancy-browser.mjs
+        env:
+          GEX_RESUME_PREVIEW: 'true'
+          SCREENSHOT_DIR: screenshots-resume
+      - name: Upload curriculum field preview
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gex-curriculo-form-review
+          path: screenshots-resume/
+          if-no-files-found: ignore
