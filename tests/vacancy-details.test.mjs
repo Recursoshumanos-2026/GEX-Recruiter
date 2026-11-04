@@ -60,7 +60,7 @@ test('detalhe consulta Job Description público pelo slug e valida o ID da vaga'
     if (String(url).endsWith('/login-api')) return new Response(JSON.stringify({ token: 'fake-token' }), { status: 200 });
     if (String(url).includes('/vacancies/filter')) return new Response(JSON.stringify({ data: fixture }), { status: 200 });
     if (String(url) === 'https://jobs.recrutei.com.br/gex-corporation/vacancy/158921-analista-de-cs-afiliacao') {
-      assert.equal(options.redirect, 'error');
+      assert.equal(options.redirect, 'follow');
       assert.equal(options.headers.Authorization, undefined);
       const data = { props: { pageProps: { retorno: { error: false, finished: false, past: false,
         vacancy: { id: 158921, description: '<h2>Sobre a vaga</h2><p>Atendimento aos afiliados.</p>',
