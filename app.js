@@ -363,7 +363,46 @@ function safeJobDescription(input) {
     const body = document.createElement('div');
     body.className = 'jd-chapter-body';
 
+    const isAgreementSection = /^como sera nosso combinado$/i.test(
+      group.title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+    );
+    let hasFlexibleSchedule = false;
+    const scheduleText = 'Aqui na GEX, valorizamos autonomia com responsabilidade. Você tem flexibilidade para organizar seus horários, sempre com foco em resultado e alinhamento com o time.';
+
     for (const item of group.nodes) {
+      if (isAgreementSection && item.tagName === 'P') {
+        // ATS combines contract, workplace and hours into a single paragraph
+        // separated by <br>. Preserve contract/workplace while removing only
+        // the old schedule line (including the clock), when it says "flexível".
+        const lines = [[]];
+        for (const part of [...item.childNodes]) {
+          if (part.nodeType === Node.ELEMENT_NODE && part.tagName === 'BR') {
+            lines.push([]);
+          } else {
+            lines[lines.length - 1].push(part);
+          }
+        }
+        const hasFlexibleLine = lines.some(parts => {
+          const sample = document.createElement('span');
+          parts.forEach(part => sample.appendChild(part.cloneNode(true)));
+          const text = sample.textContent.normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '').toLowerCase();
+          return /horario/.test(text) && /flexivel/.test(text);
+        });
+        if (hasFlexibleLine) {
+          hasFlexibleSchedule = true;
+          for (const parts of lines) {
+            const line = document.createElement('p');
+            line.className = 'jd-agreement-line';
+            for (const part of parts) line.appendChild(part.cloneNode(true));
+            const label = line.textContent.normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            if (label.includes('horario') && label.includes('flexivel')) continue;
+            if (line.textContent.trim()) body.appendChild(line);
+          }
+          continue;
+        }
+      }
       if (item.tagName === 'UL' || item.tagName === 'OL') {
         item.classList.add('jd-list');
         const entries = [...item.children].filter(child => child.tagName === 'LI');
@@ -392,6 +431,21 @@ function safeJobDescription(input) {
         }
       }
       body.appendChild(item);
+    }
+
+    if (hasFlexibleSchedule) {
+      const callout = document.createElement('aside');
+      callout.className = 'jd-flex-schedule';
+      callout.setAttribute('aria-label', 'Horário flexível');
+      const eyebrow = document.createElement('span');
+      eyebrow.className = 'jd-flex-schedule-eyebrow';
+      eyebrow.textContent = 'HORÁRIO FLEXÍVEL';
+      const title = document.createElement('h4');
+      title.textContent = 'Flexibilidade para sua rotina';
+      const description = document.createElement('p');
+      description.textContent = scheduleText;
+      callout.append(eyebrow, title, description);
+      body.appendChild(callout);
     }
 
     section.append(heading, body);
