@@ -274,6 +274,28 @@ function safeJobDescription(input) {
   };
   const container = document.createElement('div');
   for (const child of parsed.body.childNodes) container.appendChild(clean(child));
+
+  // The public Recrutei JD may repeat our institutional Story/Culture and
+  // benefits. Keep the vacancy-specific text, but show institutional sections
+  // only once in their dedicated areas of GEX Talents.
+  let skipThroughLevel = null;
+  for (const child of [...container.childNodes]) {
+    const heading = child.nodeType === Node.ELEMENT_NODE &&
+      /^H[234]$/.test(child.tagName);
+    if (heading) {
+      const level = Number(child.tagName[1]);
+      if (skipThroughLevel !== null && level <= skipThroughLevel) {
+        skipThroughLevel = null;
+      }
+      const normalized = child.textContent.normalize('NFD')
+        .replace(/[\\u0300-\\u036f]/g, '').toLowerCase()
+        .replace(/[^a-z0-9 ]/g, ' ').replace(/\\s+/g, ' ').trim();
+      if (/^(nosso jeito de ser gex|aqui nossos gexs encontram|beneficios|beneficios da gex|nossos beneficios)$/.test(normalized)) {
+        skipThroughLevel = level;
+      }
+    }
+    if (skipThroughLevel !== null) child.remove();
+  }
   return container.innerHTML.trim();
 }
 
@@ -701,6 +723,26 @@ async function loadJobs() {
     jobs =
       body.data || [];
 
+    // Only the opened vacancy needs a full public job description.
+    const requestedId = specificVacancyId();
+    if (requestedId && jobs.some(item => String(item.id) === String(requestedId))) {
+      try {
+        const detailsResponse = await fetch(
+          `${CONFIG.API_BASE_URL.replace(/\\/$/, '')}/api/vagas/${encodeURIComponent(requestedId)}`
+        );
+        if (detailsResponse.ok) {
+          const detail = (await detailsResponse.json()).data;
+          if (detail && String(detail.id) === String(requestedId)) {
+            jobs = jobs.map(item => String(item.id) === String(requestedId)
+              ? { ...item, ...detail } : item);
+          }
+        } else if (detailsResponse.status === 404) {
+          jobs = jobs.filter(item => String(item.id) !== String(requestedId));
+        }
+      } catch (_) {
+        // Keep listing and neutral description fallback when the detail service fails.
+      }
+    }
 
   } catch (error) {
 
