@@ -61,13 +61,13 @@ async function application(file,options={}) {
   const prior=globalThis.fetch;
   globalThis.fetch=async(url,init={})=>{
     const path=new URL(String(url)).pathname;
-    calls.push({path,init});
+    calls.push({path,url:String(url),init});
     if(path.endsWith('login-api')) return Response.json({token:'fake-token'});
     if(path.endsWith('/vacancies/filter')) return Response.json({
       data:[{id:158928,vacancy_status_id:1,pipe_stages:[{id:10,order:1}]}]
     });
     if(path.endsWith('/prospects')) return new Response(JSON.stringify({
-      data:{talent:{id:22},application:{id:33}}
+      data:{talent:{id:22,prospect:{id:44}},application:{id:33,prospect:{id:44}}}
     }),{status:201});
     if(path.endsWith('/curriculum/filled')) return new Response(
       JSON.stringify(options.profileFail?{message:'Não encontrado'}:{data:{ok:true}}),
@@ -114,6 +114,9 @@ test('Markdown resume enters Recrutei custom informations field and D1 storage',
   assert.equal(r.dbRows.length,1);
   const update=r.calls.find(c=>c.path==='/api/v2/curriculum/filled');
   const payload=JSON.parse(update.init.body);
+  assert.equal(new URL(update.url).searchParams.get('talent_id'),'44');
+  assert.equal(payload.talent_id,22);
+  assert.equal(payload.application_id,33);
   assert.equal(payload.informations.length,1);
   assert.deepEqual(payload.informations[0],resumeField(r.dbRows[0].values[3]));
   assert.equal(r.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
