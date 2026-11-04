@@ -93,9 +93,12 @@ export async function storeResume(env, markdown, applicationId, vacancyId) {
   const id = crypto.randomUUID();
   // Strictly parameterized SQL. Raw files, names, contact details and public
   // URLs are never stored here, only the converted Markdown and linking IDs.
-  await env.RESUME_DB.prepare(
+  const inserted = await env.RESUME_DB.prepare(
     'INSERT INTO candidate_resumes (id, vacancy_id, application_id, markdown) VALUES (?, ?, ?, ?)'
   ).bind(id, vacancy, application, markdown).run();
+  if (inserted?.success !== true) {
+    throw resumeError('A gravação do currículo no D1 não foi confirmada.',503);
+  }
   return { id };
 }
 
