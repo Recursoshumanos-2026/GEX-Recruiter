@@ -221,19 +221,29 @@ try {
     assert.equal(await page.locator('body > main > #sobre').isVisible(), false);
     assert.equal(await page.locator('body > main > #cultura').isVisible(), false);
     assert.equal(await page.locator('body > main > #beneficios').isVisible(), false);
-    assert.equal(await page.locator('.vacancy-top-apply').count(),0);
-    assert.equal(await page.locator('[data-apply="158883"]').count(),1);
+    assert.equal(await page.locator('.vacancy-top-apply [data-apply="158883"]').count(),1);
     assert.equal(await page.locator('.vacancy-bottom-action [data-apply="158883"]').count(),1);
+    assert.equal(await page.locator('[data-apply="158883"]').count(),2);
+    assert.equal(await page.locator('.vacancy-discover-link').textContent().then(s => s.trim().includes('Conheça a oportunidade')),true);
+    assert.equal(await page.locator('.vacancy-discover-link').getAttribute('href'),'#descricao-vaga');
+    assert.equal(await page.locator('#descricao-vaga').count(),1);
+    await page.locator('.vacancy-discover-link').click();
+    assert.match(page.url(), /#descricao-vaga$/);
+    const top = await page.locator('#descricao-vaga').evaluate(el => el.getBoundingClientRect().top);
+    assert.ok(top >= 0 && top < 150, 'Discover link should scroll to readable Job Description');
     assert.equal(await page.evaluate(() => {
       const benefits = document.querySelector('.vacancy-benefits');
       const apply = document.querySelector('.vacancy-bottom-action [data-apply]');
       return Boolean(benefits && apply &&
         (benefits.compareDocumentPosition(apply) & Node.DOCUMENT_POSITION_FOLLOWING));
     }),true);
-    await page.locator('.vacancy-bottom-action [data-apply="158883"]').click();
+    await page.locator('.vacancy-top-apply [data-apply="158883"]').click();
     assert.equal(await page.locator('#applyDialog').isVisible(),true);
     assert.equal(await page.locator('#vacancyId').inputValue(),'158883');
     assert.equal(await page.locator('[name="question_age"]').count(),1);
+    await page.locator('#closeDialog').click();
+    await page.locator('.vacancy-bottom-action [data-apply="158883"]').click();
+    assert.equal(await page.locator('#applyDialog').isVisible(),true);
     await page.locator('#closeDialog').click();
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth),true);
     assert.deepEqual(errors,[]);
