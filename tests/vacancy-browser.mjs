@@ -84,6 +84,31 @@ try {
     assert.ok(firstResponsibility.length > 8);
     assert.match(await page.locator('.vacancy-description-content').textContent(), /pipelines/i);
     const fullDescription = await page.locator('.vacancy-description-content').textContent();
+    // Editorial Job Description: readable chapters, larger type and no bullet-heavy wall.
+    const chapters = page.locator('.jd-chapter');
+    assert.ok(await chapters.count() >= 3);
+    const firstHeading = await page.locator('.jd-chapter-title').first().textContent();
+    assert.ok(firstHeading?.includes('Sobre a vaga'));
+    const bodySize = await page.locator('.jd-chapter-body p').first().evaluate(el =>
+      parseFloat(getComputedStyle(el).fontSize));
+    assert.ok(bodySize >= 17, 'Job Description paragraphs must be comfortably sized');
+    const listStyle = await page.locator('.jd-list').first().evaluate(el =>
+      getComputedStyle(el).listStyleType);
+    assert.equal(listStyle,'none');
+    if (useLivePublicJob) {
+      const activities = page.locator('.jd-chapter').filter({
+        has: page.locator('.jd-chapter-title', { hasText: 'Como vai ser o seu dia a dia' })
+      });
+      const activityDetails = activities.locator('details.jd-more');
+      assert.equal(await activities.locator('li').count(), 23);
+      assert.equal(await activities.locator('li:visible').count(), 6);
+      assert.equal(await activityDetails.count(), 1);
+      await activityDetails.locator('summary').click();
+      assert.equal(await activities.locator('li:visible').count(), 23);
+      await activityDetails.locator('summary').click();
+      assert.equal(await activities.locator('li:visible').count(), 6);
+    }
+
     assert.ok(fullDescription.includes('Sobre a vaga'));
     assert.equal(await page.locator('.vacancy-description-content h2')
       .filter({ hasText: /Nosso Jeito de Ser GEX/i }).count(), 0);
@@ -121,6 +146,10 @@ try {
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth),true);
     assert.deepEqual(errors,[]);
     await page.screenshot({path:resolve(root,screenshotDir,`vaga-dados-${width}.png`),fullPage:true,animations:'disabled'});
+    await page.locator('.vacancy-description').screenshot({
+      path: resolve(root, screenshotDir, `job-description-${width}.png`),
+      animations: 'disabled'
+    });
     await page.close();
   }
   assert.equal(requests.length,0);
