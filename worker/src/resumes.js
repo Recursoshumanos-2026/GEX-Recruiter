@@ -6,7 +6,7 @@ const MIN_MARKDOWN_CHARS = 20;
 export const resumeAvailable = env =>
   env?.RESUME_UPLOAD_ENABLED === 'true' &&
   typeof env?.AI?.toMarkdown === 'function' &&
-  typeof env?.RESUME_BUCKET?.put === 'function';
+  typeof env?.RESUME_DB?.prepare === 'function';
 
 function resumeError(message, status = 400) {
   const error = new Error(message);
@@ -68,17 +68,35 @@ export async function convertResume(env, file) {
   return markdown.trim();
 }
 
-export async function storeResume(env, markdown, applicationId, vacancyId) {
-  if (!resumeAvailable(env) || !Number.isSafeInteger(Number(applicationId)) ||
-      !Number.isSafeInteger(Number(vacancyId))) {
+// Preflight the D1 table before creating an application so a missing migration
+// cannot create a candidate whose curriculum we are unable to store.
+export async function assertResumeDatabase(env) {
+  if (!resumeAvailable(env)) {
     throw resumeError('Armazenamento privado de currículos indisponível.',503);
   }
-  const key = `curriculos/${vacancyId}/${applicationId}/${crypto.randomUUID()}.md`;
-  await env.RESUME_BUCKET.put(key, markdown, {
-    httpMetadata: { contentType: 'text/markdown; charset=utf-8' },
-    customMetadata: { application_id:String(applicationId), vacancy_id:String(vacancyId) }
-  });
-  return { key };
+  try {
+    await env.RESUME_DB.prepare('SELECT id FROM candidate_resumes LIMIT 1').first();
+  } catch {
+    throw resumeError('Banco de currículos ainda não está configurado.',503);
+  }
+}
+
+export async function storeResume(env, markdown, applicationId, vacancyId) {
+  const application = Number(applicationId);
+  const vacancy = Number(vacancyId);
+  if (!resumeAvailable(env) || !Number.isSafeInteger(application) ||
+      application <= 0 || !Number.isSafeInteger(vacancy) || vacancy <= 0 ||
+      typeof markdown !== 'string' || markdown.length < MIN_MARKDOWN_CHARS ||
+      markdown.length > MAX_MARKDOWN_CHARS) {
+    throw resumeError('Armazenamento privado de currículos indisponível.',503);
+  }
+  const id = crypto.randomUUID();
+  // Strictly parameterized SQL. Raw files, names, contact details and public
+  // URLs are never stored here, only the converted Markdown and linking IDs.
+  await env.RESUME_DB.prepare(
+    'INSERT INTO candidate_resumes (id, vacancy_id, application_id, markdown) VALUES (?, ?, ?, ?)'
+  ).bind(id, vacancy, application, markdown).run();
+  return { id };
 }
 
 export function resumeField(markdown) {
