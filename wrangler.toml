@@ -36,7 +36,7 @@ PROFILE_DIAGNOSTIC_WRITE_ENABLED = "false"
 # Enables PDF/DOCX -> Markdown conversion when RESUME_UPLOAD_ENABLED is true.
 # Execute all safe local unit tests before constructing a Worker preview.
 [build]
-command = "npm run check && npm test && GEX_RUN_LIVE_PREVIEW=true node tests/live-preview-integration.mjs"
+command = "npm run check && npm test"
 
 [ai]
 binding = "AI"
