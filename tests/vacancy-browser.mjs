@@ -12,6 +12,7 @@ const vacancy = { id: 158883, title: 'Analista de Dados Sênior',
   description: '<h2>Nosso Jeito de Ser GEX</h2><p>Conteúdo institucional duplicado</p><h2>Sobre a vaga</h2><p>Você fará parte de um time que utiliza dados para orientar decisões e evoluir nossos processos.</p><h3>Principais responsabilidades</h3><ul><li>Desenvolver pipelines de dados</li><li>Garantir qualidade, disponibilidade e rastreabilidade da informação</li><li>Colaborar com áreas de negócio e tecnologia</li></ul><h3>Requisitos</h3><ul><li>Experiência com SQL e modelagem de dados</li><li>Conhecimento de integração e automação de fluxos</li><li>Autonomia e atenção à qualidade das entregas</li></ul><h3>Diferenciais</h3><p>Vivência com arquitetura escalável e melhoria contínua.</p><h2>Aqui, nossos GEXs encontram</h2><p>Clude redundante</p><h2>Como será nosso combinado</h2><p><strong>Tipo de contratação:</strong> PJ<br><strong>Trabalho:</strong> 100% remoto<br>⏰ <strong>Horário:</strong> Flexível / Comercial</p><h2>Benefícios</h2><p>Mais repetição</p><script>window.__injected=true</script><a href="javascript:alert(1)"></a>' };
 const requests = [];
 const useLivePublicJob = process.env.GEX_PUBLIC_PREVIEW === 'true';
+const previewResumeUpload = process.env.GEX_RESUME_PREVIEW === 'true';
 if (useLivePublicJob) {
   // Public vacancy page only. No Recrutei account token, candidate or application data.
   const url = 'https://jobs.recrutei.com.br/gex-corporation/vacancy/158883-analista-de-dados-senior';
@@ -38,7 +39,9 @@ const server = createServer(async (req, res) => {
   try {
     if (path.startsWith('/mock-api/')) {
       res.setHeader('Content-Type', 'application/json');
-      if (path === '/mock-api/health') return res.end(JSON.stringify({ applications_enabled: true }));
+      if (path === '/mock-api/health') return res.end(JSON.stringify({
+        applications_enabled: true, resume_upload_enabled: previewResumeUpload
+      }));
       if (path === '/mock-api/api/vagas') return res.end(JSON.stringify({
         data: [{ ...vacancy, description: null }]
       }));
@@ -239,6 +242,22 @@ try {
     }),true);
     await page.locator('.vacancy-top-apply [data-apply="158883"]').click();
     assert.equal(await page.locator('#applyDialog').isVisible(),true);
+    assert.equal(await page.locator('#resumeUploadSection').isVisible(),previewResumeUpload);
+    assert.equal(await page.locator('#resumeFile').isEnabled(),previewResumeUpload);
+    if (previewResumeUpload) {
+      assert.equal(await page.locator('#resumeFile').getAttribute('accept')
+        .then(v=>v.includes('.docx')&&v.includes('.pdf')),true);
+      assert.equal(await page.locator('#resumeFile').evaluate(el=>el.required),true);
+      await page.locator('#resumeFile').setInputFiles({
+        name:'curriculo-ficticio.pdf',mimeType:'application/pdf',
+        buffer:Buffer.from('%PDF-1.7\nCurriculo demonstrativo sem dados reais.\n%%EOF')
+      });
+      assert.equal(await page.locator('#resumeFile').evaluate(el=>el.files.length),1);
+      await page.locator('.resume-upload-section').screenshot({
+        path: resolve(root,screenshotDir,`curriculo-upload-${width}.png`),animations:'disabled'
+      });
+      // Only UI preview — never submit a candidate to the mocked or real Recrutei API.
+    }
     assert.equal(await page.locator('#vacancyId').inputValue(),'158883');
     assert.equal(await page.locator('[name="question_age"]').count(),1);
     await page.locator('#closeDialog').click();
