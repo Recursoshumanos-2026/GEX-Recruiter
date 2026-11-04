@@ -134,13 +134,15 @@ test('when Recrutei custom field returns HTTP 404, fallback observation stores e
   assert.equal(r.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
 });
 
-test('D1 storage failure never retries or misreports successful resume attachment',async()=>{
+test('D1 storage failure still preserves resume Markdown at Recrutei without false success',async()=>{
   const r=await application(rawPdf(),{d1Fail:true});
   assert.equal(r.status,201);
   assert.equal(r.body.application_created,true);
   assert.equal(r.body.resume_stored,false);
   assert.equal(r.body.resume_completed,false);
-  assert.equal(r.body.resume_custom_field_completed,false);
+  assert.equal(r.body.resume_custom_field_completed,true);
+  const updated=r.calls.find(c=>c.path==='/api/v2/curriculum/filled');
+  assert.equal(JSON.parse(updated.init.body).informations.length,1);
   assert.equal(r.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
 });
 
