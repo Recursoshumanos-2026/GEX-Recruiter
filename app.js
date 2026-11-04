@@ -773,6 +773,9 @@ function renderSpecificVacancy(id) {
       </div>
     </article>`;
   bindJobActions();
+  // Navigating from a card must always start at the top of the detail page,
+  // not at the previous listing scroll position.
+  window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
 function render() {
