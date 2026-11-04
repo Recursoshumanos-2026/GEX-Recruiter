@@ -17,6 +17,7 @@ ALLOWED_ORIGIN = "https://gex-talents-previa-questionario.yasmimbsouza80.chatgpt
 APPLICATIONS_ENABLED = "true"
 PROSPECT_CHANNEL_ID = "8"
 RESUME_UPLOAD_ENABLED = "false"
+RESUME_DIAGNOSTIC_ENABLED = "true"
 
 # Consulta somente leitura, restrita ao registro fictício já usado na homologação.
 PROFILE_DIAGNOSTIC_ENABLED = "true"
