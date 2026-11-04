@@ -6,3 +6,14 @@ compatibility_date = "2026-10-01"
 ALLOWED_ORIGIN = "https://recursoshumanos-2026.github.io"
 APPLICATIONS_ENABLED = "true"
 PROSPECT_CHANNEL_ID = "8"
+RESUME_UPLOAD_ENABLED = "false"
+
+# Enables PDF/DOCX -> Markdown conversion when RESUME_UPLOAD_ENABLED is true.
+[ai]
+binding = "AI"
+
+# After creating a PRIVATE R2 bucket, add this binding:
+# [[r2_buckets]]
+# binding = "RESUME_BUCKET"
+# bucket_name = "gex-talents-curriculos"
+# DO NOT enable r2.dev or a public custom domain for candidate resumes.
