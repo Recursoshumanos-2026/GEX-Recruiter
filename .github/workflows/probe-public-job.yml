@@ -1,0 +1,27 @@
+name: Temporary public vacancy HTML probe
+on:
+  push:
+    branches:
+      - feat/lucide-icons-gex
+    paths:
+      - .github/workflows/probe-public-job.yml
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fetch public job page without credentials
+        run: node tests/probe-public-job.mjs
+      - name: Upload public HTML for markup inspection
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: public-job-markup
+          path: diagnostic-output/public-vacancy.html
+          retention-days: 1
