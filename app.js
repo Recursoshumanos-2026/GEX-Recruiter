@@ -733,15 +733,12 @@ function renderSpecificVacancy(id) {
                 <span class="vacancy-hero-overline"><span class="vacancy-hero-status-dot" aria-hidden="true"></span> OPORTUNIDADE ABERTA • GEX CORPORATION</span>
                 <span class="vacancy-department">${safe(job.department || 'GEX CORPORATION')}</span>
                 <h1 class="vacancy-title">${safe(job.title)}</h1>
-                <p class="vacancy-hero-lead">Seu próximo desafio começa aqui.</p>
+                <p class="vacancy-hero-lead">Conheça os desafios, requisitos e benefícios para descobrir se esta oportunidade combina com você.</p>
                 <div class="vacancy-meta-large">
                   <span><strong>Modalidade</strong>${safe(workMode(job))}</span>
                   ${location ? `<span><strong>Localidade</strong>${safe(location)}</span>` : ''}
                   ${contract ? `<span><strong>Contratação</strong>${safe(contract)}</span>` : ''}
                   <span><strong>Vaga</strong>#${safe(job.id)}</span>
-                </div>
-                <div class="vacancy-top-apply">
-                  ${vacancyApplyButton(job.id, 'vacancy-apply-main')}
                 </div>
               </div>
               <div class="vacancy-hero-art" aria-hidden="true">
