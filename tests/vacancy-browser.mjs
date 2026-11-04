@@ -19,7 +19,12 @@ const server = createServer(async (req, res) => {
     if (path.startsWith('/mock-api/')) {
       res.setHeader('Content-Type', 'application/json');
       if (path === '/mock-api/health') return res.end(JSON.stringify({ applications_enabled: true }));
-      if (path === '/mock-api/api/vagas') return res.end(JSON.stringify({ data: [vacancy] }));
+      if (path === '/mock-api/api/vagas') return res.end(JSON.stringify({
+        data: [{ ...vacancy, description: null }]
+      }));
+      if (path === '/mock-api/api/vagas/158883') return res.end(JSON.stringify({
+        data: { ...vacancy, contract_model: 'Pessoa Jurídica' }
+      }));
       if (path === '/mock-api/api/candidatar') {
         requests.push(req.url);
         res.writeHead(500);return res.end(JSON.stringify({ message:'Not allowed in visual smoke test' }));
@@ -56,6 +61,7 @@ try {
     assert.equal(await page.locator('.vacancy-title').textContent(), 'Analista de Dados Sênior');
     assert.match(page.url(), /vaga=158883/);
     assert.equal(await page.locator('.vacancy-description-content li').first().textContent(), 'Desenvolver pipelines de dados');
+    assert.equal(await page.locator('.vacancy-meta-large').getByText('Pessoa Jurídica').count(), 1);
     assert.equal(await page.evaluate(()=>window.__injected), undefined);
     assert.equal(await page.locator('.vacancy-description-content script').count(),0);
     assert.equal(await page.locator('.vacancy-description-content a[href^="javascript"]').count(),0);
