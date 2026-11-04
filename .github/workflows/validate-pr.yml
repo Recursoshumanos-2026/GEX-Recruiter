@@ -25,6 +25,9 @@ jobs:
         run: npm run check
       - name: Mock-only automated tests
         run: npm test
+      - name: Optional live public job description contract
+        continue-on-error: true
+        run: node tests/public-job-live.test.mjs
 
   visual-smoke:
     runs-on: ubuntu-latest
