@@ -247,7 +247,52 @@ function bindJobActions() {
 }
 
 
+// Render rich text from the ATS with a strict element/attribute allowlist.
+// No fetched HTML attributes or active content are copied into the page.
+function safeJobDescription(input) {
+  if (typeof input !== 'string' || !input.trim()) return '';
+  const parsed = new DOMParser().parseFromString(input, 'text/html');
+  const allowed = new Set(['P','H2','H3','H4','UL','OL','LI','STRONG','B','EM','I','BR','BLOCKQUOTE','A']);
+  const blocked = new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','SVG','FORM','INPUT','BUTTON','VIDEO','AUDIO','IMG','META','LINK']);
+  const clean = node => {
+    if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent);
+    if (node.nodeType !== Node.ELEMENT_NODE || blocked.has(node.tagName)) return document.createDocumentFragment();
+    const target = allowed.has(node.tagName) ? document.createElement(node.tagName.toLowerCase()) : document.createDocumentFragment();
+    if (node.tagName === 'A' && target.nodeType === Node.ELEMENT_NODE) {
+      const href = node.getAttribute('href') || '';
+      try {
+        const url = new URL(href, window.location.origin);
+        if (['https:', 'http:'].includes(url.protocol)) {
+          target.setAttribute('href', url.toString());
+          target.setAttribute('target', '_blank');
+          target.setAttribute('rel', 'noopener noreferrer');
+        }
+      } catch (_) {}
+    }
+    for (const child of node.childNodes) target.appendChild(clean(child));
+    return target;
+  };
+  const container = document.createElement('div');
+  for (const child of parsed.body.childNodes) container.appendChild(clean(child));
+  return container.innerHTML.trim();
+}
+
+function vacancyBenefitsMarkup() {
+  const original = document.querySelector('body > main > #beneficios');
+  const benefits = original?.querySelector('.benefits-grid');
+  return benefits ? `<section class="vacancy-benefits benefits-section" aria-labelledby="vacancyBenefitsTitle">
+    <h3 id="vacancyBenefitsTitle">Benefícios GEX</h3>
+    <div class="benefits-grid">${benefits.innerHTML}</div>
+  </section>` : '';
+}
+
+function vacancyApplyButton(id, extraClass = '') {
+  return `<button type="button" class="btn btn-primary ${extraClass}" data-apply="${safe(id)}"
+    ${applicationsEnabled ? '' : 'disabled'}>${applicationsEnabled ? 'Quero me candidatar →' : 'Candidatura em breve'}</button>`;
+}
+
 function renderGeneralJobs() {
+  document.body.classList.remove("vacancy-detail-mode");
 
   if (main && talentPool) {
   main.insertBefore(
@@ -375,9 +420,7 @@ function renderGeneralJobs() {
               )}
             </span>
 
-            <h3>
-              ${safe(job.title)}
-            </h3>
+            <h3><a class="job-title-link" href="${safe(vacancyUrl(job.id))}">${safe(job.title)}</a></h3>
 
             <div class="job-meta">
 
@@ -415,22 +458,7 @@ function renderGeneralJobs() {
                   Compartilhar
                 </button>
 
-                <button
-                  type="button"
-                  class="job-apply-button"
-                  data-apply="${safe(job.id)}"
-                  ${
-                    applicationsEnabled
-                      ? ''
-                      : 'disabled'
-                  }
-                >
-                  ${
-                    applicationsEnabled
-                      ? 'Quero me candidatar →'
-                      : 'Candidatura em breve'
-                  }
-                </button>
+                <a class="job-apply-button job-details-link" href="${safe(vacancyUrl(job.id))}">Ver detalhes →</a>
 
               </div>
 
@@ -451,274 +479,69 @@ function renderGeneralJobs() {
 }
 
 
-function renderSpecificVacancy(
-  id
-) {
-  if (main) {
-  main.prepend(
-    jobsSection
-  );
-}
+function renderSpecificVacancy(id) {
+  document.body.classList.add('vacancy-detail-mode');
+  if (main) main.prepend(jobsSection);
+  jobsHeading.style.display = 'none';
+  jobsToolbar.style.display = 'none';
+  jobsSection.classList.add('specific-vacancy-section');
+  grid.classList.add('jobs-grid--specific');
+  if (talentPool) talentPool.hidden = true;
 
-  const job =
-    jobs.find(
-      item =>
-        String(item.id) ===
-          String(id) &&
-        Number(
-          item.vacancy_status_id
-        ) === 1
-    );
-
-
-  jobsHeading.style.display =
-    'none';
-
-  jobsToolbar.style.display =
-    'none';
-
-
-  jobsSection.classList.add(
-    'specific-vacancy-section'
-  );
-
-
-  grid.classList.add(
-    'jobs-grid--specific'
-  );
-
-
-  if (talentPool) {
-    talentPool.hidden =
-      true;
-  }
-
-
+  const job = jobs.find(item => String(item.id) === String(id) &&
+    Number(item.vacancy_status_id) === 1);
   if (!job) {
-
-    empty.hidden =
-      false;
-
-    grid.innerHTML =
-      '';
-
-    empty
-      .querySelector('h3')
-      .textContent =
-      'Esta oportunidade não está mais disponível.';
-
-    empty
-      .querySelector('p')
-      .innerHTML =
-      `Confira <a href="${safe(allJobsUrl())}">todas as oportunidades abertas</a> na GEX.`;
-
+    empty.hidden = false;
+    grid.innerHTML = '';
+    empty.querySelector('h3').textContent = 'Esta oportunidade não está mais disponível.';
+    empty.querySelector('p').innerHTML = `Confira <a href="${safe(allJobsUrl())}">todas as oportunidades abertas</a> na GEX.`;
     return;
   }
+  empty.hidden = true;
+  document.title = `${job.title} | GEX Recruiter`;
+  const meta = document.querySelector('meta[name="description"]');
+  if (meta) meta.content = `${job.title} — oportunidade na GEX Corporation.`;
 
-
-  empty.hidden =
-    true;
-
-
-  document.title =
-    `${job.title} | GEX Recruiter`;
-
-
-  const description =
-    document.querySelector(
-      'meta[name="description"]'
-    );
-
-
-  if (description) {
-    description.content =
-      `${job.title} — oportunidade na GEX Corporation.`;
-  }
-
-
-  const location =
-    locationLabel(job);
-
-
+  const description = safeJobDescription(job.description);
+  const location = locationLabel(job);
+  // Contract model must only be displayed when actually supplied by the ATS.
+  const contract = typeof job.contract_model === 'string' ? job.contract_model : '';
   grid.innerHTML = `
-
-    <article
-      class="vacancy-landing"
-      id="vaga-${safe(job.id)}"
-    >
-
+    <article class="vacancy-landing" id="vaga-${safe(job.id)}">
       <div class="vacancy-landing-top">
-
-        <a
-          class="vacancy-back-link"
-          href="${safe(allJobsUrl())}"
-        >
-          ← Todas as oportunidades
-        </a>
-
-        <button
-          type="button"
-          class="vacancy-share-top"
-          data-share="${safe(job.id)}"
-        >
-          Compartilhar vaga
-        </button>
-
+        <a class="vacancy-back-link" href="${safe(allJobsUrl())}#vagas">← Todas as oportunidades</a>
+        <button type="button" class="vacancy-share-top" data-share="${safe(job.id)}">Compartilhar vaga</button>
       </div>
-
-
       <div class="vacancy-landing-content vacancy-landing-content--single">
-
         <div class="vacancy-main-content vacancy-main-content--wide">
-
-          <span class="eyebrow">
-            • OPORTUNIDADE NA GEX
-          </span>
-
-          <span class="vacancy-department">
-            ${safe(
-              job.department ||
-              'GEX CORPORATION'
-            )}
-          </span>
-
-          <h2>
-            ${safe(job.title)}
-          </h2>
-
-
+          <span class="eyebrow">• OPORTUNIDADE NA GEX</span>
+          <span class="vacancy-department">${safe(job.department || 'GEX CORPORATION')}</span>
+          <h1 class="vacancy-title">${safe(job.title)}</h1>
           <div class="vacancy-meta-large">
-
-            <span>
-              <strong>
-                Modelo
-              </strong>
-
-              ${safe(
-                workMode(job)
-              )}
-            </span>
-
-
-            ${
-              location
-                ? `
-                  <span>
-
-                    <strong>
-                      Localidade
-                    </strong>
-
-                    ${safe(location)}
-
-                  </span>
-                `
-                : ''
-            }
-
-
-            <span>
-
-              <strong>
-                Oportunidade
-              </strong>
-
-              #${safe(job.id)}
-
-            </span>
-
+            <span><strong>Modalidade</strong>${safe(workMode(job))}</span>
+            ${location ? `<span><strong>Localidade</strong>${safe(location)}</span>` : ''}
+            ${contract ? `<span><strong>Contratação</strong>${safe(contract)}</span>` : ''}
+            <span><strong>Oportunidade</strong>#${safe(job.id)}</span>
           </div>
-
-
-          <div class="vacancy-primary-action">
-
-            <div>
-
-              <span class="vacancy-cta-label">
-                FAÇA PARTE DA GEX
-              </span>
-
-              <h3>
-                Quer se candidatar a esta oportunidade?
-              </h3>
-
-              <p>
-                Preencha seus dados e envie sua candidatura
-                diretamente pelo GEX Recruiter.
-              </p>
-
+          <div class="vacancy-top-apply">${vacancyApplyButton(job.id, 'vacancy-apply-main')}</div>
+          <section class="vacancy-description" aria-label="Descrição da vaga">
+            <h2>Sobre a oportunidade</h2>
+            ${description ? `<div class="vacancy-description-content">${description}</div>` :
+              '<p class="vacancy-description-missing">A descrição completa desta oportunidade ainda não está disponível. Consulte novamente em breve.</p>'}
+          </section>
+          ${vacancyBenefitsMarkup()}
+          <div class="vacancy-primary-action vacancy-bottom-action">
+            <div><span class="vacancy-cta-label">FAÇA PARTE DA GEX</span>
+              <h3>Gostou desta oportunidade?</h3>
+              <p>Envie sua candidatura diretamente pelo GEX Recruiter.</p>
             </div>
-
-
-            <button
-              type="button"
-              class="btn btn-primary vacancy-apply-main"
-              data-apply="${safe(job.id)}"
-              ${
-                applicationsEnabled
-                  ? ''
-                  : 'disabled'
-              }
-            >
-              ${
-                applicationsEnabled
-                  ? 'Quero me candidatar →'
-                  : 'Candidatura em breve'
-              }
-            </button>
-
-
-            <small>
-              O processo seletivo é conduzido pelo
-              Time de RH da GEX Corporation.
-            </small>
-
+            ${vacancyApplyButton(job.id, 'vacancy-apply-main')}
           </div>
-
-
-          <div class="vacancy-about">
-
-            <h3>
-              Seu próximo desafio pode começar aqui.
-            </h3>
-
-            <p>
-              Estamos em busca de pessoas que queiram construir,
-              aprender rápido e assumir protagonismo junto com a GEX.
-              Se esta oportunidade combina com o seu momento,
-              queremos conhecer você.
-            </p>
-
-          </div>
-
         </div>
-
       </div>
-
-    </article>
-  `;
-
-const vacancyLanding =
-  grid.querySelector(
-    '.vacancy-landing'
-  );
-
-const vacancyActions =
-  grid.querySelector(
-    '.vacancy-landing-top'
-  );
-
-if (
-  vacancyLanding &&
-  vacancyActions
-) {
-  vacancyLanding.appendChild(
-    vacancyActions
-  );
-}
+    </article>`;
   bindJobActions();
 }
-
 
 function render() {
 
