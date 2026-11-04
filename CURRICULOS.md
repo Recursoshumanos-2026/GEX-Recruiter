@@ -83,6 +83,8 @@ Testes de código incluem mock de D1 Free, schema preflight, SQL parametrizado, 
 
 ## Retenção e exclusão automática — código preparado, não ativado
 
+**Escopo confirmado:** somente o Markdown do D1 será apagado após o prazo; o conteúdo já recebido na Recrutei deve ser preservado pela rotina. Ninguém do RH precisa autorizar cada exclusão depois que o agendamento estiver ativado e validado.
+
 A rotina `worker/src/retention.js` considera **12 meses desde a data do armazenamento no D1** como prazo técnico inicial, sujeito à política de retenção aprovada pela GEX. Isso não é a mesma coisa que "12 meses após o encerramento da vaga": para usar a data de encerramento, precisamos integrar estados da Recrutei e revisar a regra antes de ativar.
 
 O Worker já possui um handler `scheduled()` protegido. Quando autorizado e implantado com um Cron Trigger diário `0 6 * * *` (06h UTC), verifica o banco `RESUME_DB` e:
@@ -98,6 +100,6 @@ RESUME_RETENTION_MONTHS = "12"
 ```
 A configuração do agendamento automático **ainda não foi ativada na Cloudflare**. Não agendar nem mudar essas flags antes da revisão de RH/LGPD, testes com documentos fictícios e conferência da tabela. O código e testes estão na branch de revisão.
 
-**Limite importante:** esta limpeza afeta somente o Markdown armazenado na tabela D1 da GEX. Não remove o campo personalizado, a observação, o candidato ou qualquer cópia na Recrutei. Para cumprir a política de exclusão de ponta a ponta, é indispensável definir uma rotina compatível na Recrutei; não assumir que o cron do D1 apaga dados do ATS.
+**Regra expressamente escolhida pelo RH:** a exclusão automática de 12 meses é **exclusiva do banco Cloudflare D1**. O sistema **não solicita exclusão nem modifica dados na Recrutei**: candidato, candidatura, observações e informações já registradas na Recrutei permanecem lá, conforme as regras próprias da plataforma e a política de retenção da GEX. Essa retenção separada precisa constar no aviso de privacidade. Em caso de pedido de exclusão de dados do titular ou obrigação legal, a GEX deverá tratar também a Recrutei conforme aplicável; a automação do D1 não substitui esse procedimento.
 
 Para evitar exclusão de um currículo em um processo seletivo ainda ativo, validar antes a regra temporal e um mecanismo que proteja candidaturas com retenção legítima. Pedidos de exclusão por titulares e obrigações legais podem exigir tratamento diferente.
