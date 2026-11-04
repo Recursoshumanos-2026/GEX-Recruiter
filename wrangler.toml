@@ -8,6 +8,7 @@ compatibility_date = "2026-10-01"
 ALLOWED_ORIGIN = "https://recursoshumanos-2026.github.io"
 APPLICATIONS_ENABLED = "true"
 PROSPECT_CHANNEL_ID = "8"
+RESUME_UPLOAD_ENABLED = "false"
 
 # Prévia isolada: candidaturas reais permanecem bloqueadas até autorização.
 # Segredos da Recrutei são configurados exclusivamente no painel da Cloudflare.
@@ -15,9 +16,20 @@ PROSPECT_CHANNEL_ID = "8"
 ALLOWED_ORIGIN = "https://gex-talents-previa-questionario.yasmimbsouza80.chatgpt.site"
 APPLICATIONS_ENABLED = "true"
 PROSPECT_CHANNEL_ID = "8"
+RESUME_UPLOAD_ENABLED = "false"
 
 # Consulta somente leitura, restrita ao registro fictício já usado na homologação.
 PROFILE_DIAGNOSTIC_ENABLED = "true"
 PROFILE_DIAGNOSTIC_APPLICATION_ID = "15905660"
 PROFILE_DIAGNOSTIC_VACANCY_ID = "158928"
 PROFILE_DIAGNOSTIC_WRITE_ENABLED = "true"
+
+# Enables PDF/DOCX -> Markdown conversion when RESUME_UPLOAD_ENABLED is true.
+[ai]
+binding = "AI"
+
+# After creating a PRIVATE R2 bucket, add this binding:
+# [[r2_buckets]]
+# binding = "RESUME_BUCKET"
+# bucket_name = "gex-talents-curriculos"
+# DO NOT enable r2.dev or a public custom domain for candidate resumes.
