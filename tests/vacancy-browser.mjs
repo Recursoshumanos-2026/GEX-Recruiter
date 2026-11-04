@@ -55,7 +55,7 @@ try {
     await page.locator('.vacancy-title').waitFor();
     assert.equal(await page.locator('.vacancy-title').textContent(), 'Analista de Dados Sênior');
     assert.match(page.url(), /vaga=158883/);
-    assert.equal(await page.locator('.vacancy-description-content li').textContent(), 'Desenvolver pipelines de dados');
+    assert.equal(await page.locator('.vacancy-description-content li').first().textContent(), 'Desenvolver pipelines de dados');
     assert.equal(await page.evaluate(()=>window.__injected), undefined);
     assert.equal(await page.locator('.vacancy-description-content script').count(),0);
     assert.equal(await page.locator('.vacancy-description-content a[href^="javascript"]').count(),0);
