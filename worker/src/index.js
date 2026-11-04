@@ -990,7 +990,7 @@ export default {
             application_created: false
           } : {})
         },
-        [400, 503].includes(error.status) ? error.status : 500,
+        [400, 413, 415, 422, 503].includes(error.status) ? error.status : 500,
         env
       );
     }
