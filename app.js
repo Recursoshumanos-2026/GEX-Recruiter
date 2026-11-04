@@ -1,6 +1,9 @@
 import { questionnaireFor, validateAnswers } from './questionnaires.js?v=5';
 
 const CONFIG = window.GEX_TALENTS_CONFIG || {};
+// A shareable presentation preview: all file and form interactions stay local.
+// The regular site keeps its existing real application flow unchanged.
+const PRESENTATION_PREVIEW = new URLSearchParams(window.location.search).get('demo') === '1';
 
 let jobs = [];
 let applicationsEnabled = false;
@@ -9,9 +12,15 @@ const resumeSection = document.querySelector('#resumeUploadSection');
 const resumeInput = document.querySelector('#resumeFile');
 function syncResumeInput() {
   if (!resumeSection || !resumeInput) return;
-  resumeSection.hidden = !resumeUploadEnabled;
-  resumeInput.disabled = !resumeUploadEnabled;
-  resumeInput.required = resumeUploadEnabled;
+  const visible = resumeUploadEnabled || PRESENTATION_PREVIEW;
+  resumeSection.hidden = !visible;
+  resumeInput.disabled = !visible;
+  resumeInput.required = resumeUploadEnabled && !PRESENTATION_PREVIEW;
+  if (PRESENTATION_PREVIEW) {
+    resumeSection.classList.add('resume-demo-mode');
+    const hint = resumeSection.querySelector('.resume-upload-hint');
+    if (hint) hint.textContent = 'Demonstração: selecione um PDF ou DOCX de até 5 MB. O arquivo não será enviado nem armazenado.';
+  }
 }
 
 
@@ -862,10 +871,11 @@ return;
 
 
     applicationsEnabled =
-      Boolean(
+      PRESENTATION_PREVIEW || Boolean(
         body.applications_enabled
       );
-    resumeUploadEnabled = applicationsEnabled && body.resume_upload_enabled === true;
+    resumeUploadEnabled = !PRESENTATION_PREVIEW && applicationsEnabled &&
+      body.resume_upload_enabled === true;
     syncResumeInput();
 
 
@@ -988,6 +998,13 @@ function openApply(id) {
 
   renderQuestionnaire(job.id);
 
+  if (PRESENTATION_PREVIEW) {
+    form.querySelector('.submit-btn').textContent = 'Simular candidatura';
+    form.querySelector('.submit-btn').disabled = false;
+    form.noValidate = true;
+    const box = document.querySelector('#demoPreviewNotice');
+    if (box) box.hidden = false;
+  }
   dialog.showModal();
 }
 
@@ -1084,6 +1101,13 @@ form.addEventListener(
 
     event.preventDefault();
 
+    if (PRESENTATION_PREVIEW) {
+      formMessage.hidden = false;
+      formMessage.className = 'form-message success';
+      formMessage.textContent =
+        'Prévia concluída! Este é um teste visual: nenhum dado, candidatura ou currículo foi enviado à Recrutei ou à Cloudflare.';
+      return;
+    }
 
     formMessage.hidden =
       true;
@@ -1327,5 +1351,21 @@ dialog.addEventListener(
   }
 );
 
+
+if (PRESENTATION_PREVIEW) {
+  document.body.classList.add('presentation-preview');
+  const notice=document.createElement('div');
+  notice.className='presentation-preview-banner';
+  notice.setAttribute('role','status');
+  notice.textContent='PRÉVIA PARA APRESENTAÇÃO · Formulário e upload demonstrativos, sem envio de dados';
+  document.querySelector('.site-header')?.after(notice);
+  resumeInput?.addEventListener('change',()=>{
+    const hint=resumeSection?.querySelector('.resume-upload-hint');
+    const file=resumeInput.files?.[0];
+    if(hint) hint.textContent=file
+      ? `Arquivo selecionado: ${file.name}. Apenas demonstração — nenhum currículo foi enviado.`
+      : 'Demonstração: selecione um PDF ou DOCX de até 5 MB. O arquivo não será enviado nem armazenado.';
+  });
+}
 
 loadJobs();
