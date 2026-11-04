@@ -7,6 +7,10 @@ ALLOWED_ORIGIN = "https://recursoshumanos-2026.github.io"
 APPLICATIONS_ENABLED = "true"
 PROSPECT_CHANNEL_ID = "8"
 RESUME_UPLOAD_ENABLED = "false"
+# Retencao automatica somente no D1, 12 meses; Recrutei nunca e alterada.
+RESUME_RETENTION_ENABLED = "true"
+RESUME_RETENTION_DRY_RUN = "false"
+RESUME_RETENTION_MONTHS = "12"
 
 # Enables PDF/DOCX -> Markdown conversion when RESUME_UPLOAD_ENABLED is true.
 [ai]
