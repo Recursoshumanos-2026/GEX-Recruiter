@@ -220,7 +220,17 @@ function profileIds(body, vacancyId) {
     )?.id ||
     null;
 
-  return { talentId, applicationId };
+  // Recrutei documents two different identifiers: the URL's "talent_id"
+  // represents the prospect record, while the JSON body's talent_id is the
+  // actual talent. Prefer the prospect ID from the POST /prospects response.
+  const prospectId =
+    body?.data?.talent?.prospect?.id ||
+    body?.data?.application?.prospect?.id ||
+    body?.data?.application?.prospect_id ||
+    body?.data?.prospect?.id ||
+    null;
+
+  return { talentId, applicationId, prospectId };
 }
 
 function buildProfilePayload(payload, talentId, applicationId, resumeMarkdown = null) {
@@ -411,7 +421,7 @@ async function diagnoseProspectProfile(env) {
 }
 
 async function updateProspectProfile(env, payload, createBody, resumeMarkdown = null) {
-  const { talentId, applicationId } = profileIds(
+  const { talentId, applicationId, prospectId } = profileIds(
     createBody,
     payload.vacancy_id
   );
@@ -440,7 +450,12 @@ async function updateProspectProfile(env, payload, createBody, resumeMarkdown = 
 
   const response = await recrutei(
     env,
-    `/api/v2/curriculum/filled?talent_id=${encodeURIComponent(talentId)}`,
+    // In this *query string*, Recrutei expects the prospect ID. In the
+    // body, talent_id remains the talent ID. For legacy responses without
+    // prospect details, retain the old fallback and use observation on error.
+    `/api/v2/curriculum/filled?talent_id=${encodeURIComponent(
+      positiveId(prospectId) ? prospectId : talentId
+    )}`,
     {
       method: 'PUT',
       headers: {
