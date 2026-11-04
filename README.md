@@ -209,3 +209,7 @@ Os botões de candidatura e os questionários permanecem ligados ao ID original 
 - O erro HTTP 404 na atualização de dados complementares de candidatos continua
   pendente; não alterar a criação de candidaturas para mascarar essa falha.
 - Não realizar merge ou deploy em produção sem aprovação visual e funcional.
+
+## Currículos em PDF/DOCX (nova revisão)
+
+O fluxo de conversão Cloudflare Workers AI → Markdown → armazenamento R2 privado → Recrutei está implementado de forma **desativada até a configuração da Cloudflare e homologação do campo personalizado**. Veja [CURRICULOS.md](CURRICULOS.md) para passos de implantação, segurança, LGPD e testes. Não ativar a flag sem bucket privado, proteções contra abuso e testes reais de homologação.
