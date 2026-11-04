@@ -13,5 +13,5 @@ PROSPECT_CHANNEL_ID = "8"
 # Segredos da Recrutei são configurados exclusivamente no painel da Cloudflare.
 [previews.vars]
 ALLOWED_ORIGIN = "https://gex-talents-previa-questionario.yasmimbsouza80.chatgpt.site"
-APPLICATIONS_ENABLED = "false"
+APPLICATIONS_ENABLED = "true"
 PROSPECT_CHANNEL_ID = "8"
