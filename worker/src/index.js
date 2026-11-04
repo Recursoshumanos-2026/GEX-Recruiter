@@ -524,7 +524,9 @@ async function addQuestionnaireObservation(env, payload, createBody, answers) {
     `<p><strong>Vaga:</strong> ${escapeHtml(questionnaire.title)}</p>` +
     questionnaire.questions.map((question, index) => {
       const answer = answers[question.id];
-      const html = Array.isArray(answer)
+      const unanswered = question.required === false &&
+        (!answer || (Array.isArray(answer) && !answer.length));
+      const html = unanswered ? '<p>Não informado</p>' : Array.isArray(answer)
         ? `<ul>${answer.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
         : `<p>${question.type === 'long' ? escapeHtml(answer).replace(/\r\n?|\n/g, '<br>') : escapeHtml(answer)}</p>`;
       return `<p><strong>${index + 1}. ${escapeHtml(question.label)}</strong></p>${html}`;

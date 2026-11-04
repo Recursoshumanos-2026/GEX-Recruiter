@@ -725,3 +725,109 @@ for (const input of [
   assert.equal(result.status, 400);
   assert.equal(result.calls.length, 0);
 });
+
+const videoAnswers = () => ({
+  pj: ['Sim'], remote: ['Sim'], age: '30', lipsync: ['Sim'], vsl: 'Sim',
+  ai: 'Sim', ads: 'Sim', digital_company: 'Sim', portfolio: 'https://example.invalid/portfolio', salary: '9000'
+});
+const videoPayload = () => ({ ...payload(), vacancy_id: '158786', questionnaire_answers: videoAnswers() });
+
+test('Editor de Vídeo registra dez respostas em ordem e preserva todas as seleções múltiplas', async () => {
+  const input = videoPayload();
+  for (const id of ['pj','remote','lipsync']) input.questionnaire_answers[id] = ['Não','Sim'];
+  input.questionnaire_answers.portfolio = 'https://example.invalid/?a=<script>&b="perfil"';
+  const result = await run(input);
+  assert.equal(result.status, 201);
+  assert.equal(result.body.application_created, true);
+  assert.equal(result.body.tag_completed, true);
+  assert.equal(result.body.observation_completed, true);
+  const observation = result.calls.find(call => call.path.endsWith('/talents-observations'));
+  const html = observation.init.body.get('description');
+  assert.ok(html.includes('<strong>Vaga:</strong> Editor de Vídeo'));
+  const labels = [
+    'Você aceita atuar como PJ - Prestador de serviços?',
+    'Você possui estrutura ( computador/notebook e internet) para trabalhar remoto / home office?',
+    'Qual sua idade?',
+    'Você tem experiência com ferramentas de lipsync?',
+    'Você tem experiência ou já teve algum contato com edição de VSL&#39;s e criativos de resposta direta?',
+    'Você tem experiência com ferramentas de IA? Ex: Heygen, ElevenLabs, SyncLabs',
+    'Você tem experiencia com edição de anúncios para venda online? (e-commerce, infoprodutos, etc.)',
+    'Já trabalhou com alguma empresa digital anteriormente?',
+    'Coloque aqui o seu Instagram, LinkedIn, Portifólio, etc.',
+    'Qual sua pretensão salarial para um contrato PJ?'
+  ];
+  const positions = labels.map((label, index) => html.indexOf(`${index+1}. ${label}`));
+  for (let i=0;i<positions.length;i++) assert.ok(positions[i]>=0 && (i===0 || positions[i]>positions[i-1]));
+  for (const i of [0,1,3]) {
+    const block = html.slice(positions[i], positions[i+1]);
+    assert.ok(block.includes('<li>Sim</li><li>Não</li>'));
+  }
+  assert.ok(html.includes('https://example.invalid/?a=&lt;script&gt;&amp;b=&quot;perfil&quot;'));
+  assert.ok(!html.includes('<script>'));
+  assert.equal(observation.init.body.get('application_id'), '33');
+  assert.equal(observation.init.body.get('talent_id'), '22');
+  assert.equal(observation.init.body.get('talent_observation_type_id'), '7');
+});
+for (const id of ['pj','remote','age','lipsync','vsl','ai','ads','digital_company','salary']) {
+  test(`Editor de Vídeo exige ${id} antes de qualquer chamada externa`, async () => {
+    const input = videoPayload(); delete input.questionnaire_answers[id];
+    const result = await run(input);
+    assert.equal(result.status, 400);
+    assert.equal(result.calls.length, 0);
+  });
+}
+for (const value of [undefined,null,'',' \n ']) {
+  test(`Editor permite portfólio opcional sem conteúdo: ${JSON.stringify(value)}`, async () => {
+    const input = videoPayload();
+    if (value===undefined) delete input.questionnaire_answers.portfolio;
+    else input.questionnaire_answers.portfolio=value;
+    const result = await run(input);
+    assert.equal(result.status, 201);
+    assert.equal(result.body.observation_completed, true);
+    const html = result.calls.find(call => call.path.endsWith('/talents-observations')).init.body.get('description');
+    assert.ok(html.includes('9. Coloque aqui o seu Instagram, LinkedIn, Portifólio, etc.</strong></p><p>Não informado</p>'));
+    assert.ok(html.includes('10. Qual sua pretensão salarial para um contrato PJ?'));
+    assert.ok(!html.includes('undefined'));
+    assert.ok(!html.includes('<p>null</p>'));
+  });
+}
+for (const invalid of [{},[],123,'x'.repeat(501)]) {
+  test(`portfólio opcional ainda rejeita tipo ou tamanho inválido: ${Array.isArray(invalid)?'array':typeof invalid}`, async () => {
+    const input = videoPayload(); input.questionnaire_answers.portfolio=invalid;
+    const result = await run(input);
+    assert.equal(result.status, 400);
+    assert.equal(result.calls.length, 0);
+  });
+}
+for (const id of ['pj','remote','lipsync']) {
+  test(`múltipla ${id} exige ao menos uma escolha conhecida`, async () => {
+    for (const invalid of [[],['Talvez'],'Sim']) {
+      const input = videoPayload(); input.questionnaire_answers[id]=invalid;
+      const result = await run(input);
+      assert.equal(result.status, 400);
+      assert.equal(result.calls.length, 0);
+    }
+  });
+}
+for (const id of ['vsl','ai','ads','digital_company']) {
+  test(`única ${id} rejeita seleção múltipla`, async () => {
+    const input = videoPayload(); input.questionnaire_answers[id]=['Sim','Não'];
+    const result = await run(input);
+    assert.equal(result.status, 400);
+    assert.equal(result.calls.length, 0);
+  });
+}
+test('resposta Não sobre PJ é registrada na observação sem reprovação automática', async () => {
+  const input = videoPayload(); input.questionnaire_answers.pj=['Não'];
+  const result = await run(input);
+  assert.equal(result.status, 201);
+  assert.equal(result.body.observation_completed, true);
+  assert.ok(result.calls.every(call => ['/api/v1/login-api','/api/v2/vacancies/filter',
+    '/api/v2/prospects','/api/v2/curriculum/filled','/api/v2/tags/talent','/api/v2/talents-observations'].includes(call.path)));
+});
+test('respostas de Editor não substituem questionário de Dados Sênior', async () => {
+  const input = dataPayload(); input.questionnaire_answers=videoAnswers();
+  const result = await run(input);
+  assert.equal(result.status, 400);
+  assert.equal(result.calls.length, 0);
+});

@@ -28,7 +28,7 @@ Isso não identifica a causa nem comprova problema no CPF, na data ou na API. É
 
 | Arquivos | Comportamento |
 | --- | --- |
-| `questionnaires.js` | Cadastro por ID de vaga: sete perguntas de Atendimento, oito de Dados Sênior e sete de Afiliação, com validação compartilhada. |
+| `questionnaires.js` | Cadastro por ID de vaga: sete perguntas de Atendimento, oito de Dados Sênior, sete de Afiliação e dez de Editor de Vídeo, com validação compartilhada. |
 | `app.js`, `index.html`, `application.css` | Questionário próprio de cada vaga cadastrada e aviso de observação pendente; versão dos recursos atualizada para evitar cache antigo. |
 | `worker/src/index.js` | Validação antes da criação, observação multipart com HTML escapado, isolamento de falhas posteriores e diagnóstico limitado. |
 | `wrangler.toml` | Configuração de prévia na raiz apontando ao Worker existente, com candidaturas habilitadas nesta homologação. |
@@ -94,6 +94,32 @@ das outras vagas são preservados. O HTML escapa a resposta antes de converter s
 quebras de linha para `<br>`. Não há eliminação automática nem escrita em campos
 nativos de perguntas personalizadas. Não foram criadas candidaturas reais nesta etapa.
 
+### Editor de Vídeo — 158786
+
+As dez perguntas dos três prints foram transcritas nesta ordem:
+
+1. Você aceita atuar como PJ - Prestador de serviços? — múltipla escolha: Sim; Não.
+2. Você possui estrutura ( computador/notebook e internet) para trabalhar remoto / home office? — múltipla escolha: Sim; Não.
+3. Qual sua idade? — resposta curta.
+4. Você tem experiência com ferramentas de lipsync? — múltipla escolha: Sim; Não.
+5. Você tem experiência ou já teve algum contato com edição de VSL's e criativos de resposta direta? — escolha única: Sim; Não.
+6. Você tem experiência com ferramentas de IA? Ex: Heygen, ElevenLabs, SyncLabs — escolha única: Sim; Não.
+7. Você tem experiencia com edição de anúncios para venda online? (e-commerce, infoprodutos, etc.) — escolha única: Sim; Não.
+8. Já trabalhou com alguma empresa digital anteriormente? — escolha única: Sim; Não.
+9. Coloque aqui o seu Instagram, LinkedIn, Portifólio, etc. — resposta curta **opcional**.
+10. Qual sua pretensão salarial para um contrato PJ? — resposta curta.
+
+Somente a pergunta 9 está com obrigatoriedade desligada no print. O cadastro usa
+`required: false` nela; os demais itens continuam obrigatórios por padrão. O navegador
+identifica o campo como opcional e o Worker permite ausência, nulo ou texto vazio.
+Um valor preenchido ainda deve ser texto com até 500 caracteres. A observação registra
+“Não informado” quando vazio, sem omitir a pergunta ou mudar a numeração.
+
+As perguntas 1, 2 e 4 mantêm checkboxes, inclusive todas as alternativas selecionadas.
+O print marca “Não” da pergunta PJ como eliminatória na Recrutei. Essa marca nativa
+não é reproduzida pelo fluxo de observações: a integração registra a escolha para
+análise do RH, sem reprovação automática. Não foram criadas candidaturas reais.
+
 ### Registro das respostas
 
 Após criar a candidatura, o Worker envia `POST /api/v2/talents-observations` em
@@ -126,16 +152,18 @@ não habilita as rotas temporárias de diagnóstico e conferência abaixo.
 
 ## Verificações e limites
 
-- **126 testes do Worker aprovados**, incluindo 22 novos casos para Afiliação e resposta longa. Incluem
+- **153 testes do Worker aprovados**, incluindo 27 novos casos para Editor de Vídeo e portfólio opcional. Incluem
   preservação do query com ID do talento, outra vaga, retorno 404 sem dados pessoais,
   validações, multipart, HTML escapado e tratamento de falhas posteriores à criação.
   Os novos casos conferem as oito obrigatórias antes de chamadas externas, ordem e
   título da observação, múltiplas seleções e isolamento entre as vagas. Afiliação
   acrescenta limite de 5000, espaços em branco, tipos inválidos, HTML escapado com
   quebras de linha, sete obrigatórias e pendência de observação sem duplicação.
-- **5 testes dos controles aprovados em Node VM**, usando as funções reais do app:
+- **9 testes dos controles aprovados em Node VM**, usando as funções reais do app:
   textarea obrigatório, ausência nas outras vagas, espaços inválidos, normalização
-  de respostas longas e limite consistente com o Worker. Total do repositório: 131 testes.
+  de respostas longas e limite consistente com o Worker. Os casos do Editor conferem
+  seis checkboxes, oito rádios, portfólio opcional e manutenção da obrigatoriedade
+  dos questionários anteriores. Total do repositório: 162 testes.
 - **7 testes Node VM do observador aprovados**, incluindo visibilidade inicial,
   privacidade, restauração e ausência de repetição.
 - **5 testes Node VM da conferência aprovados**, incluindo envio de somente dois
@@ -154,7 +182,9 @@ Os resultados reais conhecidos estão separados acima.
 
 ## Próximo passo
 
-Revisar visualmente os questionários 158883 e 158921 na prévia, sem enviar uma candidatura.
+Revisar visualmente os questionários 158883, 158921 e 158786 na prévia, sem enviar uma candidatura.
+A confirmação da Cloudflare para a nova versão do Worker ainda está pendente; a tela
+privada publicada serve para revisão visual enquanto essa atualização é verificada.
 Para a pendência do perfil, solicitar ao suporte um cURL mínimo válido e confirmar IDs da query/corpo, grupos,
 formato da data e campo de remuneração. Não é necessária outra candidatura para
 analisar o cadastro existente. O draft permanece sem produção até resolver essa

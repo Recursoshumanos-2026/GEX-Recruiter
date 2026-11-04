@@ -1,4 +1,4 @@
-import { questionnaireFor, validateAnswers } from './questionnaires.js?v=3';
+import { questionnaireFor, validateAnswers } from './questionnaires.js?v=4';
 
 const CONFIG = window.GEX_TALENTS_CONFIG || {};
 
@@ -906,23 +906,26 @@ function renderQuestionnaire(vacancyId) {
     <div class="application-section-heading">
       <span>03</span>
       <div><h3 id="vacancyQuestionnaireTitle">Perguntas da vaga</h3>
-      <p>Responda a todas as perguntas para concluir sua candidatura.</p></div>
+      <p>${questionnaire.questions.some(question => question.required === false)
+        ? 'Responda às perguntas obrigatórias para concluir sua candidatura.'
+        : 'Responda a todas as perguntas para concluir sua candidatura.'}</p></div>
     </div>
     <div class="application-grid questionnaire-grid">
       ${questionnaire.questions.map((question, index) => {
         const name = `question_${question.id}`;
-        const label = `${index + 1}. ${safe(question.label)} *`;
+        const required = question.required !== false;
+        const label = `${index + 1}. ${safe(question.label)}${required ? ' *' : ' (opcional)'}`;
         if (question.type === 'text') {
-          return `<label>${label}<input name="${name}" required maxlength="500" /></label>`;
+          return `<label>${label}<input name="${name}" ${required ? 'required' : ''} maxlength="500" /></label>`;
         }
         if (question.type === 'long') {
-          return `<label class="questionnaire-long">${label}<textarea name="${name}" required maxlength="5000" rows="6"></textarea></label>`;
+          return `<label class="questionnaire-long">${label}<textarea name="${name}" ${required ? 'required' : ''} maxlength="5000" rows="6"></textarea></label>`;
         }
         return `<fieldset data-question="${safe(question.id)}"><legend>${label}</legend>
           ${question.type === 'multiple' ? '<p class="questionnaire-hint">Selecione uma ou mais alternativas.</p>' : ''}
           ${question.options.map(option => `<label class="questionnaire-option">
             <input type="${question.type === 'single' ? 'radio' : 'checkbox'}" name="${name}"
-              value="${safe(option)}" ${question.type === 'single' ? 'required' : ''} />
+              value="${safe(option)}" ${question.type === 'single' && required ? 'required' : ''} />
             <span>${safe(option)}</span></label>`).join('')}
         </fieldset>`;
       }).join('')}
@@ -936,10 +939,10 @@ function validateQuestionnaireControls() {
   for (const question of questionnaire.questions) {
     const controls = [...form.querySelectorAll(`[name="question_${question.id}"]`)];
     if (question.type === 'multiple') {
-      controls[0].setCustomValidity(controls.some(control => control.checked)
+      controls[0].setCustomValidity(question.required === false || controls.some(control => control.checked)
         ? '' : 'Selecione ao menos uma alternativa.');
     } else if (question.type === 'text' || question.type === 'long') {
-      controls[0].setCustomValidity(controls[0].value.trim() ? '' : 'Preencha esta resposta.');
+      controls[0].setCustomValidity(question.required === false || controls[0].value.trim() ? '' : 'Preencha esta resposta.');
     }
   }
 }

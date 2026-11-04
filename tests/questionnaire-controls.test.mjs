@@ -80,3 +80,39 @@ test('normalização rejeita resposta longa vazia ou acima de 5000 caracteres', 
     assert.throws(() => view.normalize(), /pergunta 7/);
   }
 });
+
+test('Editor usa seis checkboxes e oito rádios e identifica somente portfólio como opcional', () => {
+  const view=fixture('158786'); view.render('158786');
+  const html=view.section.innerHTML;
+  assert.equal((html.match(/type="checkbox"/g)||[]).length,6);
+  assert.equal((html.match(/type="radio"/g)||[]).length,8);
+  assert.equal((html.match(/<input name=/g)||[]).length,3);
+  assert.equal((html.match(/\(opcional\)/g)||[]).length,1);
+  assert.ok(html.includes('9. Coloque aqui o seu Instagram, LinkedIn, Portifólio, etc. (opcional)'));
+  assert.ok(!html.match(/name="question_portfolio"[^>]*required/));
+  assert.ok(html.includes('name="question_age" required'));
+  assert.ok(html.includes('name="question_salary" required'));
+  assert.ok(html.includes('Responda às perguntas obrigatórias'));
+});
+test('Editor permite portfólio vazio na validação e na normalização', () => {
+  const view=fixture('158786');
+  view.controls.get('portfolio')[0].value=' \n '; view.validate();
+  assert.equal(view.controls.get('portfolio')[0].message,'');
+  view.form.data.delete('question_portfolio');
+  assert.equal(view.normalize().questionnaire_answers.portfolio,'');
+});
+test('Editor continua exigindo escolha nos três grupos múltiplos', () => {
+  const view=fixture('158786');
+  for(const id of ['pj','remote','lipsync']) {
+    view.controls.get(id)[0].checked=false; view.validate();
+    assert.equal(view.controls.get(id)[0].message,'Selecione ao menos uma alternativa.');
+    view.controls.get(id)[0].checked=true;
+  }
+});
+test('questionários anteriores continuam indicando todas as respostas como obrigatórias', () => {
+  for(const id of ['158928','158883','158921']) {
+    const view=fixture(id); view.render(id);
+    assert.ok(view.section.innerHTML.includes('Responda a todas as perguntas'));
+    assert.ok(!view.section.innerHTML.includes('(opcional)'));
+  }
+});

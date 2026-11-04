@@ -60,6 +60,21 @@ export const QUESTIONNAIRES = {
       ] },
       { id: 'prioritization', label: 'Em uma rotina com várias solicitações chegando ao mesmo tempo, como você organiza e prioriza os atendimentos?', type: 'long' }
     ]
+  },
+  '158786': {
+    title: 'Editor de Vídeo',
+    questions: [
+      { id: 'pj', label: 'Você aceita atuar como PJ - Prestador de serviços?', type: 'multiple', options: ['Sim', 'Não'] },
+      { id: 'remote', label: 'Você possui estrutura ( computador/notebook e internet) para trabalhar remoto / home office?', type: 'multiple', options: ['Sim', 'Não'] },
+      { id: 'age', label: 'Qual sua idade?', type: 'text' },
+      { id: 'lipsync', label: 'Você tem experiência com ferramentas de lipsync?', type: 'multiple', options: ['Sim', 'Não'] },
+      { id: 'vsl', label: "Você tem experiência ou já teve algum contato com edição de VSL's e criativos de resposta direta?", type: 'single', options: ['Sim', 'Não'] },
+      { id: 'ai', label: 'Você tem experiência com ferramentas de IA? Ex: Heygen, ElevenLabs, SyncLabs', type: 'single', options: ['Sim', 'Não'] },
+      { id: 'ads', label: 'Você tem experiencia com edição de anúncios para venda online? (e-commerce, infoprodutos, etc.)', type: 'single', options: ['Sim', 'Não'] },
+      { id: 'digital_company', label: 'Já trabalhou com alguma empresa digital anteriormente?', type: 'single', options: ['Sim', 'Não'] },
+      { id: 'portfolio', label: 'Coloque aqui o seu Instagram, LinkedIn, Portifólio, etc.', type: 'text', required: false },
+      { id: 'salary', label: 'Qual sua pretensão salarial para um contrato PJ?', type: 'text' }
+    ]
   }
 };
 
@@ -78,6 +93,12 @@ export function validateAnswers(vacancyId, raw) {
   for (const [index, question] of questionnaire.questions.entries()) {
     const value = raw[question.id];
     const invalid = () => { throw new Error(`Resposta inválida ou ausente na pergunta ${index + 1}: ${question.label}`); };
+    if (question.required === false && (value == null ||
+        (typeof value === 'string' && !value.trim()) ||
+        (question.type === 'multiple' && Array.isArray(value) && !value.length))) {
+      answers[question.id] = question.type === 'multiple' ? [] : '';
+      continue;
+    }
     if (question.type === 'multiple') {
       if (!Array.isArray(value) || !value.length || value.length > question.options.length ||
           value.some(item => typeof item !== 'string' || !question.options.includes(item)) ||
