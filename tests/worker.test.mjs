@@ -338,7 +338,7 @@ test('perfil mantém ID do talento original sem consulta adicional quando prospe
   assert.equal(result.body.profile_completed, true);
   assert.ok(!result.calls.some(call => call.path.startsWith('/api/v1/applications/')));
   const update = result.calls.find(call => call.path.endsWith('/curriculum/filled'));
-  assert.equal(new URL(update.url).searchParams.get('talent_id'), '44');
+  assert.equal(new URL(update.url).searchParams.get('talent_id'), '22');
   assert.equal(JSON.parse(update.init.body).talent_id, 22);
 });
 test('falha na criação nunca envia perfil, tag ou observação', async () => {
