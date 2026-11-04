@@ -816,10 +816,12 @@ export default {
         return testProspectProfile(request, env);
       }
 
-      const detailMatch = request.method === 'GET' &&
-        url.pathname.match(new RegExp('^/api/vagas/([1-9][0-9]*);
-      if (detailMatch) {
-        const result = await getVacancyDetails(env, detailMatch[1]);
+      const detailId = request.method === 'GET' &&
+        url.pathname.startsWith('/api/vagas/')
+          ? url.pathname.slice('/api/vagas/'.length)
+          : null;
+      if (detailId && positiveId(detailId)) {
+        const result = await getVacancyDetails(env, detailId);
         if (!result) return json({ message: 'Vaga não disponível' }, 404, env);
         const reply = json({ data: result }, 200, env);
         reply.headers.set('Cache-Control', 'public, max-age=300');
