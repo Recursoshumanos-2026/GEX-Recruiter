@@ -155,3 +155,33 @@ test('health advertises resume upload only when both private storage and convers
   r=await worker.fetch(new Request('https://worker.invalid/health'),env);
   assert.equal((await r.json()).resume_upload_enabled,false);
 });
+
+test('invalid PDF does not create a candidate in Recrutei',async()=>{
+  const invalid=new File(['not a real PDF document'],'curriculo.pdf',{type:'application/pdf'});
+  const r=await application(invalid);
+  assert.equal(r.status,400);
+  assert.equal(r.body.application_created,undefined);
+  assert.equal(r.calls.filter(c=>c.path==='/api/v2/prospects').length,0);
+  assert.equal(r.r2Objects.length,0);
+});
+
+test('Markdown conversion failure returns validation status before candidate creation',async()=>{
+  const {env}=fakeEnv();
+  env.AI.toMarkdown=async()=>({format:'error',error:'OCR failed'});
+  const real=globalThis.fetch;const calls=[];
+  globalThis.fetch=async(url)=>{
+    const path=new URL(String(url)).pathname;calls.push(path);
+    if(path.endsWith('login-api'))return Response.json({token:'mock'});
+    if(path.endsWith('/vacancies/filter'))return Response.json({
+      data:[{id:158928,vacancy_status_id:1,pipe_stages:[{id:10,order:1}]}]
+    });
+    throw Error('No candidate should be created');
+  };
+  try{
+    const response=await worker.fetch(new Request('https://worker.invalid/api/candidatar',{
+      method:'POST',headers:{Origin:ORIGIN},body:formFor(rawPdf())
+    }),env);
+    assert.equal(response.status,422);
+    assert.equal(calls.includes('/api/v2/prospects'),false);
+  }finally{globalThis.fetch=real}
+});
