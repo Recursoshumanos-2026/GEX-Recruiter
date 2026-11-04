@@ -1,5 +1,5 @@
 import { questionnaireFor, validateAnswers } from '../../questionnaires.js';
-import { resumeAvailable, convertResume, storeResume, resumeField } from './resumes.js';
+import { resumeAvailable, convertResume, assertResumeDatabase, storeResume, resumeField } from './resumes.js';
 
 const API_BASE = 'https://api.recrutei.com.br';
 let tokenCache = { token: null, expiresAt: 0 };
@@ -744,6 +744,7 @@ async function createProspect(env, rawPayload) {
   // Convert before creating a candidate: invalid / unconvertible resumes
   // must never create partial applications.
   const resumeFile = payload.resume;
+  if (resumeFile) await assertResumeDatabase(env);
   const markdown = resumeFile ? await convertResume(env, resumeFile) : null;
 
   const form = new FormData();
