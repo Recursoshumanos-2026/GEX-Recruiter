@@ -80,6 +80,41 @@ try {
     await page.locator('.vacancy-title').waitFor();
     assert.equal(await page.locator('.vacancy-title').textContent(), 'Analista de Dados Sênior');
     assert.match(page.url(), /vaga=158883/);
+    // Header actions share one aligned navigation row with the GEX brand.
+    assert.equal(await page.locator('.vacancy-landing-top').count(), 0);
+    assert.equal(await page.locator('#vacancyHeaderActions').isVisible(), true);
+    assert.equal(await page.locator('#vacancyHeaderBack').getAttribute('href'), base + '/#vagas');
+    assert.equal(await page.locator('#vacancyHeaderShare').isVisible(), true);
+    const navGeometry = await page.evaluate(() => {
+      const brand = document.querySelector('.site-header .brand').getBoundingClientRect();
+      const back = document.querySelector('#vacancyHeaderBack').getBoundingClientRect();
+      const share = document.querySelector('#vacancyHeaderShare').getBoundingClientRect();
+      const header = document.querySelector('.site-header').getBoundingClientRect();
+      const hero = document.querySelector('.vacancy-hero').getBoundingClientRect();
+      const article = document.querySelector('.vacancy-landing');
+      const section = document.querySelector('#vagas').getBoundingClientRect();
+      const styles = getComputedStyle(article);
+      return {
+        brandY: (brand.top + brand.bottom) / 2,
+        backY: (back.top + back.bottom) / 2,
+        shareY: (share.top + share.bottom) / 2,
+        headerBottom: header.bottom,
+        heroLeft: hero.left,
+        heroRight: hero.right,
+        sectionLeft: section.left,
+        sectionRight: section.right,
+        articleBorder: styles.borderTopWidth,
+        articleRadius: styles.borderTopLeftRadius
+      };
+    });
+    assert.ok(Math.abs(navGeometry.brandY - navGeometry.backY) < 14);
+    assert.ok(Math.abs(navGeometry.brandY - navGeometry.shareY) < 14);
+    assert.equal(navGeometry.articleBorder, '0px');
+    assert.equal(navGeometry.articleRadius, '0px');
+    assert.ok(Math.abs(navGeometry.heroLeft) < 2);
+    assert.ok(Math.abs(navGeometry.heroRight - width) < 2);
+    assert.ok(Math.abs(navGeometry.sectionLeft) < 2);
+    assert.ok(Math.abs(navGeometry.sectionRight - width) < 2);
     const firstResponsibility = await page.locator('.vacancy-description-content li').first().textContent();
     assert.ok(firstResponsibility.length > 8);
     assert.match(await page.locator('.vacancy-description-content').textContent(), /pipelines/i);
