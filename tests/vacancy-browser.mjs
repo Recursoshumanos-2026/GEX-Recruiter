@@ -282,6 +282,36 @@ try {
       animations: 'disabled'
     });
     await page.close();
+
+    // Shareable leadership demo uses the approved full JD but must never send
+    // a resume or create an application, even when "submit" is clicked.
+    const demoPage = await browser.newPage({
+      viewport:{ width, height:900 }, reducedMotion:'reduce'
+    });
+    demoPage.on('pageerror',e=>errors.push(e.message));
+    await demoPage.route('**/*', route=>
+      route.request().url().startsWith(base) ? route.continue() : route.abort());
+    await demoPage.goto(base+'/?vaga=158883&demo=1');
+    await demoPage.locator('.vacancy-title').waitFor();
+    assert.equal(await demoPage.locator('.presentation-preview-banner').isVisible(),true);
+    await demoPage.locator('.vacancy-top-apply [data-apply="158883"]').click();
+    assert.equal(await demoPage.locator('#applyDialog').isVisible(),true);
+    assert.equal(await demoPage.locator('#resumeUploadSection').isVisible(),true);
+    assert.equal(await demoPage.locator('#resumeFile').isEnabled(),true);
+    assert.equal(await demoPage.locator('#resumeFile').evaluate(el=>el.required),false);
+    await demoPage.locator('#resumeFile').setInputFiles({
+      name:'curriculo-apresentacao.pdf',mimeType:'application/pdf',
+      buffer:Buffer.from('%PDF-1.4\nDocumentacao 100% ficticia\n%%EOF')
+    });
+    assert.match(await demoPage.locator('.resume-upload-hint').textContent(),/curriculo-apresentacao.pdf/);
+    await demoPage.locator('#applyDialog').screenshot({
+      path:resolve(root,screenshotDir,`demo-curriculo-${width}.png`),
+      animations:'disabled'
+    });
+    await demoPage.locator('.submit-btn').click();
+    assert.match(await demoPage.locator('#formMessage').textContent(),/nenhum dado, candidatura ou currículo foi enviado/i);
+    assert.equal(requests.length,0);
+    await demoPage.close();
   }
   assert.equal(requests.length,0);
   console.log('PASS: navegação, descrição sanitizada, benefícios, questionário, responsividade e capturas desktop/mobile');
