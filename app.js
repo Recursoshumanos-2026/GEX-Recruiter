@@ -279,39 +279,38 @@ function safeJobDescription(input) {
 
 
 function vacancyBenefitsMarkup() {
-  // One source of truth: reuse benefit names, descriptions and SVGs from the homepage.
+  // Benefit copy and iconography stay synced with the existing institutional homepage.
   const cards = [...document.querySelectorAll('#beneficios .benefits-grid .benefit-card')];
   if (!cards.length) return '';
 
-  const tiles = cards.map((card, index) => {
+  const entries = cards.map((card) => {
     const title = card.querySelector('strong')?.textContent.trim();
     const description = card.querySelector('span')?.textContent.trim();
     const icon = card.querySelector('svg.gex-animated-icon')?.outerHTML || '';
     if (!title) return '';
-    const number = String(index + 1).padStart(2, '0');
-    const featured = index === 0 ? ' benefit-bento-card--featured' : '';
     return `
-      <article class="benefit-bento-card${featured}" aria-label="${safe(title)}">
-        <span class="benefit-bento-number" aria-hidden="true">${number} / ${String(cards.length).padStart(2, '0')}</span>
-        <div class="benefit-bento-icon" aria-hidden="true">${icon}</div>
-        <div class="benefit-bento-copy">
+      <li class="vacancy-benefit-row">
+        <span class="vacancy-benefit-icon" aria-hidden="true">${icon}</span>
+        <div class="vacancy-benefit-copy">
           <h3>${safe(title)}</h3>
           <p>${safe(description || '')}</p>
         </div>
-        <span class="benefit-bento-accent" aria-hidden="true"></span>
-      </article>`;
+      </li>`;
   }).join('');
 
   return `
     <section class="vacancy-benefits" aria-labelledby="vacancyBenefitsTitle">
-      <div class="vacancy-benefits-heading">
-        <div>
-          <span class="vacancy-section-kicker">BEM-ESTAR • GEX CORPORATION</span>
-          <h2 id="vacancyBenefitsTitle">Benefícios que fazem <em>a diferença.</em></h2>
+      <div class="vacancy-benefits-layout">
+        <div class="vacancy-benefits-intro">
+          <span class="vacancy-benefits-eyebrow">BENEFÍCIOS NA GEX</span>
+          <h2 id="vacancyBenefitsTitle">Benefícios que fazem <span>a diferença.</span></h2>
+          <p>Mais bem-estar, saúde, equilíbrio e reconhecimento para você viver o seu melhor, dentro e fora do trabalho.</p>
+          <div class="vacancy-benefits-horizon" aria-hidden="true"></div>
         </div>
-        <p>Recursos para apoiar a sua rotina, saúde, bem-estar e momentos especiais.</p>
+        <ul class="vacancy-benefits-list" aria-label="Benefícios disponíveis na GEX">
+          ${entries}
+        </ul>
       </div>
-      <div class="benefits-bento">${tiles}</div>
     </section>`;
 }
 
