@@ -9,7 +9,7 @@ const screenshotDir = process.env.SCREENSHOT_DIR || 'screenshots';
 await mkdir(resolve(root, screenshotDir), { recursive: true });
 const vacancy = { id: 158883, title: 'Analista de Dados Sênior',
   vacancy_status_id: 1, remote: 1, department: 'Dados',
-  description: '<p>Você fará parte de um time que utiliza dados para orientar decisões e evoluir nossos processos.</p><h3>Principais responsabilidades</h3><ul><li>Desenvolver pipelines de dados</li><li>Garantir qualidade, disponibilidade e rastreabilidade da informação</li><li>Colaborar com áreas de negócio e tecnologia</li></ul><h3>Requisitos</h3><ul><li>Experiência com SQL e modelagem de dados</li><li>Conhecimento de integração e automação de fluxos</li><li>Autonomia e atenção à qualidade das entregas</li></ul><h3>Diferenciais</h3><p>Vivência com arquitetura escalável e melhoria contínua.</p><script>window.__injected=true</script><a href="javascript:alert(1)"></a>' };
+  description: '<h2>Nosso Jeito de Ser GEX</h2><p>Conteúdo institucional duplicado</p><h2>Sobre a vaga</h2><p>Você fará parte de um time que utiliza dados para orientar decisões e evoluir nossos processos.</p><h3>Principais responsabilidades</h3><ul><li>Desenvolver pipelines de dados</li><li>Garantir qualidade, disponibilidade e rastreabilidade da informação</li><li>Colaborar com áreas de negócio e tecnologia</li></ul><h3>Requisitos</h3><ul><li>Experiência com SQL e modelagem de dados</li><li>Conhecimento de integração e automação de fluxos</li><li>Autonomia e atenção à qualidade das entregas</li></ul><h3>Diferenciais</h3><p>Vivência com arquitetura escalável e melhoria contínua.</p><h2>Aqui, nossos GEXs encontram</h2><p>Clude redundante</p><h2>Como será nosso combinado</h2><p>Modelo PJ</p><h2>Benefícios</h2><p>Mais repetição</p><script>window.__injected=true</script><a href="javascript:alert(1)"></a>' };
 const requests = [];
 const contentTypes = { '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png' };
@@ -61,6 +61,12 @@ try {
     assert.equal(await page.locator('.vacancy-title').textContent(), 'Analista de Dados Sênior');
     assert.match(page.url(), /vaga=158883/);
     assert.equal(await page.locator('.vacancy-description-content li').first().textContent(), 'Desenvolver pipelines de dados');
+    const fullDescription = await page.locator('.vacancy-description-content').textContent();
+    assert.ok(fullDescription.includes('Sobre a vaga'));
+    assert.ok(fullDescription.includes('Como será nosso combinado'));
+    for (const duplicate of ['Conteúdo institucional duplicado', 'Clude redundante', 'Mais repetição']) {
+      assert.ok(!fullDescription.includes(duplicate), duplicate + ' não deve aparecer');
+    }
     assert.equal(await page.locator('.vacancy-meta-large').getByText('Pessoa Jurídica').count(), 1);
     assert.equal(await page.evaluate(()=>window.__injected), undefined);
     assert.equal(await page.locator('.vacancy-description-content script').count(),0);
