@@ -799,8 +799,7 @@ async function createProspect(env, rawPayload) {
 
   if (completeForm || markdown) {
     const profileResult = await completeApplicationStep(() =>
-      updateProspectProfile(env, payload, createBody,
-        resumeStored ? markdown : null)
+      updateProspectProfile(env, payload, createBody, markdown)
     );
 
     if (!profileResult.ok) {
@@ -837,11 +836,11 @@ async function createProspect(env, rawPayload) {
         addQuestionnaireObservation(env, payload, createBody, answers))
     : null;
 
-  const resumeObservation = markdown && resumeStored && !profileCompleted
+  const resumeObservation = markdown && !profileCompleted
     ? await completeApplicationStep(() =>
         addResumeObservation(env, payload, createBody, markdown))
     : null;
-  const resumeLinked = markdown && resumeStored &&
+  const resumeLinked = Boolean(markdown) &&
     (profileCompleted || resumeObservation?.ok === true);
 
   return {
@@ -849,9 +848,9 @@ async function createProspect(env, rawPayload) {
     application_created: true,
     ...(markdown ? {
       resume_stored: resumeStored,
-      resume_custom_field_completed: resumeStored && profileCompleted,
+      resume_custom_field_completed: profileCompleted,
       resume_observation_completed: Boolean(resumeObservation?.ok),
-      resume_completed: Boolean(resumeLinked),
+      resume_completed: Boolean(resumeStored && resumeLinked),
       ...(!resumeLinked ? { resume_warning: resumeStoreWarning ||
         'Currículo recebido, mas não foi possível confirmar seu vínculo na Recrutei.' } : {})
     } : {}),
