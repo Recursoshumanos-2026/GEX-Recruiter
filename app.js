@@ -4,6 +4,16 @@ const CONFIG = window.GEX_TALENTS_CONFIG || {};
 
 let jobs = [];
 let applicationsEnabled = false;
+let resumeUploadEnabled = false;
+const resumeSection = document.querySelector('#resumeUploadSection');
+const resumeInput = document.querySelector('#resumeFile');
+function syncResumeInput() {
+  if (!resumeSection || !resumeInput) return;
+  resumeSection.hidden = !resumeUploadEnabled;
+  resumeInput.disabled = !resumeUploadEnabled;
+  resumeInput.required = resumeUploadEnabled;
+}
+
 
 const DEFAULT_TITLE = 'GEX Recruiter | Carreiras';
 const DEFAULT_DESCRIPTION =
@@ -841,7 +851,9 @@ async function readBackendStatus() {
       applicationsEnabled =
         false;
 
-      return;
+            resumeUploadEnabled = false;
+      syncResumeInput();
+return;
     }
 
 
@@ -853,6 +865,8 @@ async function readBackendStatus() {
       Boolean(
         body.applications_enabled
       );
+    resumeUploadEnabled = applicationsEnabled && body.resume_upload_enabled === true;
+    syncResumeInput();
 
 
   } catch (error) {
@@ -860,7 +874,9 @@ async function readBackendStatus() {
     applicationsEnabled =
       false;
 
-  }
+        resumeUploadEnabled = false;
+      syncResumeInput();
+}
 }
 
 
@@ -1041,6 +1057,7 @@ function normalizeFormPayload() {
 
 
   delete payload.privacy;
+  delete payload.resume; // Binary file will be sent in multipart.
 
   const questionnaire = questionnaireFor(payload.vacancy_id);
   if (questionnaire) {
@@ -1102,6 +1119,13 @@ form.addEventListener(
 
     const payload =
       normalizeFormPayload();
+    const resumeFile = resumeUploadEnabled ? resumeInput?.files?.[0] : null;
+    if (resumeFile && (resumeFile.size > 5 * 1024 * 1024 || !/\.(pdf|docx)$/i.test(resumeFile.name))) {
+      formMessage.className = 'form-message error';
+      formMessage.textContent = 'Selecione um currículo PDF ou DOCX de até 5 MB.';
+      formMessage.hidden = false;
+      return;
+    }
 
 
     const button =
@@ -1120,23 +1144,22 @@ form.addEventListener(
 
     try {
 
-      const response =
-        await fetch(
-          `${CONFIG.API_BASE_URL.replace(/\/$/, '')}/api/candidatar`,
-          {
-            method: 'POST',
-
-            headers: {
-              'Content-Type':
-                'application/json'
-            },
-
-            body:
-              JSON.stringify(
-                payload
-              )
-          }
-        );
+      const requestData = resumeFile ? new FormData() : null;
+      if (requestData) {
+        for (const [key, value] of Object.entries(payload)) {
+          requestData.set(key,
+            key === 'questionnaire_answers' ? JSON.stringify(value) : String(value));
+        }
+        requestData.set('resume', resumeFile, resumeFile.name);
+      }
+      const response = await fetch(
+        `${CONFIG.API_BASE_URL.replace(/\/$/, '')}/api/candidatar`,
+        {
+          method: 'POST',
+          ...(requestData ? {} : { headers: { 'Content-Type': 'application/json' } }),
+          body: requestData || JSON.stringify(payload)
+        }
+      );
 
 
       const body =
@@ -1169,9 +1192,7 @@ form.addEventListener(
       }
 
 
-      if (questionnaireFor(payload.vacancy_id)) {
-        form.dataset.applicationCreated = 'true';
-      }
+      form.dataset.applicationCreated = 'true';
 
       formMessage.className =
         'form-message success';
@@ -1210,6 +1231,15 @@ form.addEventListener(
 
       }
 
+
+      if (resumeFile && body.resume_completed !== true) {
+        formMessage.className = 'form-message error';
+        formMessage.textContent = 'Sua candidatura foi criada, mas não foi possível confirmar o armazenamento ou o registro do currículo. Não reenvie sua candidatura: entre em contato com o RH da GEX.';
+        return;
+      }
+      if (resumeFile && body.resume_observation_completed && !body.resume_custom_field_completed) {
+        formMessage.textContent = 'Candidatura enviada! Seu currículo foi registrado para análise do RH da GEX.';
+      }
 
       if (questionnaireFor(payload.vacancy_id) && body.observation_completed !== true) {
         formMessage.className = 'form-message error';
