@@ -19,3 +19,7 @@ binding = "AI"
 # database_name = "gex-talents-curriculos-gratis"
 # database_id = "UUID_DO_BANCO_D1"
 # This does not add any public endpoint to candidate curricula.
+
+# Retenção Cloudflare D1: cron diário. Exclusão desativada por padrão.
+[triggers]
+crons = ["0 6 * * *"]
