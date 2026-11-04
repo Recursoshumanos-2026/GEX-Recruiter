@@ -56,6 +56,7 @@ for(let attempt=1;attempt<=30;attempt++){
       cloudflare_d1_round_trip:'PASS',
       recrutei_readonly_test_record:lookupVerified ? 'PASS' : 'NOT_VERIFIED',
       recrutei_lookup_route_status:ats.status,
+      recrutei_credentials_configured:health.body.recrutei_credentials_configured===true,
       recrutei_upstream_lookup_status:
         Number.isInteger(ats.body?.lookup_http_status) ? ats.body.lookup_http_status : null,
       recrutei_distinct_prospect_id:distinctProspectId,
