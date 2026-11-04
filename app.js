@@ -7,6 +7,7 @@ const PRESENTATION_PREVIEW = new URLSearchParams(window.location.search).get('de
 
 let jobs = [];
 let jobsLoadFailed = false;
+let demoFallbackActive = false;
 let applicationsEnabled = false;
 let resumeUploadEnabled = false;
 const resumeSection = document.querySelector('#resumeUploadSection');
@@ -134,15 +135,16 @@ function vacancyUrl(id) {
     'vaga',
     id
   );
+  if (PRESENTATION_PREVIEW) url.searchParams.set('demo', '1');
 
   return url.toString();
 }
 
 
 function allJobsUrl() {
-  return (
-    `${window.location.origin}${window.location.pathname}`
-  );
+  const url = new URL(`${window.location.origin}${window.location.pathname}`);
+  if (PRESENTATION_PREVIEW) url.searchParams.set('demo', '1');
+  return url.toString();
 }
 
 
@@ -569,7 +571,9 @@ function renderGeneralJobs() {
 
   statusPill.textContent = jobsLoadFailed
     ? 'Não foi possível atualizar as vagas'
-    : 'Vagas atualizadas';
+    : demoFallbackActive
+      ? 'Prévia ilustrativa · sem envio de dados'
+      : 'Vagas atualizadas';
 
 
   const term =
@@ -922,6 +926,7 @@ return;
 
 async function loadJobs() {
   jobsLoadFailed = false;
+  demoFallbackActive = false;
   statusPill.textContent = 'Atualizando vagas...';
 
   try {
@@ -975,7 +980,22 @@ async function loadJobs() {
 
     jobs = [];
     jobsLoadFailed = true;
-
+    if (PRESENTATION_PREVIEW) {
+      // Keep the requested presentation usable even when ATS credentials fail.
+      // No vacancy data is invented for the real public career portal.
+      jobs = [{
+        id: 158928,
+        title: 'Analista de Atendimento — Demonstração',
+        department: 'Atendimento',
+        city: null,
+        state: null,
+        remote: 1,
+        vacancy_status_id: 1,
+        description: '<h2>Prévia demonstrativa</h2><p>Este exemplo permite visualizar a página da vaga, o questionário e a seleção de currículo. As vagas e descrições oficiais são carregadas da Recrutei quando a integração está disponível. Nenhuma informação preenchida aqui será enviada ou armazenada.</p>'
+      }];
+      jobsLoadFailed = false;
+      demoFallbackActive = true;
+    }
 
     statusPill.textContent =
       'Não foi possível carregar as vagas agora';
