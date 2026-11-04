@@ -125,6 +125,70 @@ function publicVacancy(v) {
   };
 }
 
+
+/**
+ * Job description fallback for the *public* GEX Recrutei vacancy page.
+ * The documented private vacancies/filter response does not expose description.
+ * Fetches only a fixed company domain/path and reads the public Next.js data;
+ * no ATS credentials or personal data are sent to the public host.
+ */
+const PUBLIC_CAREERS_ROOT = 'https://jobs.recrutei.com.br/gex-corporation/vacancy/';
+function publicJobSlug(v) {
+  const id = String(v.id);
+  let slug = typeof v.slug === 'string' ? v.slug : '';
+  if (!slug) {
+    const titleSlug = String(v.title || '').normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    slug = id + '-' + titleSlug;
+  }
+  return new RegExp('^' + id + '-[a-z0-9-]{1,160}$').test(slug) ? slug : null;
+}
+
+async function publicRecruteiDetails(v) {
+  const slug = publicJobSlug(v);
+  if (!slug) return null;
+  try {
+    const response = await fetch(PUBLIC_CAREERS_ROOT + slug, {
+      method: 'GET', redirect: 'error',
+      headers: { Accept: 'text/html' },
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!response.ok ||
+        Number(response.headers.get('content-length') || 0) > 500000) return null;
+    const html = await response.text();
+    if (html.length > 500000) return null;
+    const nextData = html.match(/<script\b[^>]*\bid=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
+    if (!nextData) return null;
+    const page = JSON.parse(nextData[1])?.props?.pageProps?.retorno;
+    const job = page?.vacancy;
+    if (page?.error || page?.finished || page?.past ||
+        !job || String(job.id) !== String(v.id)) return null;
+    const description = typeof job.description === 'string' &&
+      job.description.length < 100000 ? job.description : null;
+    const regime = Number(job.show_regime) === 1 &&
+      typeof job.regime?.description === 'string'
+      ? job.regime.description : null;
+    return { description, contract_model: regime };
+  } catch (_) {
+    // Public job pages can change independently; show the neutral fallback.
+    return null;
+  }
+}
+
+async function getVacancyDetails(env, id) {
+  if (!positiveId(id)) return null;
+  const candidate = (await rawVacancies(env)).find(v =>
+    String(v.id) === String(id) && Number(v.vacancy_status_id) === 1);
+  if (!candidate) return null;
+  const data = publicVacancy(candidate);
+  const publicDetails = await publicRecruteiDetails(candidate);
+  return {
+    ...data,
+    description: publicDetails?.description || data.description,
+    contract_model: data.contract_model || publicDetails?.contract_model || null
+  };
+}
 function firstPipeStageId(vacancy) {
   const stages = [...(vacancy.pipe_stages || [])].sort(
     (a, b) => Number(a.order ?? 999) - Number(b.order ?? 999)
@@ -750,6 +814,16 @@ export default {
       }
       if (request.method === 'POST' && url.pathname === '/api/teste-perfil') {
         return testProspectProfile(request, env);
+      }
+
+      const detailMatch = request.method === 'GET' &&
+        url.pathname.match(/^\\/api\\/vagas\\/([1-9][0-9]*)$/);
+      if (detailMatch) {
+        const result = await getVacancyDetails(env, detailMatch[1]);
+        if (!result) return json({ message: 'Vaga não disponível' }, 404, env);
+        const reply = json({ data: result }, 200, env);
+        reply.headers.set('Cache-Control', 'public, max-age=300');
+        return reply;
       }
 
       if (
