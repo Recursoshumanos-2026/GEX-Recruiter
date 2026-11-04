@@ -911,13 +911,31 @@ export default {
       ) {
         const contentType =
           request.headers.get('content-type') || '';
-
-        const payload =
-          contentType.includes('application/json')
-            ? await request.json()
-            : Object.fromEntries(
-                (await request.formData()).entries()
-              );
+        const contentLength = Number(request.headers.get('content-length') || 0);
+        if (contentLength > 6 * 1024 * 1024) {
+          return json({ message:'O currículo deve ter até 5 MB.' },413,env);
+        }
+        let payload;
+        if (contentType.includes('multipart/form-data')) {
+          // Do not accept untrusted cross-origin browser file submissions.
+          if (request.headers.get('Origin') !==
+              (env.ALLOWED_ORIGIN || 'https://recursoshumanos-2026.github.io')) {
+            return json({ message:'Origem não permitida.' },403,env);
+          }
+          if (!resumeAvailable(env)) {
+            return json({ message:'O envio de currículos não está habilitado neste ambiente.' },503,env);
+          }
+          const formData = await request.formData();
+          payload = Object.fromEntries(formData.entries());
+          if (typeof payload.questionnaire_answers === 'string') {
+            try { payload.questionnaire_answers = JSON.parse(payload.questionnaire_answers); }
+            catch { return json({ message:'Respostas da vaga inválidas.' },400,env); }
+          }
+        } else if (contentType.includes('application/json')) {
+          payload = await request.json();
+        } else {
+          return json({ message:'Formato de candidatura não suportado.' },415,env);
+        }
 
         return json(
           await createProspect(env, payload),
@@ -934,7 +952,10 @@ export default {
               env.APPLICATIONS_ENABLED === 'true' &&
               Boolean(env.PROSPECT_CHANNEL_ID),
             candidate_form_version: 2,
-            curriculum_storage: false,
+            curriculum_storage: resumeAvailable(env),
+            resume_upload_enabled: resumeAvailable(env),
+            resume_formats: ['pdf','docx'],
+            resume_max_bytes: 5242880,
             gex_talents_tag: true
           },
           200,
