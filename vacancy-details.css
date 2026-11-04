@@ -548,3 +548,55 @@ body.vacancy-detail-mode footer{
     transform:none;
   }
 }
+
+/* Dual top actions: candidates may apply immediately or read the full role. */
+body.vacancy-detail-mode .vacancy-discover-link{
+  min-height:47px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  margin:0;
+  padding:0 20px;
+  border:1px solid rgba(123,190,244,.42);
+  border-radius:12px;
+  background:rgba(20,80,143,.18);
+  color:#e0f2ff;
+  font-weight:650;
+  text-decoration:none;
+  transition:background .2s ease,border-color .2s ease,transform .2s ease;
+}
+body.vacancy-detail-mode .vacancy-discover-link:hover{
+  background:rgba(35,119,196,.31);
+  border-color:rgba(120,210,255,.8);
+  transform:translateY(-2px);
+}
+body.vacancy-detail-mode .vacancy-discover-link:focus-visible{
+  outline:2px solid #6bdbff;
+  outline-offset:4px;
+}
+body.vacancy-detail-mode #descricao-vaga{
+  scroll-margin-top:105px;
+}
+@media(max-width:760px){
+  body.vacancy-detail-mode .vacancy-top-apply{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:11px;
+  }
+  body.vacancy-detail-mode .vacancy-discover-link{
+    width:100%;
+    min-height:46px;
+  }
+  body.vacancy-detail-mode #descricao-vaga{
+    scroll-margin-top:84px;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  body.vacancy-detail-mode .vacancy-discover-link{
+    transition:none;
+  }
+  body.vacancy-detail-mode .vacancy-discover-link:hover{
+    transform:none;
+  }
+}
