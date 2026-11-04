@@ -181,8 +181,31 @@ try {
     const benefitsLayout = await page.locator('.vacancy-benefits-layout').evaluate(element =>
       getComputedStyle(element).gridTemplateColumns.split(' ').length);
     assert.equal(benefitsLayout, width === 1440 ? 2 : 1);
-    assert.equal(await page.locator('.vacancy-benefits-list').evaluate(element =>
-      getComputedStyle(element).borderLeftWidth !== '0px'), width === 1440);
+    const benefitSurfaces = await page.evaluate(() => {
+      const section = document.querySelector('.vacancy-benefits');
+      const intro = document.querySelector('.vacancy-benefits-intro');
+      const list = document.querySelector('.vacancy-benefits-list');
+      const row = document.querySelector('.vacancy-benefit-row');
+      return {
+        sectionTop: getComputedStyle(section).borderTopWidth,
+        introBackground: getComputedStyle(intro).backgroundImage,
+        listLeft: getComputedStyle(list).borderLeftWidth,
+        listTop: getComputedStyle(list).borderTopWidth,
+        rowBottom: getComputedStyle(row).borderBottomWidth,
+        decoration: !!document.querySelector('.vacancy-benefits-horizon')
+      };
+    });
+    assert.equal(benefitSurfaces.sectionTop, '0px');
+    assert.equal(benefitSurfaces.introBackground, 'none');
+    assert.equal(benefitSurfaces.listLeft, '0px');
+    assert.equal(benefitSurfaces.listTop, '0px');
+    assert.equal(benefitSurfaces.rowBottom, '0px');
+    assert.equal(benefitSurfaces.decoration, false);
+    assert.equal(await page.locator('.vacancy-hero-cta-note').count(),0);
+    assert.equal(await page.locator('.vacancy-hero-art-label').count(),0);
+    assert.equal(await page.locator('.vacancy-hero-official-logo').count(),1);
+    assert.equal(await page.locator('.vacancy-hero-official-logo').getAttribute('src'),'assets/gex-logo-branco.svg');
+    assert.equal(await page.locator('.vacancy-hero-official-logo').evaluate(el => el.complete && el.naturalWidth > 0),true);
     assert.equal(await page.locator('.vacancy-benefits h2').textContent(), 'Benefícios que fazem a diferença.');
     assert.equal(await page.locator('body > main > #sobre').isVisible(), false);
     assert.equal(await page.locator('body > main > #cultura').isVisible(), false);
@@ -198,6 +221,10 @@ try {
     await page.evaluate(() => window.scrollTo({top: 0, behavior: 'instant'}));
     assert.equal(await page.evaluate(() => window.scrollY), 0);
     await page.screenshot({path:resolve(root,screenshotDir,`vaga-dados-${width}.png`),fullPage:true,animations:'disabled'});
+    await page.locator('.vacancy-benefits').screenshot({
+      path: resolve(root, screenshotDir, `beneficios-limpos-${width}.png`),
+      animations: 'disabled'
+    });
     await page.locator('.jd-flex-schedule').screenshot({
       path: resolve(root, screenshotDir, `horario-flexivel-${width}.png`),
       animations: 'disabled'
