@@ -382,7 +382,7 @@ function safeJobDescription(input) {
     const title = document.createElement('h3');
     title.id = 'jd-section-' + index;
     title.className = 'jd-chapter-title';
-    title.textContent = group.title.replace(/^[⭐★🌟]\s*/u, '');
+    title.textContent = group.title.replace(/^[✨⭐★🌟]\uFE0F?\s*/u, '');
     section.setAttribute('aria-labelledby', title.id);
     heading.append(kicker, title);
 
