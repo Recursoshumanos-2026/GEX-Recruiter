@@ -356,7 +356,7 @@ function safeJobDescription(input) {
     const title = document.createElement('h3');
     title.id = 'jd-section-' + index;
     title.className = 'jd-chapter-title';
-    title.textContent = group.title;
+    title.textContent = group.title.replace(/^[⭐★🌟]\\s*/u, '');
     section.setAttribute('aria-labelledby', title.id);
     heading.append(kicker, title);
 
@@ -368,7 +368,7 @@ function safeJobDescription(input) {
         item.classList.add('jd-list');
         const entries = [...item.children].filter(child => child.tagName === 'LI');
         if (entries.length > 8) {
-          const visibleCount = 6;
+          const visibleCount = 4;
           const remaining = entries.slice(visibleCount);
           const extra = document.createElement(item.tagName.toLowerCase());
           extra.className = 'jd-list jd-list--extra';
