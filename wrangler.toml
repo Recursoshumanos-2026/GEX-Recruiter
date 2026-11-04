@@ -34,6 +34,10 @@ PROFILE_DIAGNOSTIC_VACANCY_ID = "158928"
 PROFILE_DIAGNOSTIC_WRITE_ENABLED = "true"
 
 # Enables PDF/DOCX -> Markdown conversion when RESUME_UPLOAD_ENABLED is true.
+# Execute all safe local unit tests before constructing a Worker preview.
+[build]
+command = "npm run check && npm test"
+
 [ai]
 binding = "AI"
 
