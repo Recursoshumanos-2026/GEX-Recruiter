@@ -296,7 +296,108 @@ function safeJobDescription(input) {
     }
     if (skipThroughLevel !== null) child.remove();
   }
-  return container.innerHTML.trim();
+  // Reformat the source description into readable editorial chapters.
+  // Keep every sanitized item; long lists remain available via an accessible
+  // native details/summary control instead of creating a huge wall of bullets.
+  const contentNodes = [...container.childNodes].filter(node =>
+    node.nodeType === Node.ELEMENT_NODE && node.textContent.trim()
+  );
+  const chapters = [];
+  let chapter = null;
+
+  const isParagraphHeading = (node, next) => {
+    if (node.tagName !== 'P' || !node.querySelector('strong,b')) return false;
+    const title = node.textContent.trim();
+    if (!title || title.length > 105) return false;
+    const onlyEmphasis = [...node.childNodes].every(child =>
+      (child.nodeType === Node.TEXT_NODE && !child.textContent.trim()) ||
+      (child.nodeType === Node.ELEMENT_NODE && ['STRONG', 'B'].includes(child.tagName))
+    );
+    return onlyEmphasis && (
+      /^(o que esperamos de voce|comportamentos e habilidades esperados|se ainda tiver tudo isso)/i.test(
+        title.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      ) || ['UL', 'OL'].includes(next?.tagName)
+    );
+  };
+
+  contentNodes.forEach((node, index) => {
+    const heading = /^H[234]$/.test(node.tagName) ||
+      isParagraphHeading(node, contentNodes[index + 1]);
+    if (heading) {
+      chapter = { title: node.textContent.trim(), nodes: [] };
+      chapters.push(chapter);
+    } else {
+      if (!chapter) {
+        chapter = { title: 'Sobre a oportunidade', nodes: [] };
+        chapters.push(chapter);
+      }
+      chapter.nodes.push(node);
+    }
+  });
+
+  if (!chapters.length) return container.innerHTML.trim();
+  const article = document.createElement('div');
+  article.className = 'jd-article';
+  const total = chapters.length;
+
+  chapters.forEach((group, index) => {
+    if (!group.nodes.length) return;
+    const section = document.createElement('section');
+    const isIntro = /^(sobre a vaga|sobre a oportunidade)$/i.test(
+      group.title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    );
+    section.className = 'jd-chapter' + (isIntro ? ' jd-chapter--intro' : '');
+    const heading = document.createElement('div');
+    heading.className = 'jd-chapter-heading';
+    const kicker = document.createElement('span');
+    kicker.className = 'jd-chapter-index';
+    kicker.textContent = String(index + 1).padStart(2, '0') +
+      ' / ' + String(total).padStart(2, '0');
+    const title = document.createElement('h3');
+    title.id = 'jd-section-' + index;
+    title.className = 'jd-chapter-title';
+    title.textContent = group.title;
+    section.setAttribute('aria-labelledby', title.id);
+    heading.append(kicker, title);
+
+    const body = document.createElement('div');
+    body.className = 'jd-chapter-body';
+
+    for (const item of group.nodes) {
+      if (item.tagName === 'UL' || item.tagName === 'OL') {
+        item.classList.add('jd-list');
+        const entries = [...item.children].filter(child => child.tagName === 'LI');
+        if (entries.length > 8) {
+          const visibleCount = 6;
+          const remaining = entries.slice(visibleCount);
+          const extra = document.createElement(item.tagName.toLowerCase());
+          extra.className = 'jd-list jd-list--extra';
+          remaining.forEach(entry => extra.appendChild(entry));
+          body.appendChild(item);
+
+          const details = document.createElement('details');
+          details.className = 'jd-more';
+          const summary = document.createElement('summary');
+          summary.className = 'jd-more-toggle';
+          const expand = document.createElement('span');
+          expand.className = 'jd-expand-label';
+          expand.textContent = 'Ver mais ' + remaining.length + ' itens';
+          const collapse = document.createElement('span');
+          collapse.className = 'jd-collapse-label';
+          collapse.textContent = 'Mostrar menos';
+          summary.append(expand, collapse);
+          details.append(summary, extra);
+          body.appendChild(details);
+          continue;
+        }
+      }
+      body.appendChild(item);
+    }
+
+    section.append(heading, body);
+    article.appendChild(section);
+  });
+  return article.outerHTML.trim();
 }
 
 
@@ -594,7 +695,7 @@ function renderSpecificVacancy(id) {
           </header>
 
           <section class="vacancy-description" aria-label="Descrição da vaga">
-            <h2>Sobre a oportunidade</h2>
+            <span class="jd-overline">CONHEÇA A OPORTUNIDADE</span>
             ${description ? `<div class="vacancy-description-content">${description}</div>` :
               '<p class="vacancy-description-missing">A descrição completa desta oportunidade ainda não está disponível. Consulte novamente em breve.</p>'}
           </section>
