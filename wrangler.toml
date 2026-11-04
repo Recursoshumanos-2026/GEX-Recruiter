@@ -46,3 +46,8 @@ binding = "AI"
 binding = "RESUME_DB"
 database_name = "gex-talents-curriculos-teste"
 database_id = "5b71acd5-8203-48e5-9d33-3396cfa76ffb"
+
+# Verificação diária da retenção de currículos, 06:00 UTC.
+# Handler protegido: sem autorização explícita, não consulta nem exclui dados.
+[triggers]
+crons = ["0 6 * * *"]
