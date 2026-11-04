@@ -619,6 +619,34 @@ async function addQuestionnaireObservation(env, payload, createBody, answers) {
   };
 }
 
+// If the documented Recrutei custom-field endpoint rejects the update,
+ // keep the curriculum readable in a candidate observation, never as a public R2 link.
+async function addResumeObservation(env, payload, createBody, markdown) {
+  const { talentId, applicationId } = profileIds(createBody, payload.vacancy_id);
+  if (!positiveId(talentId) || !positiveId(applicationId)) {
+    return { ok: false, reason: 'IDs da candidatura não retornados para o currículo.' };
+  }
+  const limit = 24000;
+  const excerpt = markdown.slice(0, limit);
+  const trailer = markdown.length > limit
+    ? '\n[Conteúdo abreviado na observação; versão integral armazenada privadamente na GEX.]'
+    : '';
+  const form = new FormData();
+  form.set('application_id', String(applicationId));
+  form.set('talent_id', String(talentId));
+  form.set('talent_observation_type_id', '7');
+  form.set('action','1');
+  form.set('description',
+    '<p><strong>GEX Talents | Currículo convertido em Markdown</strong></p>' +
+    '<p>Este currículo foi enviado pelo candidato. O arquivo convertido também foi salvo em armazenamento privado da GEX.</p>' +
+    '<pre>' + escapeHtml(excerpt + trailer) + '</pre>');
+  const response = await recrutei(env, '/api/v2/talents-observations', {
+    method:'POST', body:form
+  });
+  return response.ok ? { ok:true } :
+    { ok:false, reason:'Não foi possível registrar o currículo na observação da Recrutei.' };
+}
+
 async function completeApplicationStep(operation) {
   try {
     return await operation();
@@ -705,6 +733,11 @@ async function createProspect(env, rawPayload) {
     );
   }
 
+  // Convert before creating a candidate: invalid / unconvertible resumes
+  // must never create partial applications.
+  const resumeFile = payload.resume;
+  const markdown = resumeFile ? await convertResume(env, resumeFile) : null;
+
   const form = new FormData();
 
   form.set(
@@ -738,13 +771,25 @@ async function createProspect(env, rawPayload) {
     );
   }
 
+  let resumeStored = false;
+  let resumeStoreWarning = null;
+  if (markdown) {
+    const { applicationId } = profileIds(createBody, payload.vacancy_id);
+    const stored = await completeApplicationStep(() =>
+      storeResume(env, markdown, applicationId, payload.vacancy_id)
+        .then(() => ({ ok:true })));
+    resumeStored = stored.ok;
+    if (!stored.ok) resumeStoreWarning = 'Não foi possível armazenar o currículo na GEX.';
+  }
+
   let profileCompleted = true;
   let profileWarning = null;
   let profileError = null;
 
-  if (completeForm) {
+  if (completeForm || markdown) {
     const profileResult = await completeApplicationStep(() =>
-      updateProspectProfile(env, payload, createBody)
+      updateProspectProfile(env, payload, createBody,
+        resumeStored ? markdown : null)
     );
 
     if (!profileResult.ok) {
@@ -781,9 +826,24 @@ async function createProspect(env, rawPayload) {
         addQuestionnaireObservation(env, payload, createBody, answers))
     : null;
 
+  const resumeObservation = markdown && resumeStored && !profileCompleted
+    ? await completeApplicationStep(() =>
+        addResumeObservation(env, payload, createBody, markdown))
+    : null;
+  const resumeLinked = markdown && resumeStored &&
+    (profileCompleted || resumeObservation?.ok === true);
+
   return {
     ok: true,
     application_created: true,
+    ...(markdown ? {
+      resume_stored: resumeStored,
+      resume_custom_field_completed: resumeStored && profileCompleted,
+      resume_observation_completed: Boolean(resumeObservation?.ok),
+      resume_completed: Boolean(resumeLinked),
+      ...(!resumeLinked ? { resume_warning: resumeStoreWarning ||
+        'Currículo recebido, mas não foi possível confirmar seu vínculo na Recrutei.' } : {})
+    } : {}),
     ...(observationResult ? {
       observation_completed: observationResult.ok,
       ...(!observationResult.ok ? { observation_warning: observationResult.reason } : {})
