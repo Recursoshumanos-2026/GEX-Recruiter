@@ -490,6 +490,99 @@ async function updateProspectProfile(env, payload, createBody, resumeMarkdown = 
   return { ok: true };
 }
 
+
+const RESUME_E2E_TEST_TOKEN_HASH = '63b5ca3615752fb2e0d615ff9e1624064ac637948b8e2a05d3f3f73742e514dd';
+
+async function e2eTestTokenValid(value) {
+  if (typeof value !== 'string' || !/^[a-f0-9]{48}$/.test(value)) return false;
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  const actual = Array.from(new Uint8Array(digest)).map(v => v.toString(16).padStart(2, '0')).join('');
+  return actual === RESUME_E2E_TEST_TOKEN_HASH;
+}
+
+// Homologação de arquivos artificiais somente no Preview; não cria candidaturas.
+// Chave efêmera, uma execução por formato, candidatura conhecida prefixada por "Teste".
+async function testExistingApplicationResume(request, env) {
+  const config = profileDiagnosticConfig(env);
+  if (env.RESUME_E2E_TEST_ENABLED !== 'true' || env.APPLICATIONS_ENABLED === 'true' ||
+      env.RESUME_UPLOAD_ENABLED === 'true' || !config)
+    return json({ message: 'Rota não encontrada' }, 404, env);
+  const url = new URL(request.url);
+  if (request.headers.get('Origin') !== url.origin)
+    return json({ message: 'Origem não permitida' }, 403, env);
+  if (!request.headers.get('Content-Type')?.startsWith('multipart/form-data;'))
+    return json({ message: 'Envie multipart/form-data' }, 415, env);
+  if (Number(request.headers.get('Content-Length') || 0) > 5400000)
+    return json({ message: 'Arquivo muito grande' }, 413, env);
+  const form = await request.formData();
+  if (form.getAll('token').length !== 1 || form.getAll('curriculo').length !== 1 ||
+      [...form.keys()].length !== 2 ||
+      !await e2eTestTokenValid(form.get('token')))
+    return json({ message: 'Autorização inválida' }, 403, env);
+  const file = form.get('curriculo');
+  const format = typeof file?.name === 'string' &&
+    /\.(pdf|docx)$/i.exec(file.name)?.[1]?.toLowerCase();
+  if (!format) return json({ message: 'Envie PDF ou DOCX' }, 415, env);
+
+  const lookup = await lookupConfiguredTestApplication(env, config);
+  if (!lookup.ok) return diagnosticLookupFailure(lookup, env);
+  const application = lookup.application;
+  const talentId = application.talent?.id ?? application.talent_id;
+  if (!positiveId(talentId) ||
+      (application.talent_id != null && String(application.talent_id) !== String(talentId)))
+    return json({ message: 'Talento fictício não confirmado' }, 409, env);
+  if (typeof env.RESUME_DB?.prepare !== 'function' ||
+      typeof env.AI?.toMarkdown !== 'function')
+    return json({ message: 'Dependências de prévia indisponíveis' }, 503, env);
+  await env.RESUME_DB.prepare(
+    'CREATE TABLE IF NOT EXISTS resume_e2e_test_runs (test_id TEXT PRIMARY KEY, created_at TEXT NOT NULL)'
+  ).run();
+  const claimed = await env.RESUME_DB.prepare(
+    'INSERT OR IGNORE INTO resume_e2e_test_runs (test_id, created_at) VALUES (?, ?)'
+  ).bind('resume-e2e-20261104-' + format, new Date().toISOString()).run();
+  if (claimed?.meta?.changes !== 1)
+    return json({ ok:false, already_executed:true, format, application_created:false }, 409, env);
+
+  let converted;
+  try {
+    converted = await convertResume({...env, RESUME_UPLOAD_ENABLED:'true'},file);
+  } catch (error) {
+    return json({ok:false,format,conversion_ok:false,code:'CONVERSION_FAILED',
+      http_status:error.status ?? 500,application_created:false},200,env);
+  }
+  let stored = false;
+  try {
+    const result = await storeResume({...env,RESUME_UPLOAD_ENABLED:'true'},
+      converted,config.applicationId,config.vacancyId);
+    const copy = await env.RESUME_DB.prepare(
+      'SELECT markdown FROM candidate_resumes WHERE id = ?'
+    ).bind(result.id).first();
+    stored = copy?.markdown === converted;
+  } catch {}
+  const createBody = {data:{
+    talent:{id:talentId,prospect:application.talent?.prospect},
+    application:{id:config.applicationId,prospect:application.prospect,
+      prospect_id:application.prospect_id}
+  }};
+  const observation = await completeApplicationStep(() =>
+    addResumeObservation(env,{vacancy_id:config.vacancyId},createBody,converted));
+  const readback = await lookupConfiguredTestApplication(env,config);
+  const response = json({
+    ok:stored && observation.ok && readback.ok,
+    environment:'preview',
+    format,
+    conversion_ok:true,
+    extracted_markdown_valid:converted.length >= 20,
+    private_d1_write_and_readback_ok:stored,
+    recrutei_observation_accepted:observation.ok,
+    fixture_still_valid:readback.ok,
+    application_created:false,
+    public_upload_enabled:false
+  },200,env);
+  response.headers.set('Cache-Control','no-store');
+  return response;
+}
+
 async function testProspectProfile(request, env) {
   const config = profileDiagnosticConfig(env, true);
   if (!config) return json({ message: 'Rota não encontrada' }, 404, env);
@@ -915,6 +1008,9 @@ export default {
     }
 
     try {
+      if (request.method === 'POST' && url.pathname === '/api/homologar-arquivo-curriculo') {
+        return testExistingApplicationResume(request, env);
+      }
       if (request.method === 'GET' && url.pathname === '/api/diagnostico-perfil') {
         return diagnoseProspectProfile(env);
       }
