@@ -183,8 +183,10 @@ Os resultados reais conhecidos estão separados acima.
 ## Próximo passo
 
 Revisar visualmente os questionários 158883, 158921 e 158786 na prévia, sem enviar uma candidatura.
-A confirmação da Cloudflare para a nova versão do Worker ainda está pendente; a tela
-privada publicada serve para revisão visual enquanto essa atualização é verificada.
+A Cloudflare confirmou build/deploy da versão de código `d053d83` (Editor de Vídeo),
+que também inclui Afiliação. A confirmação veio pelo check do GitHub e pelo print
+da aba Implantações com status “Pronto”. Essa confirmação valida a publicação da
+prévia, não substitui um teste real de candidatura dessas novas vagas.
 Para a pendência do perfil, solicitar ao suporte um cURL mínimo válido e confirmar IDs da query/corpo, grupos,
 formato da data e campo de remuneração. Não é necessária outra candidatura para
 analisar o cadastro existente. O draft permanece sem produção até resolver essa
