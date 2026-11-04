@@ -19,6 +19,27 @@ export const QUESTIONNAIRES = {
         'WhatsApp', 'E-mail', 'Chat', 'Telefone', 'Redes sociais', 'CRM', 'Outros'
       ] }
     ]
+  },
+  '158883': {
+    title: 'Analista de Dados Sênior',
+    questions: [
+      { id: 'age', label: 'Qual sua idade?', type: 'text' },
+      { id: 'linkedin', label: 'LinkedIn (Cole o link do seu perfil)', type: 'text' },
+      { id: 'social', label: 'Compartilhe uma rede social sua (Instagram, TikTok ou outra que utilize).', type: 'text' },
+      { id: 'employment', label: 'Atualmente você está trabalhando?', type: 'single', options: [
+        'Sim, CLT', 'Sim, PJ', 'Sim, como freelancer/autônomo', 'Não estou trabalhando atualmente'
+      ] },
+      { id: 'start', label: 'Qual é a sua disponibilidade para início?', type: 'single', options: [
+        'Imediata', 'Em até 7 dias', 'Em até 15 dias', 'Em até 30 dias', 'Acima de 30 dias'
+      ] },
+      { id: 'remote', label: 'Você possui estrutura adequada para trabalho remoto? Computador, internet estável e ambiente adequado para realização das atividades.', type: 'single', options: [
+        'Sim', 'Não'
+      ] },
+      { id: 'pj', label: 'Você possui CNPJ ou disponibilidade para atuar no modelo PJ?', type: 'multiple', options: [
+        'Sim, já possuo CNPJ', 'Ainda não possuo, mas tenho disponibilidade para abrir', 'Não tenho interesse no modelo PJ'
+      ] },
+      { id: 'salary', label: 'Qual é a sua pretensão de remuneração mensal no modelo PJ?', type: 'text' }
+    ]
   }
 };
 

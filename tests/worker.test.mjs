@@ -12,6 +12,14 @@ const payload = () => ({ name: 'Pessoa Teste', email: 'teste@example.invalid', t
   city: 'Cidade teste', state: 'SP', ssn: '000.000.000-00', available: 'Imediata',
   linkedin_url: 'https://example.invalid/perfil', questionnaire_answers: answers() });
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
+const dataQuestionIds = ['age', 'linkedin', 'social', 'employment', 'start', 'remote', 'pj', 'salary'];
+const dataAnswers = () => ({
+  age: '35', linkedin: 'https://www.linkedin.com/in/pessoa-teste',
+  social: 'https://www.instagram.com/pessoa-teste', employment: 'Sim, PJ',
+  start: 'Em até 15 dias', remote: 'Sim',
+  pj: ['Sim, já possuo CNPJ', 'Ainda não possuo, mas tenho disponibilidade para abrir'], salary: '12000'
+});
+const dataPayload = () => ({ ...payload(), vacancy_id: '158883', questionnaire_answers: dataAnswers() });
 
 async function run(input, options = {}) {
   const calls = [];
@@ -81,6 +89,131 @@ test('cria observação multipart ordenada, preservando perfil e tag', async () 
   assert.equal(new URL(result.calls.find(c => c.path.endsWith('/curriculum/filled')).url).searchParams.get('talent_id'), '22');
   assert.equal(profile.basic_infos.length, 4);
   assert.equal(profile.additional.length, 2);
+});
+
+test('vaga158883 registra oito perguntas ordenadas, HTML escapado e todas as escolhas PJ', async () => {
+  const input = dataPayload();
+  input.questionnaire_answers.age = ' 35 ';
+  input.questionnaire_answers.linkedin = 'https://example.invalid/perfil?a=1&next="<perfil>"';
+  input.questionnaire_answers.social = `<img src=x onerror="alert('x')"> & GEX`;
+  input.questionnaire_answers.pj = [
+    'Não tenho interesse no modelo PJ',
+    'Ainda não possuo, mas tenho disponibilidade para abrir',
+    'Sim, já possuo CNPJ'
+  ];
+  const result = await run(input);
+  assert.equal(result.status, 201);
+  assert.equal(result.body.application_created, true);
+  assert.equal(result.body.profile_completed, true);
+  assert.equal(result.body.tag_completed, true);
+  assert.equal(result.body.observation_completed, true);
+  assert.deepEqual(questionnaireFor('158883').questions.map(question => question.id), dataQuestionIds);
+  const observations = result.calls.filter(call => call.path.endsWith('/talents-observations'));
+  assert.equal(observations.length, 1);
+  assert.ok(observations[0].init.body instanceof FormData);
+  const html = observations[0].init.body.get('description');
+  assert.ok(html.includes('GEX Talents | Respostas da candidatura'));
+  assert.ok(html.includes('<strong>Vaga:</strong> Analista de Dados Sênior'));
+  const expectedQuestions = [
+    'Qual sua idade?',
+    'LinkedIn (Cole o link do seu perfil)',
+    'Compartilhe uma rede social sua (Instagram, TikTok ou outra que utilize).',
+    'Atualmente você está trabalhando?',
+    'Qual é a sua disponibilidade para início?',
+    'Você possui estrutura adequada para trabalho remoto? Computador, internet estável e ambiente adequado para realização das atividades.',
+    'Você possui CNPJ ou disponibilidade para atuar no modelo PJ?',
+    'Qual é a sua pretensão de remuneração mensal no modelo PJ?'
+  ];
+  const expectedAnswers = [
+    '35', 'https://example.invalid/perfil?a=1&amp;next=&quot;&lt;perfil&gt;&quot;',
+    '&lt;img src=x onerror=&quot;alert(&#39;x&#39;)&quot;&gt; &amp; GEX',
+    'Sim, PJ', 'Em até 15 dias', 'Sim', 'Sim, já possuo CNPJ', '12000'
+  ];
+  const positions = expectedQuestions.map((question, index) => html.indexOf(`${index + 1}. ${question}`));
+  for (let index = 0; index < positions.length; index += 1) {
+    assert.ok(positions[index] >= 0);
+    if (index > 0) assert.ok(positions[index] > positions[index - 1]);
+    assert.ok(html.slice(positions[index], positions[index + 1] ?? html.length).includes(expectedAnswers[index]));
+  }
+  assert.ok(!html.includes('<img'));
+  assert.ok(!html.includes('<perfil>'));
+  let previous = -1;
+  for (const option of [
+    'Sim, já possuo CNPJ', 'Ainda não possuo, mas tenho disponibilidade para abrir',
+    'Não tenho interesse no modelo PJ'
+  ]) {
+    const position = html.indexOf(`<li>${option}</li>`);
+    assert.ok(position > previous);
+    previous = position;
+  }
+  assert.equal(observations[0].init.body.get('application_id'), '33');
+  assert.equal(observations[0].init.body.get('talent_id'), '22');
+  assert.equal(observations[0].init.body.get('talent_observation_type_id'), '7');
+  assert.equal(observations[0].init.body.get('action'), '1');
+  assert.ok(result.calls.findIndex(call => call.path.endsWith('/prospects')) <
+    result.calls.findIndex(call => call.path.endsWith('/talents-observations')));
+});
+
+for (const id of dataQuestionIds) {
+  test(`vaga158883 rejeita pergunta obrigatória ausente ${id} antes de chamadas externas`, async () => {
+    const input = dataPayload(); delete input.questionnaire_answers[id];
+    const result = await run(input);
+    assert.equal(result.status, 400);
+    assert.equal(result.calls.length, 0);
+  });
+}
+for (const [name, mutate] of [
+  ['questionário ausente', input => delete input.questionnaire_answers],
+  ['questionário como array', input => input.questionnaire_answers = []],
+  ['idade vazia', input => input.questionnaire_answers.age = ' '],
+  ['idade numérica sem texto', input => input.questionnaire_answers.age = 35],
+  ['LinkedIn como objeto', input => input.questionnaire_answers.linkedin = {}],
+  ['LinkedIn longo', input => input.questionnaire_answers.linkedin = 'x'.repeat(501)],
+  ['rede social como array', input => input.questionnaire_answers.social = ['perfil']],
+  ['trabalho vazio', input => input.questionnaire_answers.employment = ''],
+  ['trabalho como array', input => input.questionnaire_answers.employment = ['Sim, PJ']],
+  ['trabalho não listado', input => input.questionnaire_answers.employment = 'Emprego diferente'],
+  ['disponibilidade não listada', input => input.questionnaire_answers.start = 'Daqui a dois meses'],
+  ['remoto não listado', input => input.questionnaire_answers.remote = 'Talvez'],
+  ['PJ vazio', input => input.questionnaire_answers.pj = []],
+  ['PJ como texto', input => input.questionnaire_answers.pj = 'Sim, já possuo CNPJ'],
+  ['PJ com opção injetada', input => input.questionnaire_answers.pj = ['<script>injetado</script>']],
+  ['PJ com opção repetida', input => input.questionnaire_answers.pj = ['Sim, já possuo CNPJ', 'Sim, já possuo CNPJ']],
+  ['salário como objeto', input => input.questionnaire_answers.salary = {}]
+]) test(`vaga158883 valida ${name} antes de chamadas externas`, async () => {
+  const input = dataPayload(); mutate(input);
+  const result = await run(input);
+  assert.equal(result.status, 400);
+  assert.equal(result.calls.length, 0);
+});
+
+test('respostas da vaga158928 não substituem questionário158883 e vice-versa', async () => {
+  const dataInput = dataPayload(); dataInput.questionnaire_answers = answers();
+  const supportInput = payload(); supportInput.questionnaire_answers = dataAnswers();
+  for (const input of [dataInput, supportInput]) {
+    const result = await run(input);
+    assert.equal(result.status, 400);
+    assert.equal(result.calls.length, 0);
+  }
+});
+test('vaga158928 preserva sete perguntas e não recebe as novas perguntas de dados', async () => {
+  const result = await run(payload());
+  assert.equal(result.body.observation_completed, true);
+  assert.equal(questionnaireFor('158928').questions.length, 7);
+  const html = result.calls.find(call => call.path.endsWith('/talents-observations')).init.body.get('description');
+  assert.ok(html.includes('<strong>Vaga:</strong> Analista de Atendimento'));
+  assert.ok(!html.includes('LinkedIn (Cole o link do seu perfil)'));
+  assert.ok(!html.includes('Analista de Dados Sênior'));
+});
+test('vaga158921 permanece sem questionário, mesmo recebendo respostas de158883', async () => {
+  const input = dataPayload(); input.vacancy_id = '158921';
+  const result = await run(input);
+  assert.equal(questionnaireFor('158921'), null);
+  assert.equal(result.status, 201);
+  assert.equal(result.body.profile_completed, true);
+  assert.equal(result.body.tag_completed, true);
+  assert.equal(result.body.observation_completed, undefined);
+  assert.ok(!result.calls.some(call => call.path.endsWith('/talents-observations')));
 });
 
 for (const question of questionnaireFor('158928').questions) {

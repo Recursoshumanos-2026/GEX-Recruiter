@@ -82,8 +82,10 @@ upload de currículo. A integração Cloudflare está configurada.
 
 ## Questionários por vaga (revisão, ainda sem publicação)
 
-O cadastro compartilhado em `questionnaires.js` contém o questionário obrigatório da vaga
-`158928` (Analista de Atendimento). As demais vagas não recebem perguntas ou observações.
+O cadastro compartilhado em `questionnaires.js` contém os questionários obrigatórios das vagas
+`158928` (Analista de Atendimento, sete perguntas) e `158883` (Analista de Dados Sênior,
+oito perguntas transcritas dos prints). Cada vaga recebe somente seu próprio questionário
+e a observação correspondente; as demais vagas continuam sem perguntas ou observações.
 Para futuras vagas, acrescente uma entrada pelo ID, com título, IDs estáveis de perguntas,
 rótulos, tipos `text`, `single` ou `multiple` e alternativas. Todos os itens cadastrados
 são obrigatórios; respostas curtas aceitam até 500 caracteres após remover espaços externos.
