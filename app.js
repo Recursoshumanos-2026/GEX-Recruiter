@@ -1,3 +1,5 @@
+import { questionnaireFor, validateAnswers } from './questionnaires.js?v=5';
+
 const CONFIG = window.GEX_TALENTS_CONFIG || {};
 
 let jobs = [];
@@ -866,7 +868,8 @@ function openApply(id) {
 
 
   form.reset();
-
+  form.dataset.applicationCreated = '';
+  form.querySelector('.submit-btn').disabled = false;
 
   formMessage.hidden =
     true;
@@ -887,7 +890,61 @@ function openApply(id) {
     job.id;
 
 
+  renderQuestionnaire(job.id);
+
   dialog.showModal();
+}
+
+
+function renderQuestionnaire(vacancyId) {
+  const section = document.querySelector('#vacancyQuestionnaire');
+  const questionnaire = questionnaireFor(vacancyId);
+  section.replaceChildren();
+  section.hidden = !questionnaire;
+  if (!questionnaire) return;
+  section.innerHTML = `
+    <div class="application-section-heading">
+      <span>03</span>
+      <div><h3 id="vacancyQuestionnaireTitle">Perguntas da vaga</h3>
+      <p>${questionnaire.questions.some(question => question.required === false)
+        ? 'Responda às perguntas obrigatórias para concluir sua candidatura.'
+        : 'Responda a todas as perguntas para concluir sua candidatura.'}</p></div>
+    </div>
+    <div class="application-grid questionnaire-grid">
+      ${questionnaire.questions.map((question, index) => {
+        const name = `question_${question.id}`;
+        const required = question.required !== false;
+        const label = `${index + 1}. ${safe(question.label)}${required ? ' *' : ' (opcional)'}`;
+        if (question.type === 'text') {
+          return `<label>${label}<input name="${name}" ${required ? 'required' : ''} maxlength="500" /></label>`;
+        }
+        if (question.type === 'long') {
+          return `<label class="questionnaire-long">${label}<textarea name="${name}" ${required ? 'required' : ''} maxlength="5000" rows="6"></textarea></label>`;
+        }
+        return `<fieldset data-question="${safe(question.id)}"><legend>${label}</legend>
+          ${question.type === 'multiple' ? '<p class="questionnaire-hint">Selecione uma ou mais alternativas.</p>' : ''}
+          ${question.options.map(option => `<label class="questionnaire-option">
+            <input type="${question.type === 'single' ? 'radio' : 'checkbox'}" name="${name}"
+              value="${safe(option)}" ${question.type === 'single' && required ? 'required' : ''} />
+            <span>${safe(option)}</span></label>`).join('')}
+        </fieldset>`;
+      }).join('')}
+    </div>`;
+  section.addEventListener('change', validateQuestionnaireControls);
+}
+
+function validateQuestionnaireControls() {
+  const questionnaire = questionnaireFor(form.elements.vacancy_id.value);
+  if (!questionnaire) return;
+  for (const question of questionnaire.questions) {
+    const controls = [...form.querySelectorAll(`[name="question_${question.id}"]`)];
+    if (question.type === 'multiple') {
+      controls[0].setCustomValidity(question.required === false || controls.some(control => control.checked)
+        ? '' : 'Selecione ao menos uma alternativa.');
+    } else if (question.type === 'text' || question.type === 'long') {
+      controls[0].setCustomValidity(question.required === false || controls[0].value.trim() ? '' : 'Preencha esta resposta.');
+    }
+  }
 }
 
 
@@ -905,10 +962,24 @@ function normalizeFormPayload() {
 
   delete payload.privacy;
 
+  const questionnaire = questionnaireFor(payload.vacancy_id);
+  if (questionnaire) {
+    const answers = {};
+    for (const question of questionnaire.questions) {
+      const name = `question_${question.id}`;
+      answers[question.id] = question.type === 'multiple'
+        ? formData.getAll(name) : formData.get(name);
+      delete payload[name];
+    }
+    payload.questionnaire_answers = validateAnswers(payload.vacancy_id, answers);
+  }
+
 
   return payload;
 }
 
+
+form.addEventListener('input', validateQuestionnaireControls);
 
 form.addEventListener(
   'submit',
@@ -920,6 +991,7 @@ form.addEventListener(
     formMessage.hidden =
       true;
 
+    validateQuestionnaireControls();
 
     if (
       !form.reportValidity()
@@ -995,6 +1067,16 @@ form.addEventListener(
           );
 
 
+      if (!response.ok && body.code === 'APPLICATIONS_DISABLED') {
+        applicationsEnabled = false;
+        formMessage.className = 'form-message error';
+        formMessage.textContent = 'O envio de candidaturas está desativado neste ambiente. Nenhuma nova candidatura foi criada nesta tentativa.';
+        formMessage.hidden = false;
+        render();
+        return;
+      }
+
+
       if (
         !response.ok
       ) {
@@ -1006,6 +1088,10 @@ form.addEventListener(
 
       }
 
+
+      if (questionnaireFor(payload.vacancy_id)) {
+        form.dataset.applicationCreated = 'true';
+      }
 
       formMessage.className =
         'form-message success';
@@ -1045,6 +1131,13 @@ form.addEventListener(
       }
 
 
+      if (questionnaireFor(payload.vacancy_id) && body.observation_completed !== true) {
+        formMessage.className = 'form-message error';
+        formMessage.textContent = 'Sua candidatura foi criada, mas não foi possível confirmar o registro das respostas da vaga. Não reenvie a candidatura. Entre em contato com o RH da GEX para regularizar as respostas.';
+        // Preserve as respostas para o candidato poder encaminhá-las ao RH.
+        return;
+      }
+
       form.reset();
 
 
@@ -1076,8 +1169,7 @@ form.addEventListener(
 
     } finally {
 
-      button.disabled =
-        false;
+      button.disabled = !applicationsEnabled || form.dataset.applicationCreated === 'true';
 
 
       button.textContent =

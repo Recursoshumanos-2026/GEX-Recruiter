@@ -123,3 +123,22 @@
     gap:10px
   }
 }
+
+/* Questionário isolado: usa os tokens e controles do formulário aprovado. */
+.questionnaire-grid{display:grid;gap:20px}
+.questionnaire-grid>label{display:flex;flex-direction:column;gap:7px}
+.questionnaire-grid fieldset{min-width:0;margin:0;padding:0;border:0}
+.questionnaire-grid legend,.questionnaire-grid>label{
+  color:var(--text-secondary);font-size:var(--fs-small);font-weight:var(--fw-semibold)
+}
+.questionnaire-grid legend{margin-bottom:10px}
+.questionnaire-option{display:flex;align-items:flex-start;gap:9px;margin:10px 0;
+  color:var(--text-secondary);font-size:var(--fs-small);cursor:pointer}
+.questionnaire-option input{width:18px;height:18px;flex:0 0 18px;margin:2px 0 0;
+  padding:0;accent-color:var(--brand-blue)}
+.questionnaire-hint{margin:0;color:var(--text-muted);font-size:var(--fs-caption)}
+.questionnaire-grid>.questionnaire-long{grid-column:1/-1}
+.questionnaire-grid textarea{width:100%;max-width:100%;min-height:140px;padding:12px;
+  border:1px solid var(--control-border);border-radius:10px;background:var(--surface-card-2);
+  color:var(--text-primary);font:inherit;line-height:1.5;resize:vertical;outline:none}
+.questionnaire-grid textarea:focus{border-color:var(--brand-blue);box-shadow:0 0 0 3px rgba(30,111,217,.14)}
