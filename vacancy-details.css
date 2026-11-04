@@ -98,16 +98,38 @@ body.vacancy-detail-mode .vacancy-hero-orbit{
 body.vacancy-detail-mode .vacancy-hero-orbit.orbit-two{
   width:390px;height:390px;border-color:rgba(106,181,255,.11);
 }
-/* Official brand lockup from the existing GEX SVG — no custom lettering. */
-body.vacancy-detail-mode .vacancy-hero-art .vacancy-hero-official-logo{
-  display:block;
+/* Preserve the original blue symbol and orbital artwork.
+   Use the brand's original G/E/X vector paths instead of retyped letters. */
+body.vacancy-detail-mode .vacancy-hero-art .vacancy-hero-symbol{
   position:relative;
   z-index:2;
-  width:min(86%,270px);
-  max-width:270px;
+  display:block;
+  width:min(68%,190px);
   height:auto;
   object-fit:contain;
-  filter:drop-shadow(0 12px 24px rgba(0,0,0,.2));
+  filter:drop-shadow(0 13px 25px rgba(0,0,0,.24));
+}
+body.vacancy-detail-mode .vacancy-hero-art-label{
+  position:relative;
+  z-index:2;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  white-space:nowrap;
+}
+body.vacancy-detail-mode .vacancy-hero-art .vacancy-hero-wordmark{
+  display:block;
+  flex:none;
+  width:67px;
+  height:auto;
+  max-width:none;
+  filter:none;
+}
+body.vacancy-detail-mode .vacancy-hero-art-label > span{
+  color:#9fc5e7;
+  font:700 9px/1.2 "Geist Mono",monospace;
+  letter-spacing:.17em;
 }
 body.vacancy-detail-mode .vacancy-hero-art-caption{
   color:#8bb0d0;font-family:"Geist Mono",monospace;font-size:9px;letter-spacing:.13em;text-align:center;
