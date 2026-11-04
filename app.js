@@ -522,6 +522,7 @@ function vacancyApplyButton(id, extraClass = '') {
 }
 
 function renderGeneralJobs() {
+  document.documentElement.classList.remove('vacancy-route-loading');
   document.body.classList.remove("vacancy-detail-mode");
   if (headerActions) headerActions.hidden = true;
 
@@ -730,6 +731,7 @@ function renderGeneralJobs() {
 
 function renderSpecificVacancy(id) {
   document.body.classList.add('vacancy-detail-mode');
+  document.documentElement.classList.remove('vacancy-route-loading');
   if (headerActions) headerActions.hidden = false;
   if (headerBack) headerBack.href = allJobsUrl() + '#vagas';
   if (main) main.prepend(jobsSection);

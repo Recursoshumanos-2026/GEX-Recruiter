@@ -600,3 +600,53 @@ body.vacancy-detail-mode #descricao-vaga{
     transform:none;
   }
 }
+
+
+/* Prevent a homepage flash while a vacancy's JD is fetched asynchronously. */
+.vacancy-loading-state { display: none; }
+
+html.vacancy-route-loading .hero,
+html.vacancy-route-loading #sobre,
+html.vacancy-route-loading #cultura,
+html.vacancy-route-loading #beneficios,
+html.vacancy-route-loading .talent-pool,
+html.vacancy-route-loading .site-header nav,
+html.vacancy-route-loading #vagas .jobs-heading,
+html.vacancy-route-loading #vagas .jobs-toolbar {
+  display: none !important;
+}
+
+html.vacancy-route-loading #vagas {
+  min-height: calc(100vh - 120px);
+  padding-top: clamp(58px, 10vh, 108px);
+}
+
+html.vacancy-route-loading .vacancy-loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  min-height: 120px;
+  color: #b8d9ff;
+  font-size: 15px;
+  text-align: center;
+}
+
+.vacancy-loading-spinner {
+  width: 25px;
+  height: 25px;
+  flex: none;
+  border: 2px solid rgba(99, 173, 255, .23);
+  border-top-color: #61a8ff;
+  border-radius: 50%;
+  animation: vacancy-loading-spin .85s linear infinite;
+}
+
+@keyframes vacancy-loading-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vacancy-loading-spinner { animation: none; }
+}
+
