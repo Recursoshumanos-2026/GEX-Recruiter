@@ -16,13 +16,14 @@ RESUME_RETENTION_MONTHS = "12"
 [ai]
 binding = "AI"
 
-# D1 Free storage: create a database in Cloudflare > D1, apply worker/schema.sql
-# and replace the database_id with its real value. Keep the feature OFF until tested.
-# [[d1_databases]]
-# binding = "RESUME_DB"
-# database_name = "gex-talents-curriculos-gratis"
-# database_id = "UUID_DO_BANCO_D1"
-# This does not add any public endpoint to candidate curricula.
+# Cloudflare D1 - banco privado de curriculos de producao.
+# Associacao ja criada manualmente na Cloudflare; manter sincronizada no deploy.
+# O upload permanece DESATIVADO ate homologacao da Recrutei.
+[[d1_databases]]
+binding = "RESUME_DB"
+database_name = "gex-talents-curriculos"
+database_id = "a9bbf8f5-4677-49d5-b1a5-cc4d967fec98"
+# Sem rota publica para leitura de curriculos.
 
 # Retenção Cloudflare D1: cron diário. Exclusão desativada por padrão.
 [triggers]
