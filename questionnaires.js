@@ -75,6 +75,33 @@ export const QUESTIONNAIRES = {
       { id: 'portfolio', label: 'Coloque aqui o seu Instagram, LinkedIn, Portifólio, etc.', type: 'text', required: false },
       { id: 'salary', label: 'Qual sua pretensão salarial para um contrato PJ?', type: 'text' }
     ]
+  },
+  '158684': {
+    title: 'Desenvolvedor Backend e Integrações SMS - Sênior',
+    questions: [
+      { id: 'age', label: 'Qual sua idade?', type: 'text' },
+      { id: 'pj', label: 'Aceita oportunidade PJ?', type: 'single', options: ['Sim', 'Não'] },
+      { id: 'proficiency', label: 'Qual seu nível de domínio em desenvolvimento backend e sistemas em produção?', type: 'single', options: [
+        'Nunca utilizei ou só conheço conceitualmente', 'Já utilizei com apoio ou em tarefas simples', 'Consigo aplicar de forma autônoma'
+      ] },
+      { id: 'technologies', label: 'Quais das seguintes tecnologias são mencionadas como essenciais para o desenvolvimento backend e integrações nesta vaga?', type: 'multiple', options: [
+        'Go', 'PHP', 'Java', 'Python', 'C#'
+      ] },
+      { id: 'integration', label: 'Em cenários de integração de sistemas, qual das seguintes abordagens é mais adequada para garantir que uma operação seja executada no máximo uma vez, mesmo que a requisição seja enviada múltiplas vezes?', type: 'single', options: [
+        'Implementar um sistema de retries com backoff exponencial.',
+        'Utilizar filas com acknowledgement para garantir o processamento.',
+        'Garantir que a operação seja idempotente.',
+        'Configurar Dead Letter Queues (DLQs) para mensagens falhas.',
+        'Implementar controle de concorrência com locks.'
+      ] },
+      { id: 'diagnostics', label: 'Ao diagnosticar problemas em produção, qual combinação de ferramentas e dados é mais eficaz para rastrear eventos entre diferentes serviços e integrações externas?', type: 'single', options: [
+        'Apenas logs de aplicação.',
+        'Logs estruturados, métricas, alertas e rastreabilidade ponta a ponta.',
+        'Análise de código-fonte e testes unitários.',
+        'Verificação de infraestrutura de rede e performance do servidor.',
+        'Consultas diretas ao banco de dados sem correlação com eventos.'
+      ] }
+    ]
   }
 };
 

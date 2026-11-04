@@ -28,7 +28,7 @@ Isso não identifica a causa nem comprova problema no CPF, na data ou na API. É
 
 | Arquivos | Comportamento |
 | --- | --- |
-| `questionnaires.js` | Cadastro por ID de vaga: sete perguntas de Atendimento, oito de Dados Sênior, sete de Afiliação e dez de Editor de Vídeo, com validação compartilhada. |
+| `questionnaires.js` | Cadastro por ID de vaga: sete perguntas de Atendimento, oito de Dados Sênior, sete de Afiliação, dez de Editor de Vídeo e seis de Backend/SMS, com validação compartilhada. |
 | `app.js`, `index.html`, `application.css` | Questionário próprio de cada vaga cadastrada e aviso de observação pendente; versão dos recursos atualizada para evitar cache antigo. |
 | `worker/src/index.js` | Validação antes da criação, observação multipart com HTML escapado, isolamento de falhas posteriores e diagnóstico limitado. |
 | `wrangler.toml` | Configuração de prévia na raiz apontando ao Worker existente, com candidaturas habilitadas nesta homologação. |
@@ -120,6 +120,24 @@ O print marca “Não” da pergunta PJ como eliminatória na Recrutei. Essa mar
 não é reproduzida pelo fluxo de observações: a integração registra a escolha para
 análise do RH, sem reprovação automática. Não foram criadas candidaturas reais.
 
+### Desenvolvedor Backend e Integrações SMS - Sênior — 158684
+
+Seis perguntas obrigatórias, transcritas dos três prints:
+
+1. Qual sua idade? — resposta curta.
+2. Aceita oportunidade PJ? — escolha única: Sim; Não.
+3. Qual seu nível de domínio em desenvolvimento backend e sistemas em produção? — escolha única: Nunca utilizei ou só conheço conceitualmente; Já utilizei com apoio ou em tarefas simples; Consigo aplicar de forma autônoma.
+4. Quais das seguintes tecnologias são mencionadas como essenciais para o desenvolvimento backend e integrações nesta vaga? — múltipla escolha: Go; PHP; Java; Python; C#.
+5. Em cenários de integração de sistemas, qual das seguintes abordagens é mais adequada para garantir que uma operação seja executada no máximo uma vez, mesmo que a requisição seja enviada múltiplas vezes? — escolha única: Implementar um sistema de retries com backoff exponencial.; Utilizar filas com acknowledgement para garantir o processamento.; Garantir que a operação seja idempotente.; Configurar Dead Letter Queues (DLQs) para mensagens falhas.; Implementar controle de concorrência com locks.
+6. Ao diagnosticar problemas em produção, qual combinação de ferramentas e dados é mais eficaz para rastrear eventos entre diferentes serviços e integrações externas? — escolha única: Apenas logs de aplicação.; Logs estruturados, métricas, alertas e rastreabilidade ponta a ponta.; Análise de código-fonte e testes unitários.; Verificação de infraestrutura de rede e performance do servidor.; Consultas diretas ao banco de dados sem correlação com eventos.
+
+A observação identifica a vaga e mantém a ordem das seis perguntas e todas as
+tecnologias selecionadas. Não há gabarito, pontuação ou reprovação automática no
+portal. As marcas eliminatórias nativas do print (PJ “Não” e primeiro nível de
+domínio) não são aplicadas por esse fluxo; as respostas ficam disponíveis ao RH.
+O questionário usa os controles existentes, sem alterações de CSS ou endpoints.
+Nenhuma candidatura real foi criada nesta etapa.
+
 ### Registro das respostas
 
 Após criar a candidatura, o Worker envia `POST /api/v2/talents-observations` em
@@ -152,18 +170,19 @@ não habilita as rotas temporárias de diagnóstico e conferência abaixo.
 
 ## Verificações e limites
 
-- **153 testes do Worker aprovados**, incluindo 27 novos casos para Editor de Vídeo e portfólio opcional. Incluem
+- **171 testes do Worker aprovados**, incluindo 18 novos casos para Backend/SMS. Incluem
   preservação do query com ID do talento, outra vaga, retorno 404 sem dados pessoais,
   validações, multipart, HTML escapado e tratamento de falhas posteriores à criação.
   Os novos casos conferem as oito obrigatórias antes de chamadas externas, ordem e
   título da observação, múltiplas seleções e isolamento entre as vagas. Afiliação
   acrescenta limite de 5000, espaços em branco, tipos inválidos, HTML escapado com
   quebras de linha, sete obrigatórias e pendência de observação sem duplicação.
-- **9 testes dos controles aprovados em Node VM**, usando as funções reais do app:
+- **10 testes dos controles aprovados em Node VM**, usando as funções reais do app:
   textarea obrigatório, ausência nas outras vagas, espaços inválidos, normalização
   de respostas longas e limite consistente com o Worker. Os casos do Editor conferem
   seis checkboxes, oito rádios, portfólio opcional e manutenção da obrigatoriedade
-  dos questionários anteriores. Total do repositório: 162 testes.
+  dos questionários anteriores. Backend/SMS acrescenta a renderização de um texto,
+  cinco checkboxes e quinze rádios, com seleção mínima. Total do repositório: 181 testes.
 - **7 testes Node VM do observador aprovados**, incluindo visibilidade inicial,
   privacidade, restauração e ausência de repetição.
 - **5 testes Node VM da conferência aprovados**, incluindo envio de somente dois
@@ -182,11 +201,12 @@ Os resultados reais conhecidos estão separados acima.
 
 ## Próximo passo
 
-Revisar visualmente os questionários 158883, 158921 e 158786 na prévia, sem enviar uma candidatura.
-A Cloudflare confirmou build/deploy da versão de código `d053d83` (Editor de Vídeo),
-que também inclui Afiliação. A confirmação veio pelo check do GitHub e pelo print
+Revisar visualmente os cinco questionários na prévia, sem enviar uma candidatura.
+A Cloudflare confirmou anteriormente build/deploy da versão de código `d053d83`
+(Editor de Vídeo), que também inclui Afiliação. A confirmação veio pelo check do GitHub e pelo print
 da aba Implantações com status “Pronto”. Essa confirmação valida a publicação da
-prévia, não substitui um teste real de candidatura dessas novas vagas.
+prévia anterior, não substitui um teste real de candidatura das novas vagas.
+A confirmação da versão mais recente de Backend/SMS será registrada no PR.
 Para a pendência do perfil, solicitar ao suporte um cURL mínimo válido e confirmar IDs da query/corpo, grupos,
 formato da data e campo de remuneração. Não é necessária outra candidatura para
 analisar o cadastro existente. O draft permanece sem produção até resolver essa

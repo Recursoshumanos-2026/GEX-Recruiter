@@ -1,4 +1,4 @@
-import { questionnaireFor, validateAnswers } from './questionnaires.js?v=4';
+import { questionnaireFor, validateAnswers } from './questionnaires.js?v=5';
 
 const CONFIG = window.GEX_TALENTS_CONFIG || {};
 

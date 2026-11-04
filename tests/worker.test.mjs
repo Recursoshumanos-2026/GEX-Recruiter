@@ -831,3 +831,77 @@ test('respostas de Editor não substituem questionário de Dados Sênior', async
   assert.equal(result.status, 400);
   assert.equal(result.calls.length, 0);
 });
+
+const backendAnswers = () => ({
+  age: '35', pj: 'Sim', proficiency: 'Já utilizei com apoio ou em tarefas simples',
+  technologies: ['Go','PHP'], integration: 'Implementar um sistema de retries com backoff exponencial.',
+  diagnostics: 'Apenas logs de aplicação.'
+});
+const backendPayload = () => ({ ...payload(), vacancy_id: '158684', questionnaire_answers: backendAnswers() });
+
+test('Backend SMS registra seis perguntas em ordem e todas as tecnologias sem avaliar gabarito', async () => {
+  const input=backendPayload();
+  input.questionnaire_answers.age='  <script>alert("x")</script> & 35  ';
+  input.questionnaire_answers.technologies=['C#','Python','Java','PHP','Go'];
+  const result=await run(input);
+  assert.equal(result.status,201);
+  assert.equal(result.body.application_created,true);
+  assert.equal(result.body.tag_completed,true);
+  assert.equal(result.body.observation_completed,true);
+  const observation=result.calls.find(c=>c.path.endsWith('/talents-observations'));
+  const html=observation.init.body.get('description');
+  assert.ok(html.includes('<strong>Vaga:</strong> Desenvolvedor Backend e Integrações SMS - Sênior'));
+  const labels=[
+    'Qual sua idade?',
+    'Aceita oportunidade PJ?',
+    'Qual seu nível de domínio em desenvolvimento backend e sistemas em produção?',
+    'Quais das seguintes tecnologias são mencionadas como essenciais para o desenvolvimento backend e integrações nesta vaga?',
+    'Em cenários de integração de sistemas, qual das seguintes abordagens é mais adequada para garantir que uma operação seja executada no máximo uma vez, mesmo que a requisição seja enviada múltiplas vezes?',
+    'Ao diagnosticar problemas em produção, qual combinação de ferramentas e dados é mais eficaz para rastrear eventos entre diferentes serviços e integrações externas?'
+  ];
+  const positions=labels.map((label,i)=>html.indexOf(`${i+1}. ${label}`));
+  for(let i=0;i<positions.length;i++)assert.ok(positions[i]>=0 && (i===0 || positions[i]>positions[i-1]));
+  assert.ok(html.includes('&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; 35'));
+  assert.ok(!html.includes('<script>'));
+  assert.ok(html.includes('<li>Go</li><li>PHP</li><li>Java</li><li>Python</li><li>C#</li>'));
+  assert.ok(html.includes(input.questionnaire_answers.integration));
+  assert.ok(html.includes(input.questionnaire_answers.diagnostics));
+  assert.equal(observation.init.body.get('application_id'),'33');
+  assert.equal(observation.init.body.get('talent_id'),'22');
+  assert.equal(observation.init.body.get('talent_observation_type_id'),'7');
+  assert.equal(observation.init.body.get('action'),'1');
+});
+for(const id of Object.keys(backendAnswers())) {
+  test(`Backend SMS exige ${id} antes de chamadas externas`,async()=>{
+    const input=backendPayload();delete input.questionnaire_answers[id];
+    const result=await run(input);
+    assert.equal(result.status,400);assert.equal(result.calls.length,0);
+  });
+}
+for(const [name,mutate] of [
+  ['PJ múltiplo',p=>p.questionnaire_answers.pj=['Sim']],
+  ['domínio desconhecido',p=>p.questionnaire_answers.proficiency='Outro nível'],
+  ['tecnologias vazias',p=>p.questionnaire_answers.technologies=[]],
+  ['tecnologia desconhecida',p=>p.questionnaire_answers.technologies=['Não listada']],
+  ['tecnologias em texto',p=>p.questionnaire_answers.technologies='Go'],
+  ['tecnologia duplicada',p=>p.questionnaire_answers.technologies=['Go','Go']],
+  ['integração em array',p=>p.questionnaire_answers.integration=['Garantir que a operação seja idempotente.']],
+  ['diagnóstico desconhecido',p=>p.questionnaire_answers.diagnostics='Outra combinação']
+])test(`Backend SMS valida ${name} antes da criação`,async()=>{
+  const input=backendPayload();mutate(input);const result=await run(input);
+  assert.equal(result.status,400);assert.equal(result.calls.length,0);
+});
+test('Backend SMS registra opções marcadas como eliminatórias sem reprovação automática',async()=>{
+  const input=backendPayload();input.questionnaire_answers.pj='Não';
+  input.questionnaire_answers.proficiency='Nunca utilizei ou só conheço conceitualmente';
+  const result=await run(input);
+  assert.equal(result.status,201);assert.equal(result.body.observation_completed,true);
+  assert.ok(result.calls.every(c=>['/api/v1/login-api','/api/v2/vacancies/filter','/api/v2/prospects',
+    '/api/v2/curriculum/filled','/api/v2/tags/talent','/api/v2/talents-observations'].includes(c.path)));
+});
+for(const input of [
+  {...backendPayload(),questionnaire_answers:videoAnswers()},
+  {...videoPayload(),questionnaire_answers:backendAnswers()}
+])test(`respostas cruzadas de Backend e Vídeo não são aceitas para ${input.vacancy_id}`,async()=>{
+  const result=await run(input);assert.equal(result.status,400);assert.equal(result.calls.length,0);
+});

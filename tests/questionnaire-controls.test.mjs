@@ -116,3 +116,15 @@ test('questionários anteriores continuam indicando todas as respostas como obri
     assert.ok(!view.section.innerHTML.includes('(opcional)'));
   }
 });
+
+test('Backend SMS renderiza uma resposta curta, cinco checkboxes e quinze rádios obrigatórios',()=>{
+  const view=fixture('158684');view.render('158684');const html=view.section.innerHTML;
+  assert.equal((html.match(/<input name=/g)||[]).length,1);
+  assert.equal((html.match(/type="checkbox"/g)||[]).length,5);
+  assert.equal((html.match(/type="radio"/g)||[]).length,15);
+  assert.ok(!html.includes('(opcional)'));assert.ok(!html.includes('<textarea'));
+  assert.ok(html.includes('name="question_age" required'));
+  assert.ok(html.includes('6. Ao diagnosticar problemas em produção'));
+  view.controls.get('technologies')[0].checked=false;view.validate();
+  assert.equal(view.controls.get('technologies')[0].message,'Selecione ao menos uma alternativa.');
+});
