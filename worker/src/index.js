@@ -1,5 +1,6 @@
 import { questionnaireFor, validateAnswers } from '../../questionnaires.js';
 import { resumeAvailable, convertResume, assertResumeDatabase, storeResume, resumeField } from './resumes.js';
+import { cleanupExpiredResumes, RETENTION_CRON } from './retention.js';
 
 const API_BASE = 'https://api.recrutei.com.br';
 let tokenCache = { token: null, expiresAt: 0 };
@@ -871,6 +872,13 @@ async function createProspect(env, rawPayload) {
 }
 
 export default {
+  async scheduled(controller, env) {
+    if (controller.cron !== RETENTION_CRON) return;
+    const report = await cleanupExpiredResumes(env, { now:controller.scheduledTime });
+    // No resume content, names, emails or IDs in logs.
+    console.info('GEX Talents | retenção D1:', report.status,
+      report.status === 'dry_run' ? report.eligible : report.deleted);
+  },
   async fetch(request, env) {
     const url = new URL(request.url);
 
