@@ -747,7 +747,8 @@ function renderSpecificVacancy(id) {
               <div class="vacancy-hero-art" aria-hidden="true">
                 <div class="vacancy-hero-orbit orbit-one"></div>
                 <div class="vacancy-hero-orbit orbit-two"></div>
-                <img class="vacancy-hero-official-logo" src="assets/gex-logo-branco.svg" alt="" />
+                <img class="vacancy-hero-symbol" src="assets/gex-simbolo.png" alt="" />
+                <span class="vacancy-hero-art-label"><img class="vacancy-hero-wordmark" src="assets/gex-wordmark-branco.svg" alt="" /><span>RECRUITER</span></span>
                 <span class="vacancy-hero-art-caption">DESAFIOS QUE MOVEM O FUTURO.</span>
               </div>
             </div>
