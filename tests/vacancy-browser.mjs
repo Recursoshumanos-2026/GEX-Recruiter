@@ -221,8 +221,16 @@ try {
     assert.equal(await page.locator('body > main > #sobre').isVisible(), false);
     assert.equal(await page.locator('body > main > #cultura').isVisible(), false);
     assert.equal(await page.locator('body > main > #beneficios').isVisible(), false);
-    assert.equal(await page.locator('[data-apply="158883"]').count(),2);
-    await page.locator('.vacancy-top-apply [data-apply="158883"]').click();
+    assert.equal(await page.locator('.vacancy-top-apply').count(),0);
+    assert.equal(await page.locator('[data-apply="158883"]').count(),1);
+    assert.equal(await page.locator('.vacancy-bottom-action [data-apply="158883"]').count(),1);
+    assert.equal(await page.evaluate(() => {
+      const benefits = document.querySelector('.vacancy-benefits');
+      const apply = document.querySelector('.vacancy-bottom-action [data-apply]');
+      return Boolean(benefits && apply &&
+        (benefits.compareDocumentPosition(apply) & Node.DOCUMENT_POSITION_FOLLOWING));
+    }),true);
+    await page.locator('.vacancy-bottom-action [data-apply="158883"]').click();
     assert.equal(await page.locator('#applyDialog').isVisible(),true);
     assert.equal(await page.locator('#vacancyId').inputValue(),'158883');
     assert.equal(await page.locator('[name="question_age"]').count(),1);
