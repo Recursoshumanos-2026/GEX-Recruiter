@@ -18,16 +18,20 @@ async function run(input, options = {}) {
   const original = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
-    calls.push({ path, init });
+    calls.push({ path, url: String(url), init });
     if (path.endsWith('/login-api')) return json({ token: 'fake-test-token' });
     if (path.endsWith('/vacancies/filter')) return json({ data: [
       { id: Number(input.vacancy_id), vacancy_status_id: 1, pipe_stages: [{ id: 10, order: 1 }] }
     ] });
     if (path.endsWith('/prospects')) return json(options.createBody ?? {
-      data: { talent: { id: 22 }, application: { id: 33 } }
+      data: { talent: { id: 22, prospect: { id: 44 } }, application: { id: 33 } }
     }, options.createStatus ?? 201);
     if (path === options.throwPath) throw new Error('Simulated network failure');
     if (path === options.failPath) return json(options.failBody ?? { message: 'upstream rejected' }, 422);
+    if (path === '/api/v1/applications/33') return json(options.lookupBody ?? {
+      id: 33, vacancy_id: Number(input.vacancy_id), talent_id: 22,
+      talent: { id: 22, prospect: { id: 44 } }
+    }, options.lookupStatus ?? 200);
     if (['/api/v2/curriculum/filled', '/api/v2/tags/talent', '/api/v2/talents-observations'].includes(path)) {
       return json({ data: { id: 1 } }, 201);
     }
@@ -77,6 +81,8 @@ test('cria observação multipart ordenada, preservando perfil e tag', async () 
   assert.equal(JSON.parse(tag.init.body).value, 'GEX Talents');
   const profile = JSON.parse(result.calls.find(c => c.path.endsWith('/curriculum/filled')).init.body);
   assert.equal(profile.talent_id, 22);
+  assert.equal(profile.application_id, 33);
+  assert.equal(new URL(result.calls.find(c => c.path.endsWith('/curriculum/filled')).url).searchParams.get('talent_id'), '44');
   assert.equal(profile.basic_infos.length, 4);
   assert.equal(profile.additional.length, 2);
 });
@@ -193,6 +199,36 @@ test('IDs ausentes: nenhuma observação com IDs inventados e candidatura perman
 test('suporta IDs no formato alternativo já reconhecido pela integração', async () => {
   const result = await run(payload(), { createBody: { data: { application: { id: 33, prospect: { talent_id: 22 } } } } });
   assert.equal(result.body.observation_completed, true);
+});
+test('perfil sem ID de prospecção consulta candidatura e separa ID de prospecção do talento', async () => {
+  const result = await run(payload(), { createBody: { data: { talent: { id: 22 }, application: { id: 33 } } } });
+  assert.equal(result.body.profile_completed, true);
+  const read = result.calls.find(call => call.path === '/api/v1/applications/33');
+  assert.equal(read.init.method, 'GET');
+  assert.equal(read.init.headers['Content-Type'], 'application/json');
+  const update = result.calls.find(call => call.path.endsWith('/curriculum/filled'));
+  assert.equal(new URL(update.url).searchParams.get('talent_id'), '44');
+  assert.equal(JSON.parse(update.init.body).talent_id, 22);
+});
+for (const key of ['id', 'vacancy_id', 'talent_id']) {
+  test(`perfil rejeita fallback com ${key} divergente sem PUT e preserva observação`, async () => {
+    const lookupBody = { id: 33, vacancy_id: 158928, talent_id: 22, talent: { id: 22, prospect: { id: 44 } } };
+    lookupBody[key] = 999;
+    const result = await run(payload(), {
+      createBody: { data: { talent: { id: 22 }, application: { id: 33 } } }, lookupBody
+    });
+    assert.equal(result.body.profile_completed, false);
+    assert.equal(result.body.observation_completed, true);
+    assert.ok(!result.calls.some(call => call.path.endsWith('/curriculum/filled')));
+  });
+}
+test('perfil nunca usa ID do talento como substituto de prospecção ausente', async () => {
+  const result = await run(payload(), {
+    createBody: { data: { talent: { id: 22 }, application: { id: 33 } } },
+    lookupBody: { id: 33, vacancy_id: 158928, talent_id: 22, talent: { id: 22 } }
+  });
+  assert.equal(result.body.profile_completed, false);
+  assert.ok(!result.calls.some(call => call.path.endsWith('/curriculum/filled')));
 });
 test('falha na criação nunca envia perfil, tag ou observação', async () => {
   const result = await run(payload(), { createStatus: 422 });
@@ -344,3 +380,126 @@ for (const failure of [{ status: 403, body: { message: 'private upstream failure
     assert.equal(result.body.fields, undefined);
   });
 }
+
+const profileTestEnv = {
+  ...diagnosticEnv, PROFILE_DIAGNOSTIC_WRITE_ENABLED: 'true', ALLOWED_ORIGIN: 'https://private-preview.invalid'
+};
+const profileTestPayload = () => ({ birthday: '2000-02-29', intended_remuneration: '5000.00' });
+async function runProfileTest(options = {}) {
+  const calls = [];
+  const original = globalThis.fetch;
+  let reads = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    calls.push({ url: String(url), path, init });
+    if (path.endsWith('/login-api')) return json({ token: 'fake-test-token' });
+    if (path === '/api/v1/applications/15905660' && init.method === 'GET') {
+      reads += 1;
+      if (reads === 1) return json(options.lookupBody ?? diagnosticApplication());
+      if (options.readbackThrows) throw new Error('private read failure');
+      const application = diagnosticApplication();
+      application.talent.birthday = '2000-02-29';
+      application.talent.professional_profile.intended_remuneration = '5000';
+      return json(options.readbackBody ?? application);
+    }
+    if (path === '/api/v2/curriculum/filled' && init.method === 'PUT') {
+      return options.rejectUpdate
+        ? json({ message: 'private rejected value 2000-02-29 5000.00', errors: { birthday: ['private value'] } }, 422)
+        : json({ data: { id: 1 } });
+    }
+    throw new Error(`Unexpected staging write: ${path}`);
+  };
+  try {
+    const response = await worker.fetch(new Request('https://preview.invalid/api/teste-perfil?application_id=999', {
+      method: options.method || 'POST',
+      headers: { Origin: 'https://private-preview.invalid', 'Content-Type': 'application/json', ...options.headers },
+      ...((options.method || 'POST') === 'POST' ? {
+        body: options.rawBody ?? JSON.stringify(options.payload ?? profileTestPayload())
+      } : {})
+    }), options.env ?? profileTestEnv);
+    return { status: response.status, body: await response.json(), calls };
+  } finally { globalThis.fetch = original; }
+}
+for (const overrides of [
+  { PROFILE_DIAGNOSTIC_ENABLED: 'false' }, { PROFILE_DIAGNOSTIC_WRITE_ENABLED: undefined },
+  { PROFILE_DIAGNOSTIC_WRITE_ENABLED: 'false' }, { PROFILE_DIAGNOSTIC_APPLICATION_ID: '0' },
+  { PROFILE_DIAGNOSTIC_VACANCY_ID: undefined }
+]) test('reparo de teste fica indisponível sem autorização fixa explícita: ' + JSON.stringify(overrides), async () => {
+  const result = await runProfileTest({ env: { ...profileTestEnv, ...overrides } });
+  assert.equal(result.status, 404);
+  assert.equal(result.calls.length, 0);
+});
+for (const options of [
+  { headers: { Origin: 'https://other.invalid' }, status: 403 },
+  { headers: { 'Content-Type': 'text/plain' }, status: 415 },
+  { rawBody: 'not json', status: 400 },
+  { rawBody: ' '.repeat(2049), status: 413 },
+  { payload: { ...profileTestPayload(), application_id: '999' }, status: 400 },
+  { payload: { ...profileTestPayload(), ssn: '111.222.333-44' }, status: 400 },
+  { payload: { birthday: '2001-02-29', intended_remuneration: '5000' }, status: 400 },
+  { payload: { birthday: '2000-13-01', intended_remuneration: '5000' }, status: 400 },
+  { payload: { birthday: '29/02/2000', intended_remuneration: '5000' }, status: 400 },
+  { payload: { birthday: '2000-02-29', intended_remuneration: 'R$ 5.000,00' }, status: 400 },
+  { payload: { birthday: '2000-02-29', intended_remuneration: 5000 }, status: 400 }
+]) test('reparo valida antes de chamadas externas: ' + JSON.stringify(options), async () => {
+  const result = await runProfileTest(options);
+  assert.equal(result.status, options.status);
+  assert.equal(result.calls.length, 0);
+});
+test('reparo atualiza somente currículo do teste fixo e confirma nascimento e salário por leitura', async () => {
+  const result = await runProfileTest();
+  assert.equal(result.status, 200);
+  assert.equal(result.body.application_created, false);
+  assert.equal(result.body.profile_completed, true);
+  assert.equal(result.body.birthday_verified, true);
+  assert.equal(result.body.salary_verified, true);
+  const dataCalls = result.calls.filter(call => !call.path.endsWith('/login-api'));
+  assert.deepEqual(dataCalls.map(call => call.init.method), ['GET', 'PUT', 'GET']);
+  assert.deepEqual(dataCalls.filter(call => call.init.method === 'GET').map(call => call.url), [
+    'https://api.recrutei.com.br/api/v1/applications/15905660',
+    'https://api.recrutei.com.br/api/v1/applications/15905660'
+  ]);
+  const update = dataCalls[1];
+  assert.equal(new URL(update.url).searchParams.get('talent_id'), '2345678');
+  const sent = JSON.parse(update.init.body);
+  assert.equal(sent.talent_id, 7654321);
+  assert.equal(sent.application_id, 15905660);
+  assert.deepEqual(sent.basic_infos, [{ key: 'birthday', value: '2000-02-29', title: 'Data de nascimento' }]);
+  assert.deepEqual(sent.additional, [{ key: 'intended_remuneration', value: '5000.00', title: 'Pretensão salarial' }]);
+  const publicResponse = JSON.stringify(result.body);
+  for (const value of ['2000-02-29', '5000', '15905660', '7654321', '2345678', 'Pessoa reservada', 'private-diagnostic@example.invalid']) {
+    assert.ok(!publicResponse.includes(value));
+  }
+});
+test('reparo rejeita pessoa não identificada como teste antes de qualquer PUT', async () => {
+  const application = diagnosticApplication(); application.talent.prospect.name = 'Pessoa real';
+  const result = await runProfileTest({ lookupBody: application });
+  assert.equal(result.status, 409);
+  assert.ok(!result.calls.some(call => call.init.method === 'PUT'));
+});
+test('reparo com perfil rejeitado não reflete mensagem ou valores externos', async () => {
+  const result = await runProfileTest({ rejectUpdate: true });
+  assert.equal(result.body.profile_completed, false);
+  assert.equal(result.body.application_created, false);
+  assert.deepEqual(result.body.profile_error, { http_status: 422, fields: ['birthday'] });
+  assert.ok(!JSON.stringify(result.body).includes('private rejected value'));
+  assert.ok(!JSON.stringify(result.body).includes('2000-02-29'));
+  assert.ok(!JSON.stringify(result.body).includes('5000.00'));
+});
+test('reparo não confunde aceitação da API com nascimento realmente persistido', async () => {
+  const result = await runProfileTest({ readbackBody: diagnosticApplication() });
+  assert.equal(result.body.profile_completed, true);
+  assert.equal(result.body.birthday_verified, false);
+  assert.equal(result.body.salary_verified, false);
+});
+test('reparo informa verificação desconhecida quando leitura posterior falha', async () => {
+  const result = await runProfileTest({ readbackThrows: true });
+  assert.equal(result.body.profile_completed, true);
+  assert.equal(result.body.birthday_verified, null);
+  assert.equal(result.body.salary_verified, null);
+});
+test('reparo não infere salário ausente nos caminhos conhecidos', async () => {
+  const application = diagnosticApplication(); application.talent.professional_profile = null;
+  const result = await runProfileTest({ readbackBody: application });
+  assert.equal(result.body.salary_verified, null);
+});

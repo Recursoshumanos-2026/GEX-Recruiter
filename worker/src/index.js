@@ -26,6 +26,12 @@ function clean(value) {
   return typeof value === 'string' ? value.trim() : value;
 }
 
+function positiveId(value) {
+  const id = String(value ?? '');
+  return id === id.trim() && /^[1-9][0-9]*$/.test(id) &&
+    Number.isSafeInteger(Number(id));
+}
+
 async function getBearer(env) {
   if (tokenCache.token && Date.now() < tokenCache.expiresAt - 60000) {
     return tokenCache.token;
@@ -142,7 +148,13 @@ function profileIds(body, vacancyId) {
     )?.id ||
     null;
 
-  return { talentId, applicationId };
+  const prospectId = [
+    body?.data?.talent?.prospect?.id,
+    body?.data?.application?.prospect?.id,
+    body?.data?.application?.prospect_id
+  ].find(positiveId) || null;
+
+  return { talentId, applicationId, prospectId };
 }
 
 function buildProfilePayload(payload, talentId, applicationId) {
@@ -233,16 +245,18 @@ function diagnosticField(object, key) {
   };
 }
 
-async function diagnoseProspectProfile(env) {
+function profileDiagnosticConfig(env, write = false) {
   const applicationId = String(env.PROFILE_DIAGNOSTIC_APPLICATION_ID || '');
   const vacancyId = String(env.PROFILE_DIAGNOSTIC_VACANCY_ID || '');
-  const positiveId = value => value === value.trim() && /^[1-9][0-9]*$/.test(value) &&
-    Number.isSafeInteger(Number(value));
   if (env.PROFILE_DIAGNOSTIC_ENABLED !== 'true' ||
+      (write && env.PROFILE_DIAGNOSTIC_WRITE_ENABLED !== 'true') ||
       !positiveId(applicationId) || !positiveId(vacancyId)) {
-    return json({ message: 'Rota não encontrada' }, 404, env);
+    return null;
   }
+  return { applicationId, vacancyId };
+}
 
+async function lookupApplication(env, applicationId) {
   let lookupStatus = null;
   try {
     const response = await recrutei(env, `/api/v1/applications/${applicationId}`, {
@@ -252,26 +266,57 @@ async function diagnoseProspectProfile(env) {
     if (!response.ok) throw new Error('Lookup failed');
     const body = await response.json();
     const application = body?.data ?? body;
-    const talent = application?.talent;
-    const prospect = talent?.prospect;
-    const name = prospect?.name || application?.prospect?.name || talent?.user?.name;
-    const applicationMatches = String(application?.id) === applicationId;
-    const vacancyMatches = String(application?.vacancy_id) === vacancyId;
-    if (!applicationMatches || !vacancyMatches || typeof name !== 'string' ||
-        !/^teste(?:\s|\d|$)/i.test(name.trim())) {
-      return json({
-        ok: false, lookup_http_status: lookupStatus,
-        application_matches_config: applicationMatches,
-        vacancy_matches_config: vacancyMatches,
-        message: 'O registro retornado não corresponde ao teste configurado.'
-      }, 409, env);
-    }
+    return { ok: true, application, lookup_http_status: lookupStatus };
+  } catch {
+    return { ok: false, lookup_http_status: lookupStatus };
+  }
+}
+
+async function lookupConfiguredTestApplication(env, config) {
+  const result = await lookupApplication(env, config.applicationId);
+  if (!result.ok) return result;
+  const application = result.application;
+  const name = application?.talent?.prospect?.name || application?.prospect?.name ||
+    application?.talent?.user?.name;
+  const applicationMatches = String(application?.id) === config.applicationId;
+  const vacancyMatches = String(application?.vacancy_id) === config.vacancyId;
+  if (!applicationMatches || !vacancyMatches || typeof name !== 'string' ||
+      !/^teste(?:\s|\d|$)/i.test(name.trim())) {
+    return {
+      ok: false, mismatch: true, lookup_http_status: result.lookup_http_status,
+      application_matches_config: applicationMatches,
+      vacancy_matches_config: vacancyMatches
+    };
+  }
+  return result;
+}
+
+function diagnosticLookupFailure(result, env) {
+  return json({
+    ok: false, lookup_http_status: result.lookup_http_status,
+    ...(result.mismatch ? {
+      application_matches_config: result.application_matches_config,
+      vacancy_matches_config: result.vacancy_matches_config
+    } : {}),
+    message: result.mismatch ? 'O registro retornado não corresponde ao teste configurado.' :
+      'Não foi possível consultar o registro de teste.'
+  }, result.mismatch ? 409 : 502, env);
+}
+
+async function diagnoseProspectProfile(env) {
+  const config = profileDiagnosticConfig(env);
+  if (!config) return json({ message: 'Rota não encontrada' }, 404, env);
+  const result = await lookupConfiguredTestApplication(env, config);
+  if (!result.ok) return diagnosticLookupFailure(result, env);
+  const application = result.application;
+  const talent = application?.talent;
+  const prospect = talent?.prospect;
 
     const hasId = value => positiveId(String(value || ''));
     const sameId = (left, right) => hasId(left) && hasId(right)
       ? String(left) === String(right) : null;
     return json({
-      ok: true, lookup_http_status: lookupStatus,
+      ok: true, lookup_http_status: result.lookup_http_status,
       application_matches_config: true, vacancy_matches_config: true,
       identifiers: {
         application_talent_id_present: hasId(application.talent_id),
@@ -296,21 +341,15 @@ async function diagnoseProspectProfile(env) {
         'prospect.intended_remuneration': diagnosticField(application.prospect, 'intended_remuneration')
       }
     }, 200, env);
-  } catch {
-    return json({
-      ok: false, lookup_http_status: lookupStatus,
-      message: 'Não foi possível consultar o registro de teste.'
-    }, 502, env);
-  }
 }
 
 async function updateProspectProfile(env, payload, createBody) {
-  const { talentId, applicationId } = profileIds(
+  const { talentId, applicationId, prospectId } = profileIds(
     createBody,
     payload.vacancy_id
   );
 
-  if (!talentId || !applicationId) {
+  if (!positiveId(talentId) || !positiveId(applicationId)) {
     return {
       ok: false,
       reason: 'IDs do talento/candidatura não retornados pela Recrutei.'
@@ -330,9 +369,27 @@ async function updateProspectProfile(env, payload, createBody) {
     return { ok: true };
   }
 
+  let targetProspectId = prospectId;
+  if (!targetProspectId) {
+    const lookup = await lookupApplication(env, applicationId);
+    const application = lookup.application;
+    if (!lookup.ok || String(application?.id) !== String(applicationId) ||
+        String(application?.vacancy_id) !== String(payload.vacancy_id) ||
+        String(application?.talent_id ?? application?.talent?.id) !== String(talentId) ||
+        (application?.talent?.id != null && String(application.talent.id) !== String(talentId))) {
+      return { ok: false, reason: 'Não foi possível confirmar a prospecção desta candidatura.',
+        diagnostics: { http_status: lookup.lookup_http_status, fields: [] } };
+    }
+    targetProspectId = [application.talent?.prospect?.id, application.prospect?.id,
+      application.prospect_id].find(positiveId);
+  }
+  if (!targetProspectId) {
+    return { ok: false, reason: 'ID da prospecção não retornado pela Recrutei.' };
+  }
+
   const response = await recrutei(
     env,
-    `/api/v2/curriculum/filled?talent_id=${encodeURIComponent(talentId)}`,
+    `/api/v2/curriculum/filled?talent_id=${encodeURIComponent(targetProspectId)}`,
     {
       method: 'PUT',
       headers: {
@@ -358,6 +415,75 @@ async function updateProspectProfile(env, payload, createBody) {
   }
 
   return { ok: true };
+}
+
+async function testProspectProfile(request, env) {
+  const config = profileDiagnosticConfig(env, true);
+  if (!config) return json({ message: 'Rota não encontrada' }, 404, env);
+  if (!env.ALLOWED_ORIGIN || request.headers.get('Origin') !== env.ALLOWED_ORIGIN) {
+    return json({ message: 'Origem não permitida.' }, 403, env);
+  }
+  if (request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/json') {
+    return json({ message: 'Envie somente JSON.' }, 415, env);
+  }
+  let payload;
+  try {
+    const text = await request.text();
+    if (text.length > 2048) return json({ message: 'Solicitação muito extensa.' }, 413, env);
+    payload = JSON.parse(text);
+  } catch {
+    return json({ message: 'JSON inválido.' }, 400, env);
+  }
+  const birthday = payload?.birthday;
+  const salary = payload?.intended_remuneration;
+  const date = typeof birthday === 'string' ? new Date(`${birthday}T00:00:00.000Z`) : null;
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
+      Object.keys(payload).length !== 2 ||
+      !Object.keys(payload).every(key => ['birthday', 'intended_remuneration'].includes(key)) ||
+      typeof birthday !== 'string' || birthday !== birthday.trim() ||
+      !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(birthday) || Number(birthday.slice(0, 4)) < 1 ||
+      !Number.isFinite(date?.getTime()) || date.toISOString().slice(0, 10) !== birthday ||
+      typeof salary !== 'string' || salary !== salary.trim() ||
+      !/^[0-9]+(?:\.[0-9]{1,2})?$/.test(salary) || !Number.isFinite(Number(salary))) {
+    return json({ message: 'Informe somente nascimento válido e pretensão salarial numérica.' }, 400, env);
+  }
+
+  const lookup = await lookupConfiguredTestApplication(env, config);
+  if (!lookup.ok) return diagnosticLookupFailure(lookup, env);
+  const application = lookup.application;
+  const talentId = application.talent?.id ?? application.talent_id;
+  if (!positiveId(talentId) ||
+      (application.talent_id != null && String(application.talent_id) !== String(talentId))) {
+    return json({ message: 'Não foi possível confirmar o talento do registro de teste.' }, 409, env);
+  }
+  const profileResult = await completeApplicationStep(() => updateProspectProfile(env, {
+    vacancy_id: config.vacancyId, birthday, intended_remuneration: salary
+  }, { data: { talent: { id: talentId, prospect: application.talent?.prospect },
+    application: { id: config.applicationId, prospect: application.prospect,
+      prospect_id: application.prospect_id } } }));
+  const readback = await lookupConfiguredTestApplication(env, config);
+  const verified = readback.ok &&
+    String(readback.application?.talent?.id ?? readback.application?.talent_id) === String(talentId);
+  let salaryVerified = null;
+  if (verified) {
+    const talent = readback.application.talent;
+    const prospects = [talent?.professional_profile, talent?.prospect, readback.application.prospect];
+    const values = prospects.flatMap(group => [group?.intended_remuneration, group?.intended])
+      .filter(value => value != null && String(value).trim() !== '');
+    const numbers = values.map(value => String(value).trim().replace(',', '.'))
+      .filter(value => /^[0-9]+(?:\.[0-9]+)?$/.test(value) && Number.isFinite(Number(value)));
+    if (numbers.length) salaryVerified = numbers.some(value => Number(value) === Number(salary));
+  }
+  return json({
+    ok: profileResult.ok, application_created: false,
+    profile_completed: profileResult.ok,
+    birthday_verified: verified ? readback.application.talent?.birthday === birthday : null,
+    salary_verified: salaryVerified,
+    ...(!profileResult.ok ? {
+      profile_warning: 'Não foi possível complementar o perfil do registro de teste.',
+      profile_error: profileResult.diagnostics || { http_status: null, fields: [] }
+    } : {})
+  }, 200, env);
 }
 
 async function addGexTalentsTag(env, payload, createBody) {
@@ -638,6 +764,9 @@ export default {
     try {
       if (request.method === 'GET' && url.pathname === '/api/diagnostico-perfil') {
         return diagnoseProspectProfile(env);
+      }
+      if (request.method === 'POST' && url.pathname === '/api/teste-perfil') {
+        return testProspectProfile(request, env);
       }
 
       if (

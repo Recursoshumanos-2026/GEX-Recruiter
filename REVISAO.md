@@ -72,7 +72,7 @@ versão antiga do backend seja usada por engano.
 
 ## Resultados das verificações
 
-- **51 testes do Worker aprovados**, com `fetch` substituído por uma API simulada:
+- **78 testes do Worker aprovados**, com `fetch` substituído por uma API simulada:
   criação, ordem, multipart, IDs, HTML escapado, todas as seleções, validações,
   preservação do perfil/tag, outras vagas, falhas posteriores à criação e bloqueio de
   candidaturas na prévia desabilitada.
@@ -123,7 +123,7 @@ produção, mantenha os dois arquivos consistentes.
 
 Validação do ajuste: equivalência das variáveis de produção e do caminho resolvido
 para o entrypoint; configuração interpretada pelo Wrangler 4.157.0; bundle de
-`wrangler deploy --dry-run` executado da raiz; sintaxe e 51 testes aprovados.
+`wrangler deploy --dry-run` executado da raiz; sintaxe e 78 testes aprovados.
 As mudanças estão restritas à branch do PR, sem merge ou publicação em produção.
 A confirmação do novo build remoto depende do resultado da Cloudflare.
 
@@ -144,7 +144,7 @@ O backend agora responde HTTP 503 com `code: APPLICATIONS_DISABLED`,
 `applications_enabled: false` e `application_created: false`, antes de qualquer
 chamada à Recrutei. O front-end exibe a informação de bloqueio, preserva os campos
 preenchidos e desabilita os botões de candidatura, sem sugerir uma nova tentativa.
-O caso de prévia desativada integra os 51 testes do Worker aprovados; a sintaxe dos
+O caso de prévia desativada integra os 78 testes do Worker aprovados; a sintaxe dos
 scripts também foi verificada. Este ajuste não corrige nem diagnostica por si só
 os campos complementares que não apareceram na ficha.
 
@@ -162,7 +162,7 @@ de campos conhecidos, sem valores rejeitados ou resposta bruta da API. O campo
 `profile_warning` existente permanece preservado. Exceções de rede ou ausência dos
 IDs retornam status nulo e lista vazia; o sucesso não inclui `profile_error`.
 
-Os 51 testes simulados do Worker passaram. A prévia privada ganhou um resumo do
+Os 78 testes simulados do Worker passaram. A prévia privada ganhou um resumo do
 resultado do envio, separado por candidatura, perfil, tag e observação. Esse
 observador não altera o envio nem o repete; registra apenas presença dos campos de
 entrada, sem seus valores ou headers. Quatro testes locais desse observador
@@ -185,7 +185,7 @@ um nome de teste, e retorna apenas status, indicadores de presença/comparação
 tipos de campos. Não retorna nomes, e-mail, telefone, CPF, nascimento, remuneração,
 IDs ou resposta bruta. Sem as três variáveis explícitas, a rota responde 404 antes
 de acessar a Recrutei; essas variáveis existem somente em `previews.vars`.
-Os 51 testes simulados passaram, incluindo escopo fixo, ausência de vazamento,
+Os 78 testes simulados passaram, incluindo escopo fixo, ausência de vazamento,
 tratamento de incompatibilidades e ausência de escritas nessa consulta.
 
 A nova rota privada do formulário é `/integracao-atual/`. O painel identifica a
@@ -193,3 +193,25 @@ revisão 2 antes de qualquer envio e restaura somente metadados da sessão após
 recarregamento, sem valores informados ou mensagens da API armazenadas.
 Os 7 testes locais do observador passaram. A prévia permanece habilitada conforme
 instrução expressa do usuário durante a homologação; o portal oficial não mudou.
+
+
+## Ajuste do identificador e conferência do cadastro existente
+
+A consulta real confirmou candidatura e vaga corretas, `talent.is_prospect` ativo,
+ID do talento igual ao vínculo da candidatura e ID da prospecção diferente.
+O nascimento retornou nulo. Seguindo a descrição do parâmetro de URL no guia de
+edição da prospecção, o PUT passa a usar o ID da prospecção no query `talent_id` e
+mantém os IDs do talento e da candidatura no corpo. Caso o ID da prospecção não
+venha na criação, uma leitura validada da candidatura o resolve; o ID do talento
+não é usado como substituto. O corpo dos grupos e o formato de data não mudaram.
+Essa alteração ainda requer confirmação pela escrita e leitura reais na prévia.
+
+A rota temporária `POST /api/teste-perfil` só é habilitada na prévia com a variável
+adicional `PROFILE_DIAGNOSTIC_WRITE_ENABLED`. Ela exige a origem autorizada, os
+IDs fixos e um nome de teste confirmados por leitura; recebe apenas nascimento e
+pretensão salarial, atualiza esse cadastro existente e o consulta novamente.
+Não cria candidaturas, nem escreve tags/observações ou outros candidatos.
+O retorno distingue aceite da API de confirmação dos valores pela leitura e não
+expõe valores pessoais ou IDs. A configuração de produção não habilita a rota.
+A página privada `/reparo-perfil/` oferece somente os dois campos dessa conferência.
+Os 78 testes do Worker e 5 testes locais dessa tela passaram, sem chamadas reais.

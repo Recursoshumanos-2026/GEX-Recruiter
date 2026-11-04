@@ -147,3 +147,10 @@ Na homologação, a rota `GET /api/diagnostico-perfil` só fica disponível quan
 consulta somente o cadastro fictício fixado e devolve metadados sem valores
 pessoais ou IDs; não altera registros e ignora IDs enviados por querystring.
 A configuração de produção não declara essas variáveis.
+
+
+O preenchimento complementar usa o ID da prospecção no query da edição e mantém
+no corpo o ID do talento. IDs ausentes exigem leitura verificada, sem reutilizar o
+ID do talento como fallback de prospecção. A conferência temporária da prévia pode
+atualizar e reler apenas o cadastro fictício fixado, usando `/api/teste-perfil`;
+a rota é desabilitada sem configuração explícita e não cria candidaturas.
