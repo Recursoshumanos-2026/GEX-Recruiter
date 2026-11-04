@@ -970,6 +970,12 @@ export default {
               Boolean(env.PROSPECT_CHANNEL_ID),
             candidate_form_version: 2,
             curriculum_storage: resumeAvailable(env),
+            // Safe, non-sensitive connection diagnostics. These only report
+            // whether bindings exist; they never access candidate data.
+            resume_connections: {
+              workers_ai: typeof env?.AI?.toMarkdown === 'function',
+              d1_database: typeof env?.RESUME_DB?.prepare === 'function'
+            },
             resume_upload_enabled: resumeAvailable(env),
             resume_required: resumeAvailable(env),
             resume_formats: ['pdf','docx'],
