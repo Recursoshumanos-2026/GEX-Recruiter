@@ -1,0 +1,41 @@
+/* Focused job detail view: keep the main careers homepage unchanged. */
+body.vacancy-detail-mode .hero,
+body.vacancy-detail-mode #cultura,
+body.vacancy-detail-mode #beneficios,
+body.vacancy-detail-mode .talent-pool,
+body.vacancy-detail-mode .site-header nav,
+body.vacancy-detail-mode .site-header .header-inner > nav{display:none!important}
+body.vacancy-detail-mode .specific-vacancy-section{padding-top:48px;padding-bottom:80px}
+body.vacancy-detail-mode .vacancy-landing-content--single{display:block;padding:clamp(22px,5vw,54px)}
+body.vacancy-detail-mode .vacancy-main-content--wide{max-width:960px;margin:auto}
+body.vacancy-detail-mode .vacancy-title{margin:16px 0 22px;font-size:clamp(30px,4.2vw,54px);line-height:1.12;color:var(--text-strong)}
+body.vacancy-detail-mode .vacancy-top-apply{margin:28px 0 38px;max-width:290px}
+body.vacancy-detail-mode .vacancy-top-apply .vacancy-apply-main{margin:0}
+body.vacancy-detail-mode .vacancy-description{border-top:1px solid var(--border-card);padding-top:34px}
+body.vacancy-detail-mode .vacancy-description h2{font-size:clamp(23px,3vw,30px);color:var(--text-strong);margin:0 0 20px}
+body.vacancy-detail-mode .vacancy-description-content{color:var(--text-secondary);font-size:16px;line-height:1.8;overflow-wrap:anywhere}
+body.vacancy-detail-mode .vacancy-description-content :is(h2,h3,h4){color:var(--text-strong);margin:26px 0 10px;line-height:1.3}
+body.vacancy-detail-mode .vacancy-description-content :is(ul,ol){padding-left:24px;margin:12px 0 24px}
+body.vacancy-detail-mode .vacancy-description-content li{padding-left:4px;margin:8px 0}
+body.vacancy-detail-mode .vacancy-description-content p{margin:0 0 18px}
+body.vacancy-detail-mode .vacancy-description-content a{color:var(--brand-cyan-soft);text-decoration:underline}
+body.vacancy-detail-mode .vacancy-description-missing{color:var(--text-muted);line-height:1.7}
+body.vacancy-detail-mode .vacancy-benefits{margin-top:40px;padding:30px 24px;border-radius:18px;border:1px solid var(--border-card)}
+body.vacancy-detail-mode .vacancy-benefits h3{font-size:24px;color:var(--hero-text);margin:0 0 22px}
+body.vacancy-detail-mode .vacancy-benefits .benefits-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+body.vacancy-detail-mode .vacancy-benefits .benefit-card{min-height:140px}
+body.vacancy-detail-mode .vacancy-bottom-action{margin-top:36px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:24px}
+body.vacancy-detail-mode .vacancy-bottom-action .vacancy-apply-main{flex:0 1 290px;margin:0}
+.job-title-link{color:inherit;text-decoration:none}
+.job-title-link:hover,.job-title-link:focus-visible{color:var(--brand-cyan-soft)}
+.job-details-link{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+@media(max-width:760px){
+ body.vacancy-detail-mode .vacancy-landing-top{padding:12px 16px;min-height:60px}
+ body.vacancy-detail-mode .vacancy-top-apply{max-width:none}
+ body.vacancy-detail-mode .vacancy-benefits{padding:22px 16px}
+ body.vacancy-detail-mode .vacancy-benefits .benefits-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ body.vacancy-detail-mode .vacancy-bottom-action .vacancy-apply-main{flex-basis:100%}
+}
+@media(max-width:480px){
+ body.vacancy-detail-mode .vacancy-benefits .benefits-grid{grid-template-columns:1fr}
+}
