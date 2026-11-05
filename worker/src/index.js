@@ -35,6 +35,31 @@ function positiveId(value) {
     Number.isSafeInteger(Number(id));
 }
 
+// Formulários brasileiros aceitam R$ 8.000,00; a API exige "8000.00".
+function normalizeRemuneration(value) {
+  if (typeof value !== 'string') return null;
+  const input = value.trim().replace(/^R\$\s*/i, '').replace(/\s/g, '');
+  let normalized;
+  if (/^[0-9]{1,3}(?:\.[0-9]{3})+(?:,[0-9]{1,2})?$/.test(input)) {
+    normalized = input.replace(/\./g, '').replace(',', '.');
+  } else if (/^[0-9]+(?:,[0-9]{1,2})?$/.test(input)) {
+    normalized = input.replace(',', '.');
+  } else if (/^[0-9]+(?:\.[0-9]{1,2})?$/.test(input)) {
+    normalized = input;
+  } else {
+    return null;
+  }
+  return Number.isFinite(Number(normalized)) && Number(normalized) > 0
+    ? normalized : null;
+}
+
+function validBirthday(value) {
+  if (typeof value !== 'string' || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value) ||
+      Number(value.slice(0, 4)) < 1) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
 async function getBearer(env) {
   if (tokenCache.token && Date.now() < tokenCache.expiresAt - 60000) {
     return tokenCache.token;
@@ -227,9 +252,8 @@ function profileIds(body, vacancyId) {
     )?.id ||
     null;
 
-  // Recrutei documents two different identifiers: the URL's "talent_id"
-  // represents the prospect record, while the JSON body's talent_id is the
-  // actual talent. Prefer the prospect ID from the POST /prospects response.
+  // O ID da prospecção é distinto do ID do talento. O endpoint
+  // /curriculum/filled/{id} recebe data.talent.id, nunca prospect.id.
   const prospectId =
     body?.data?.talent?.prospect?.id ||
     body?.data?.application?.prospect?.id ||
@@ -240,7 +264,7 @@ function profileIds(body, vacancyId) {
   return { talentId, applicationId, prospectId };
 }
 
-function buildProfilePayload(payload, talentId, applicationId, resumeMarkdown = null) {
+function buildProfilePayload(payload, applicationId, resumeMarkdown = null) {
   const basicInfos = [];
   const additional = [];
 
@@ -296,7 +320,6 @@ function buildProfilePayload(payload, talentId, applicationId, resumeMarkdown = 
   }
 
   return {
-    talent_id: Number(talentId),
     application_id: Number(applicationId),
     basic_infos: basicInfos,
     additional,
@@ -428,7 +451,7 @@ async function diagnoseProspectProfile(env) {
 }
 
 async function updateProspectProfile(env, payload, createBody, resumeMarkdown = null) {
-  const { talentId, applicationId, prospectId } = profileIds(
+  const { talentId, applicationId } = profileIds(
     createBody,
     payload.vacancy_id
   );
@@ -442,7 +465,6 @@ async function updateProspectProfile(env, payload, createBody, resumeMarkdown = 
 
   const profilePayload = buildProfilePayload(
     payload,
-    talentId,
     applicationId,
     resumeMarkdown
   );
@@ -457,12 +479,7 @@ async function updateProspectProfile(env, payload, createBody, resumeMarkdown = 
 
   const response = await recrutei(
     env,
-    // In this *query string*, Recrutei expects the prospect ID. In the
-    // body, talent_id remains the talent ID. For legacy responses without
-    // prospect details, retain the old fallback and use observation on error.
-    `/api/v2/curriculum/filled?talent_id=${encodeURIComponent(
-      positiveId(prospectId) ? prospectId : talentId
-    )}`,
+    `/api/v2/curriculum/filled/${encodeURIComponent(talentId)}`,
     {
       method: 'PUT',
       headers: {
@@ -475,6 +492,13 @@ async function updateProspectProfile(env, payload, createBody, resumeMarkdown = 
   const body = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    if (response.status === 406) {
+      return {
+        ok: false,
+        reason: 'A Recrutei não permite alterar o perfil de um candidato que já possui conta própria.',
+        diagnostics: { http_status: 406, fields: [] }
+      };
+    }
     return {
       ok: false,
       reason:
@@ -671,6 +695,32 @@ async function addResumeObservation(env, payload, createBody, markdown) {
     { ok:false, reason:'Não foi possível registrar o currículo na observação da Recrutei.' };
 }
 
+// HTTP 406: perfis criados pelo próprio candidato não são editáveis pela API.
+// Preserva os dois dados confirmados pelo suporte em uma observação restrita ao RH.
+async function addReadOnlyProfileObservation(env, payload, createBody) {
+  const { talentId, applicationId } = profileIds(createBody, payload.vacancy_id);
+  if (!positiveId(talentId) || !positiveId(applicationId)) {
+    return { ok: false, reason: 'IDs da candidatura não retornados para a observação.' };
+  }
+  const form = new FormData();
+  form.set('application_id', String(applicationId));
+  form.set('talent_id', String(talentId));
+  form.set('talent_observation_type_id', '7');
+  form.set('action', '1');
+  form.set('description',
+    '<p><strong>GEX Talents | Dados complementares</strong></p>' +
+    '<p>Este candidato possui um perfil próprio na Recrutei (HTTP 406). ' +
+    'A integração não pode alterar os dados do perfil.</p>' +
+    `<p><strong>Data de nascimento:</strong> ${escapeHtml(payload.birthday || 'Não informada')}</p>` +
+    `<p><strong>Pretensão salarial:</strong> ${escapeHtml(payload.intended_remuneration || 'Não informada')}</p>`);
+  const response = await recrutei(env, '/api/v2/talents-observations', {
+    method: 'POST', body: form
+  });
+  return response.ok ? { ok: true } : {
+    ok: false, reason: 'Não foi possível registrar os dados complementares na Recrutei.'
+  };
+}
+
 async function completeApplicationStep(operation) {
   try {
     return await operation();
@@ -727,6 +777,21 @@ async function createProspect(env, rawPayload) {
         `Campo obrigatório ausente: ${key}`
       );
     }
+  }
+
+  if (completeForm) {
+    if (!validBirthday(payload.birthday)) {
+      const error = new Error('Informe uma data de nascimento válida.');
+      error.status = 400;
+      throw error;
+    }
+    const salary = normalizeRemuneration(payload.intended_remuneration);
+    if (!salary) {
+      const error = new Error('Informe uma pretensão salarial válida.');
+      error.status = 400;
+      throw error;
+    }
+    payload.intended_remuneration = salary;
   }
 
   let answers;
@@ -865,6 +930,10 @@ async function createProspect(env, rawPayload) {
     ? await completeApplicationStep(() =>
         addResumeObservation(env, payload, createBody, markdown))
     : null;
+  const readOnlyProfileObservation = profileError?.http_status === 406
+    ? await completeApplicationStep(() =>
+        addReadOnlyProfileObservation(env, payload, createBody))
+    : null;
   const resumeLinked = Boolean(markdown) &&
     (profileCompleted || resumeObservation?.ok === true);
 
@@ -882,6 +951,12 @@ async function createProspect(env, rawPayload) {
     ...(observationResult ? {
       observation_completed: observationResult.ok,
       ...(!observationResult.ok ? { observation_warning: observationResult.reason } : {})
+    } : {}),
+    ...(readOnlyProfileObservation ? {
+      profile_fallback_observation_completed: readOnlyProfileObservation.ok,
+      ...(!readOnlyProfileObservation.ok ? {
+        profile_fallback_warning: readOnlyProfileObservation.reason
+      } : {})
     } : {}),
     message: 'Candidatura enviada com sucesso.',
     profile_completed: profileCompleted,
