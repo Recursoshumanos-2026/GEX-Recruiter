@@ -52,12 +52,25 @@ function fakeEnv(options={}) {
       };
     }}
   };
+  if (options.scoring) {
+    env.AI.run = async (model,request) => {
+      assert.equal(model,'@cf/meta/llama-3.3-70b-instruct-fp8-fast');
+      assert.ok(request.messages[1].content.includes('Atendimento a clientes'));
+      assert.ok(!request.messages[1].content.includes('candidate@example.invalid'));
+      return {response:{ratings:[
+        {index:0,status:'atendido',evidence:'atendimento e operações'},
+        {index:1,status:'parcial',evidence:'atendimento e operações'},
+        {index:2,status:'nao_verificado',evidence:''}
+      ]}};
+    };
+  }
   return {env,dbRows};
 }
 
 async function application(file,options={}) {
   const { env,dbRows }=fakeEnv(options);
   const calls=[];
+  const pending=[];
   const prior=globalThis.fetch;
   globalThis.fetch=async(url,init={})=>{
     const path=new URL(String(url)).pathname;
@@ -68,7 +81,8 @@ async function application(file,options={}) {
     });
     if(String(url).startsWith('https://jobs.recrutei.com.br/gex-corporation/vacancy/'))
       return new Response('<script id="__NEXT_DATA__">'+JSON.stringify({props:{pageProps:{
-        retorno:{error:false,closed:false,past:false,finished:false,vacancy:{id:158928}}
+        retorno:{error:false,closed:false,past:false,finished:false,vacancy:{id:158928,
+          description:'<h2>O que esperamos de você</h2><ul><li>Atendimento a clientes</li><li>Organização de processos</li><li>Conhecimento de CRM</li></ul>'}}
       }}})+'</script>',{status:200});
     if(path.endsWith('/prospects')) return new Response(JSON.stringify({
       data:{talent:{id:22,prospect:{id:44}},application:{id:33,prospect:{id:44}}}
@@ -83,8 +97,10 @@ async function application(file,options={}) {
   try {
     const result=await worker.fetch(new Request('https://worker.invalid/api/candidatar',{
       method:'POST',headers:{Origin:ORIGIN},body:formFor(file)
-    }),env);
-    return {status:result.status,body:await result.json(),calls,dbRows,env};
+    }),env,{waitUntil:promise=>pending.push(promise)});
+    const body=await result.json();
+    await Promise.all(pending);
+    return {status:result.status,body,calls,dbRows,env};
   }finally{globalThis.fetch=prior}
 }
 
@@ -129,6 +145,25 @@ test('Markdown resume enters Recrutei custom informations field and D1 storage',
   assert.ok(resumeNote.includes('<strong>Experiência profissional</strong>'));
   assert.ok(resumeNote.includes('<p>Trabalhou com atendimento e operações.</p>'));
   assert.ok(!resumeNote.includes('<pre>'));
+});
+
+test('Vaga Ultra recebe análise técnica em observação separada sem alterar etapa ou candidatura',async()=>{
+  const r=await application(rawPdf(),{scoring:true});
+  assert.equal(r.status,201);
+  assert.equal(r.body.technical_analysis_status,'processing');
+  const notes=r.calls.filter(c=>c.path==='/api/v2/talents-observations');
+  assert.equal(notes.length,3);
+  const analysis=notes[2].init.body.get('description');
+  assert.ok(analysis.includes('GEX Talents | Análise Técnica Automatizada'));
+  assert.ok(analysis.includes('50/100'));
+  assert.ok(analysis.includes('Revisão humana obrigatória'));
+  assert.ok(!analysis.includes('candidate@example.invalid'));
+  assert.equal(r.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
+  assert.equal(r.calls.filter(c=>c.path.includes('/pipe')).length,0);
+  const health=await worker.fetch(new Request('https://worker.invalid/health'),r.env);
+  const version=await health.json();
+  assert.equal(version.technical_analysis_enabled,true);
+  assert.equal(version.technical_analysis_format,'gex_evidence_score_v1');
 });
 
 test('organiza currículo em seções, parágrafos e listas sem interpretar HTML do candidato',async()=>{

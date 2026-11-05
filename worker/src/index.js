@@ -2,6 +2,7 @@ import { questionnaireFor, validateAnswers } from '../../questionnaires.js';
 import { resumeAvailable, convertResume, assertResumeDatabase, storeResume, resumeField } from './resumes.js';
 import { cleanupExpiredResumes, RETENTION_CRON } from './retention.js';
 import { smokeResume } from './smoke.js';
+import { technicalAnalysisAvailable, evaluateTechnicalFit, technicalAnalysisHtml } from './technical-analysis.js';
 
 const API_BASE = 'https://api.recrutei.com.br';
 let tokenCache = { token: null, expiresAt: 0 };
@@ -805,6 +806,26 @@ async function addResumeObservation(env, payload, createBody, markdown) {
     { ok:false, reason:'Não foi possível registrar o currículo na observação da Recrutei.' };
 }
 
+async function addTechnicalAnalysisObservation(env, payload, createBody, markdown, description, vacancyTitle) {
+  const { talentId, applicationId } = profileIds(createBody, payload.vacancy_id);
+  if (!positiveId(talentId) || !positiveId(applicationId)) {
+    throw Error('Identificadores da candidatura indisponíveis para avaliação técnica.');
+  }
+  // AI only evaluates the résumé against the vacancy; no automatic recruitment action.
+  const assessment = await evaluateTechnicalFit(env, description, markdown);
+  const form = new FormData();
+  form.set('application_id', String(applicationId));
+  form.set('talent_id', String(talentId));
+  form.set('talent_observation_type_id', '7');
+  form.set('action', '1');
+  form.set('description', technicalAnalysisHtml(vacancyTitle, assessment));
+  const response = await recrutei(env, '/api/v2/talents-observations', {
+    method:'POST', body:form
+  });
+  if (!response.ok) throw Error('Recrutei não confirmou o registro da análise.');
+  return {ok:true};
+}
+
 // HTTP 406: perfis criados pelo próprio candidato não são editáveis pela API.
 // Preserva os dois dados confirmados pelo suporte em uma observação restrita ao RH.
 async function addReadOnlyProfileObservation(env, payload, createBody) {
@@ -841,7 +862,7 @@ async function completeApplicationStep(operation) {
 }
 
 
-async function createProspect(env, rawPayload) {
+async function createProspect(env, rawPayload, ctx) {
   if (env.APPLICATIONS_ENABLED !== 'true') {
     const error = new Error('O envio de candidaturas está desativado neste ambiente.');
     error.status = 503;
@@ -1056,6 +1077,30 @@ async function createProspect(env, rawPayload) {
   const resumeLinked = Boolean(markdown) &&
     (profileCompleted || resumeObservation?.ok === true);
 
+  // Run after the candidate-facing submission has finished, so slow AI cannot
+  // delay or invalidate an otherwise successful application. One attempt only.
+  const technicalDescription = publicStatus?.description ||
+    vacancy.description || vacancy.job_description ||
+    PUBLIC_JD_SNAPSHOTS[String(vacancy.id)] || '';
+  const technicalScheduled = Boolean(markdown && technicalAnalysisAvailable(env) &&
+    technicalDescription);
+  let technicalAnalysisStatus = 'unavailable';
+  if (technicalScheduled) {
+    const task = addTechnicalAnalysisObservation(env, payload, createBody,
+      markdown, technicalDescription, vacancy.title)
+      .catch(() => {
+        // Never log candidate text, model output, contact details or identifiers.
+        console.warn('GEX Talents: análise técnica não concluída; candidatura preservada.');
+        return {ok:false};
+      });
+    if (typeof ctx?.waitUntil === 'function') {
+      ctx.waitUntil(task);
+      technicalAnalysisStatus = 'processing';
+    } else {
+      technicalAnalysisStatus = (await task).ok ? 'completed' : 'unavailable';
+    }
+  }
+
   return {
     ok: true,
     application_created: true,
@@ -1078,6 +1123,7 @@ async function createProspect(env, rawPayload) {
       } : {})
     } : {}),
     message: 'Candidatura enviada com sucesso.',
+    technical_analysis_status: technicalAnalysisStatus,
     profile_completed: profileCompleted,
     tag_completed: tagCompleted,
     ...(profileWarning
@@ -1098,7 +1144,7 @@ export default {
     console.info('GEX Talents | retenção D1:', report.status,
       report.status === 'dry_run' ? report.eligible : report.deleted);
   },
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     if (request.method === 'OPTIONS') {
@@ -1175,7 +1221,7 @@ export default {
         }
 
         return json(
-          await createProspect(env, payload),
+          await createProspect(env, payload, ctx),
           201,
           env
         );
@@ -1242,6 +1288,8 @@ export default {
             profile_update_endpoint: 'talent_path_v2',
             vacancy_availability_check: 'recrutei_public_close_flags_v1',
             resume_observation_format: 'sectioned_html_v3',
+            technical_analysis_format: 'gex_evidence_score_v1',
+            technical_analysis_enabled: technicalAnalysisAvailable(env),
             curriculum_storage: resumeAvailable(env),
             // Safe, non-sensitive connection diagnostics. These only report
             // whether bindings exist; they never access candidate data.
