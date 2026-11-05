@@ -1,5 +1,37 @@
 # Mensagem para o suporte da Recrutei
 
+## Resposta recebida e correção (novembro de 2026)
+
+O suporte esclareceu que a documentação anterior continha um erro: o ID do talento
+vai **no caminho** do endpoint, não na query. Deve ser `data.talent.id` retornado
+na criação da prospecção; `data.talent.prospect.id` é outro identificador.
+
+```http
+PUT /api/v2/curriculum/filled/<data.talent.id>
+Content-Type: application/json
+
+{
+  "application_id": 11350000,
+  "basic_infos": [{ "key": "birthday", "value": "2001-01-01", "title": "Data de nascimento" }],
+  "additional": [{ "key": "intended_remuneration", "value": "5000", "title": "Pretensão salarial" }]
+}
+```
+
+Os IDs e dados acima são fictícios. `talent_id` não é necessário no corpo.
+Nascimento e salário podem ser enviados juntos; salário deve ser numérico,
+sem `R$` ou separador de milhar, aceitando ponto decimal.
+
+O `GET /api/v1/applications/<application_id>` permite verificar o nascimento em
+`talent.birthday` e a pretensão em `talent.professional_profile`. Se um candidato
+já possui conta própria na Recrutei, o PUT retorna **HTTP 406** e não permite
+alterar o perfil. Nossa integração mantém a candidatura e registra os dados
+complementares numa observação para o RH, sem contornar a restrição.
+
+O código foi atualizado para o novo formato e testado com dados fictícios.
+O resultado de uma candidatura real ainda deve ser conferido no perfil do candidato.
+
+## Consulta original enviada ao suporte
+
 Olá! Precisamos confirmar como atualizar nascimento e pretensão salarial de um
 candidato em prospecção criado pela API. A candidatura, a tag e a observação são
 registradas, mas os dados complementares ainda não foram confirmados.

@@ -69,9 +69,9 @@ async function application(file,options={}) {
     if(path.endsWith('/prospects')) return new Response(JSON.stringify({
       data:{talent:{id:22,prospect:{id:44}},application:{id:33,prospect:{id:44}}}
     }),{status:201});
-    if(path.endsWith('/curriculum/filled')) return new Response(
+    if(path.endsWith('/curriculum/filled/22')) return new Response(
       JSON.stringify(options.profileFail?{message:'Não encontrado'}:{data:{ok:true}}),
-      {status:options.profileFail?404:200});
+      {status:options.profileFail?(options.profileStatus??404):200});
     if(path.endsWith('/tags/talent')||path.endsWith('/talents-observations'))return new Response(
       JSON.stringify({ok:true}),{status:201});
     throw Error('Unexpected external request:'+path);
@@ -112,10 +112,10 @@ test('Markdown resume enters Recrutei custom informations field and D1 storage',
   assert.equal(r.body.resume_custom_field_completed,true);
   assert.equal(r.body.resume_observation_completed,true);
   assert.equal(r.dbRows.length,1);
-  const update=r.calls.find(c=>c.path==='/api/v2/curriculum/filled');
+  const update=r.calls.find(c=>c.path==='/api/v2/curriculum/filled/22');
   const payload=JSON.parse(update.init.body);
-  assert.equal(new URL(update.url).searchParams.get('talent_id'),'44');
-  assert.equal(payload.talent_id,22);
+  assert.equal(new URL(update.url).pathname.split('/').pop(),'22');
+  assert.equal(Object.hasOwn(payload,'talent_id'),false);
   assert.equal(payload.application_id,33);
   assert.equal(payload.informations.length,1);
   assert.deepEqual(payload.informations[0],resumeField(r.dbRows[0].values[3]));
@@ -137,6 +137,22 @@ test('when Recrutei custom field returns HTTP 404, fallback observation stores e
   assert.equal(r.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
 });
 
+test('HTTP 406 preserva currículo convertido e registra nascimento/salário sem alterar perfil próprio',async()=>{
+  const r=await application(rawPdf(),{profileFail:true,profileStatus:406});
+  assert.equal(r.status,201);
+  assert.equal(r.body.application_created,true);
+  assert.equal(r.body.profile_completed,false);
+  assert.deepEqual(r.body.profile_error,{http_status:406,fields:[]});
+  assert.equal(r.body.resume_stored,true);
+  assert.equal(r.body.resume_observation_completed,true);
+  assert.equal(r.body.resume_completed,true);
+  assert.equal(r.body.profile_fallback_observation_completed,true);
+  const notes=r.calls.filter(c=>c.path==='/api/v2/talents-observations');
+  assert.equal(notes.length,3);
+  assert.ok(notes.some(note=>note.init.body.get('description').includes('Currículo convertido em Markdown')));
+  assert.ok(notes.some(note=>note.init.body.get('description').includes('Data de nascimento:')));
+});
+
 test('D1 storage failure still preserves resume Markdown at Recrutei without false success',async()=>{
   const r=await application(rawPdf(),{d1Fail:true});
   assert.equal(r.status,201);
@@ -145,7 +161,7 @@ test('D1 storage failure still preserves resume Markdown at Recrutei without fal
   assert.equal(r.body.resume_completed,false);
   assert.equal(r.body.resume_custom_field_completed,true);
   assert.equal(r.body.resume_observation_completed,true);
-  const updated=r.calls.find(c=>c.path==='/api/v2/curriculum/filled');
+  const updated=r.calls.find(c=>c.path==='/api/v2/curriculum/filled/22');
   assert.equal(JSON.parse(updated.init.body).informations.length,1);
   assert.equal(r.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
 });
