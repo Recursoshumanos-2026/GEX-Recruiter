@@ -29,8 +29,14 @@ async function run(input, options = {}) {
     calls.push({ path, url: String(url), init });
     if (path.endsWith('/login-api')) return json({ token: 'fake-test-token' });
     if (path.endsWith('/vacancies/filter')) return json({ data: [
-      { id: Number(input.vacancy_id), vacancy_status_id: 1, pipe_stages: [{ id: 10, order: 1 }] }
+      { id: Number(input.vacancy_id), title: 'Vaga Teste', vacancy_status_id: 1, pipe_stages: [{ id: 10, order: 1 }] }
     ] });
+    if (String(url).startsWith('https://jobs.recrutei.com.br/gex-corporation/vacancy/')) {
+      return new Response('<script id="__NEXT_DATA__">'+JSON.stringify({ props: { pageProps: {
+        retorno: { error: false, closed: false, past: false, finished: false,
+          vacancy: { id: Number(input.vacancy_id) } }
+      } } })+'</script>', { status: 200 });
+    }
     if (path.endsWith('/prospects')) return json(options.createBody ?? {
       data: { talent: { id: 22, prospect: { id: 44 } }, application: { id: 33 } }
     }, options.createStatus ?? 201);
@@ -892,7 +898,8 @@ test('resposta Não sobre PJ é registrada na observação sem reprovação auto
   assert.equal(result.status, 201);
   assert.equal(result.body.observation_completed, true);
   assert.ok(result.calls.every(call => ['/api/v1/login-api','/api/v2/vacancies/filter',
-    '/api/v2/prospects','/api/v2/curriculum/filled/22','/api/v2/tags/talent','/api/v2/talents-observations'].includes(call.path)));
+    '/api/v2/prospects','/api/v2/curriculum/filled/22','/api/v2/tags/talent','/api/v2/talents-observations'].includes(call.path) ||
+    call.path.startsWith('/gex-corporation/vacancy/')));
 });
 test('respostas de Editor não substituem questionário de Dados Sênior', async () => {
   const input = dataPayload(); input.questionnaire_answers=videoAnswers();
@@ -966,7 +973,8 @@ test('Backend SMS registra opções marcadas como eliminatórias sem reprovaçã
   const result=await run(input);
   assert.equal(result.status,201);assert.equal(result.body.observation_completed,true);
   assert.ok(result.calls.every(c=>['/api/v1/login-api','/api/v2/vacancies/filter','/api/v2/prospects',
-    '/api/v2/curriculum/filled/22','/api/v2/tags/talent','/api/v2/talents-observations'].includes(c.path)));
+    '/api/v2/curriculum/filled/22','/api/v2/tags/talent','/api/v2/talents-observations'].includes(c.path) ||
+    c.path.startsWith('/gex-corporation/vacancy/')));
 });
 for(const input of [
   {...backendPayload(),questionnaire_answers:videoAnswers()},

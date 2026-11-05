@@ -64,8 +64,12 @@ async function application(file,options={}) {
     calls.push({path,url:String(url),init});
     if(path.endsWith('login-api')) return Response.json({token:'fake-token'});
     if(path.endsWith('/vacancies/filter')) return Response.json({
-      data:[{id:158928,vacancy_status_id:1,pipe_stages:[{id:10,order:1}]}]
+      data:[{id:158928,title:'Analista de Atendimento',vacancy_status_id:1,pipe_stages:[{id:10,order:1}]}]
     });
+    if(String(url).startsWith('https://jobs.recrutei.com.br/gex-corporation/vacancy/'))
+      return new Response('<script id="__NEXT_DATA__">'+JSON.stringify({props:{pageProps:{
+        retorno:{error:false,closed:false,past:false,finished:false,vacancy:{id:158928}}
+      }}})+'</script>',{status:200});
     if(path.endsWith('/prospects')) return new Response(JSON.stringify({
       data:{talent:{id:22,prospect:{id:44}},application:{id:33,prospect:{id:44}}}
     }),{status:201});
@@ -218,8 +222,12 @@ test('Markdown conversion failure returns validation status before candidate cre
     const path=new URL(String(url)).pathname;calls.push(path);
     if(path.endsWith('login-api'))return Response.json({token:'mock'});
     if(path.endsWith('/vacancies/filter'))return Response.json({
-      data:[{id:158928,vacancy_status_id:1,pipe_stages:[{id:10,order:1}]}]
+      data:[{id:158928,title:'Analista de Atendimento',vacancy_status_id:1,pipe_stages:[{id:10,order:1}]}]
     });
+    if(String(url).startsWith('https://jobs.recrutei.com.br/gex-corporation/vacancy/'))
+      return new Response('<script id="__NEXT_DATA__">'+JSON.stringify({props:{pageProps:{
+        retorno:{error:false,closed:false,past:false,finished:false,vacancy:{id:158928}}
+      }}})+'</script>',{status:200});
     throw Error('No candidate should be created');
   };
   try{

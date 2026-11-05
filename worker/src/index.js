@@ -155,8 +155,10 @@ function publicVacancy(v) {
 
 
 /**
- * Job description fallback for the *public* GEX Recrutei vacancy page.
- * The documented private vacancies/filter response does not expose description.
+ * Availability and Job Description from the public GEX Recrutei vacancy page.
+ * The private vacancies/filter response marks expired jobs as "published" (1),
+ * without exposing the application deadline. The public page distinguishes
+ * closed applications with `past`/`closed` even when the status is still 1.
  * Fetches only a fixed company domain/path and reads the public Next.js data;
  * no ATS credentials or personal data are sent to the public host.
  */
@@ -186,7 +188,10 @@ async function publicRecruteiDetails(v) {
     const response = await fetch(PUBLIC_CAREERS_ROOT + slug, {
       method: 'GET', redirect: 'follow',
       headers: { Accept: 'text/html' },
-      signal: AbortSignal.timeout(12000)
+      signal: AbortSignal.timeout(12000),
+      // A short edge cache prevents repeated Recrutei page downloads while
+      // keeping publication and expiry changes visible automatically.
+      cf: { cacheEverything: true, cacheTtl: 60 }
     });
     if (!response.ok ||
         Number(response.headers.get('content-length') || 0) > 500000) return null;
@@ -196,16 +201,19 @@ async function publicRecruteiDetails(v) {
     if (!nextData) return null;
     const page = JSON.parse(nextData[1])?.props?.pageProps?.retorno;
     const job = page?.vacancy;
-    if (page?.error || page?.finished || page?.past ||
-        !job || String(job.id) !== String(v.id)) return null;
+    if (!job || String(job.id) !== String(v.id)) return null;
+    const acceptingApplications = !(
+      page?.error || page?.finished || page?.past || page?.closed
+    );
+    if (!acceptingApplications) return { acceptingApplications: false };
     const description = typeof job.description === 'string' &&
       job.description.length < 100000 ? job.description : null;
     const regime = Number(job.show_regime) === 1 &&
       typeof job.regime?.description === 'string'
       ? job.regime.description : null;
-    return { description, contract_model: regime };
+    return { acceptingApplications: true, description, contract_model: regime };
   } catch (_) {
-    // Public job pages can change independently; show the neutral fallback.
+    // Unknown availability must never silently enable a closed vacancy.
     return null;
   }
 }
@@ -217,6 +225,7 @@ async function getVacancyDetails(env, id) {
   if (!candidate) return null;
   const data = publicVacancy(candidate);
   const publicDetails = await publicRecruteiDetails(candidate);
+  if (publicDetails?.acceptingApplications !== true) return null;
   return {
     ...data,
     description: publicDetails?.description || data.description || PUBLIC_JD_SNAPSHOTS[String(candidate.id)] || null,
@@ -233,9 +242,28 @@ function firstPipeStageId(vacancy) {
 }
 
 async function listVacancies(env) {
-  return (await rawVacancies(env))
-    .filter(v => Number(v.vacancy_status_id) === 1)
-    .map(publicVacancy);
+  const published = (await rawVacancies(env))
+    .filter(v => Number(v.vacancy_status_id) === 1);
+  const available = [];
+  let unavailableChecks = 0;
+  // Keep a modest level of parallelism when more vacancies are published.
+  for (let i = 0; i < published.length; i += 8) {
+    const batch = published.slice(i, i + 8);
+    const statuses = await Promise.all(batch.map(publicRecruteiDetails));
+    for (let j = 0; j < batch.length; j++) {
+      if (statuses[j]?.acceptingApplications === true) {
+        available.push(publicVacancy(batch[j]));
+      } else if (statuses[j] === null) {
+        unavailableChecks++;
+      }
+    }
+  }
+  if (published.length && !available.length && unavailableChecks) {
+    const error = new Error('Não foi possível atualizar a disponibilidade das vagas na Recrutei. Tente novamente mais tarde.');
+    error.status = 503;
+    throw error;
+  }
+  return available;
 }
 
 function profileIds(body, vacancyId) {
@@ -822,6 +850,15 @@ async function createProspect(env, rawPayload) {
     );
   }
 
+  const publicStatus = await publicRecruteiDetails(vacancy);
+  if (publicStatus?.acceptingApplications !== true) {
+    const error = new Error(publicStatus?.acceptingApplications === false
+      ? 'As inscrições para esta vaga foram encerradas.'
+      : 'Não foi possível confirmar se esta vaga ainda recebe candidaturas. Tente novamente mais tarde.');
+    error.status = publicStatus?.acceptingApplications === false ? 400 : 503;
+    throw error;
+  }
+
   const pipeStageId = firstPipeStageId(vacancy);
 
   if (!pipeStageId) {
@@ -1005,7 +1042,8 @@ export default {
         const result = await getVacancyDetails(env, detailId);
         if (!result) return json({ message: 'Vaga não disponível' }, 404, env);
         const reply = json({ data: result }, 200, env);
-        reply.headers.set('Cache-Control', 'public, max-age=300');
+        // A vaga pode fechar enquanto o visitante navega; evite detalhe obsoleto.
+        reply.headers.set('Cache-Control', 'no-store');
         return reply;
       }
 
@@ -1120,6 +1158,7 @@ export default {
             candidate_form_version: 2,
             // Marcador público, sem dados pessoais, para confirmar o deploy da correção.
             profile_update_endpoint: 'talent_path_v2',
+            vacancy_availability_check: 'recrutei_public_close_flags_v1',
             curriculum_storage: resumeAvailable(env),
             // Safe, non-sensitive connection diagnostics. These only report
             // whether bindings exist; they never access candidate data.
