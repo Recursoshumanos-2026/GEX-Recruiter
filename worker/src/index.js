@@ -1205,6 +1205,7 @@ export default {
             // Marcador público, sem dados pessoais, para confirmar o deploy da correção.
             profile_update_endpoint: 'talent_path_v2',
             vacancy_availability_check: 'recrutei_public_close_flags_v1',
+            resume_observation_format: 'sectioned_html_v1',
             curriculum_storage: resumeAvailable(env),
             // Safe, non-sensitive connection diagnostics. These only report
             // whether bindings exist; they never access candidate data.
