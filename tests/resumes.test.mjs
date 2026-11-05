@@ -160,6 +160,9 @@ test('corrige currículo de PDF com cabeçalhos e tópicos colados no texto',asy
   assert.ok(note.includes('<p><strong>COMPETÊNCIAS TÉCNICAS</strong></p>'));
   assert.ok(note.includes('<p><strong>EXPERIÊNCIA PROFISSIONAL</strong></p>'));
   assert.ok(note.includes('<p><strong>FORMAÇÃO ACADÊMICA</strong></p>'));
+  assert.ok(note.includes('<p><strong>COMPETÊNCIAS TÉCNICAS</strong></p><br><ul>'));
+  assert.ok(note.includes('</ul><br><p><strong>EXPERIÊNCIA PROFISSIONAL</strong></p>'));
+  assert.ok(note.includes('<li>Recrutamento e Seleção</li><li>Administração de benefícios</li>'));
   assert.ok(note.includes('<li>Recrutamento e Seleção</li>'));
   assert.ok(note.includes('<li>Administração de benefícios</li>'));
   assert.ok(note.includes('<li>Organização de documentos.</li>'));
@@ -242,7 +245,7 @@ test('health advertises resume upload only when both private storage and convers
   let r=await worker.fetch(new Request('https://worker.invalid/health'),env);
   const enabled = await r.json();
   assert.equal(enabled.resume_upload_enabled,true);
-  assert.equal(enabled.resume_observation_format,'sectioned_html_v2');
+  assert.equal(enabled.resume_observation_format,'sectioned_html_v3');
   assert.deepEqual(enabled.resume_connections,{workers_ai:true,d1_database:true});
   delete env.RESUME_DB;
   r=await worker.fetch(new Request('https://worker.invalid/health'),env);
