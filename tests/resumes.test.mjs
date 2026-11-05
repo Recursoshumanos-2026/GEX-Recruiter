@@ -143,6 +143,35 @@ test('organiza currículo em seções, parágrafos e listas sem interpretar HTML
   assert.equal(r.dbRows[0].values[3], markdown.trim());
 });
 
+test('corrige currículo de PDF com cabeçalhos e tópicos colados no texto',async()=>{
+  const markdown = '# curriculo-teste.pdf\nContents\nPage 1\n' +
+    'PESSOA EXEMPLOJundiaí - SP | contato@example.invalid\n' +
+    'LinkedIn: linkedin.com/in/exemploRESUMO PROFISSIONAL' +
+    'Experiência em RH com foco em resultados.COMPETÊNCIAS TÉCNICAS' +
+    '• Recrutamento e Seleção• Administração de benefícios' +
+    'EXPERIÊNCIA PROFISSIONALAnalista de RH | Empresa Exemplo | 2024 - Atual' +
+    '• Gestão de processos.• Organização de documentos.' +
+    'Jovem Aprendiz | Empresa Teste | 2022 - 2023' +
+    'Page 2\nAuxiliar Administrativo | Empresa Teste | 2021 - 2022' +
+    'FORMAÇÃO ACADÊMICABacharelado em Psicologia | Universidade Exemplo';
+  const r=await application(rawPdf(),{markdown});
+  const note=r.calls.filter(c=>c.path==='/api/v2/talents-observations')[1].init.body.get('description');
+  assert.ok(note.includes('<p><strong>RESUMO PROFISSIONAL</strong></p>'));
+  assert.ok(note.includes('<p><strong>COMPETÊNCIAS TÉCNICAS</strong></p>'));
+  assert.ok(note.includes('<p><strong>EXPERIÊNCIA PROFISSIONAL</strong></p>'));
+  assert.ok(note.includes('<p><strong>FORMAÇÃO ACADÊMICA</strong></p>'));
+  assert.ok(note.includes('<li>Recrutamento e Seleção</li>'));
+  assert.ok(note.includes('<li>Administração de benefícios</li>'));
+  assert.ok(note.includes('<li>Organização de documentos.</li>'));
+  assert.ok(!note.includes('resultados.COMPETÊNCIAS'));
+  assert.ok(!note.includes('TÉCNICAS•'));
+  assert.ok(!note.includes('PROFISSIONALAnalista'));
+  assert.ok(!note.includes('EXEMPLOJundiaí'));
+  assert.ok(!note.includes('Contents'));
+  assert.ok(!note.includes('Page 1'));
+  assert.equal(r.dbRows[0].values[3],markdown);
+});
+
 test('when Recrutei custom field returns HTTP 404, fallback observation stores escaped Markdown',async()=>{
   const r=await application(rawPdf(),{profileFail:true});
   assert.equal(r.status,201);
@@ -213,7 +242,7 @@ test('health advertises resume upload only when both private storage and convers
   let r=await worker.fetch(new Request('https://worker.invalid/health'),env);
   const enabled = await r.json();
   assert.equal(enabled.resume_upload_enabled,true);
-  assert.equal(enabled.resume_observation_format,'sectioned_html_v1');
+  assert.equal(enabled.resume_observation_format,'sectioned_html_v2');
   assert.deepEqual(enabled.resume_connections,{workers_ai:true,d1_database:true});
   delete env.RESUME_DB;
   r=await worker.fetch(new Request('https://worker.invalid/health'),env);
