@@ -666,8 +666,41 @@ function escapeHtml(value) {
 // Recrutei's observation editor doesn't preserve the whitespace inside <pre>.
 // Render the converted Markdown as simple, sanitized HTML so CV sections and
 // line breaks remain readable in the candidate's history.
+function repairResumeLayout(markdown) {
+  // The PDF converter sometimes concatenates section labels, bullet points and
+  // even the next job title to the preceding sentence. The original Markdown
+  // stays untouched in D1; these boundaries only improve the RH observation.
+  const sectionNames = [
+    'EXPERIÊNCIAS PROFISSIONAIS', 'EXPERIÊNCIA PROFISSIONAL',
+    'EXPERIENCIAS PROFISSIONAIS', 'EXPERIENCIA PROFISSIONAL',
+    'COMPETÊNCIAS TÉCNICAS', 'COMPETENCIAS TECNICAS',
+    'HABILIDADES TÉCNICAS', 'HABILIDADES TECNICAS',
+    'RESUMO PROFISSIONAL', 'PERFIL PROFISSIONAL',
+    'OBJETIVO PROFISSIONAL', 'FORMAÇÃO ACADÊMICA',
+    'FORMACAO ACADEMICA', 'HISTÓRICO PROFISSIONAL',
+    'HISTORICO PROFISSIONAL', 'CURSOS E CERTIFICAÇÕES',
+    'CURSOS E CERTIFICACOES', 'OUTRAS INFORMAÇÕES',
+    'OUTRAS INFORMACOES', 'WORK EXPERIENCE',
+    'PROFESSIONAL EXPERIENCE', 'EDUCATION',
+    'CERTIFICAÇÕES', 'CERTIFICACOES', 'IDIOMAS',
+    'ESCOLARIDADE', 'HABILIDADES', 'LANGUAGES', 'SKILLS'
+  ];
+  const section = new RegExp(`(${sectionNames.join('|')})`, 'g');
+  return String(markdown)
+    .replace(/\r\n?/g, '\n')
+    // Remove converter-generated table-of-contents and pagination noise.
+    .replace(/^\s*(?:#{1,6}\s*)?(?:contents|page\s*\d+|página\s*\d+|[^\n]{1,80}\.(?:pdf|docx))\s*$/gim, '\n')
+    .replace(section, '\n\n## $1\n\n')
+    .replace(/\s*•\s*/g, '\n- ')
+    // Fix common run-ons without changing any words or guessing missing data.
+    .replace(/([.!?])(?=[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ])/g, '$1\n\n')
+    .replace(/(\d{4})(?=[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ])/g, '$1\n\n')
+    .replace(/([A-ZÀ-ÖØ-Þ]{3,})(?=[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{2,})/g, '$1\n')
+    .replace(/\n{3,}/g, '\n\n').trim();
+}
+
 function resumeMarkdownToObservationHtml(markdown) {
-  const lines = String(markdown).replace(/\r\n?/g, '\n').split('\n');
+  const lines = repairResumeLayout(markdown).split('\n');
   const blocks = [];
   let paragraph = [];
   let bullets = [];
@@ -1205,7 +1238,7 @@ export default {
             // Marcador público, sem dados pessoais, para confirmar o deploy da correção.
             profile_update_endpoint: 'talent_path_v2',
             vacancy_availability_check: 'recrutei_public_close_flags_v1',
-            resume_observation_format: 'sectioned_html_v1',
+            resume_observation_format: 'sectioned_html_v2',
             curriculum_storage: resumeAvailable(env),
             // Safe, non-sensitive connection diagnostics. These only report
             // whether bindings exist; they never access candidate data.
