@@ -43,7 +43,7 @@ function fakeEnv(options={}) {
           return null;
         },
         bind(...values) {
-          return { async run() {
+          return { async first() { return null; }, async all() { return { results: [] }; }, async run() {
             if(options.d1Fail) throw Error('D1 simulated failure');
             dbRows.push({sql,values});
             return {success:true};
