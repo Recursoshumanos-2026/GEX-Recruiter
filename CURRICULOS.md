@@ -137,19 +137,33 @@ currículo por candidatura**. Por isso, o segundo arquivo não podia ser gravado
 usando novamente os IDs do teste PDF; a gravação DOCX foi validada isoladamente
 com outro identificador **somente no banco de testes**, sem alterar dados reais.
 
-Após a homologação, as rotas temporárias de escrita foram **removidas da branch
-de prévia**, com o CI aprovado. As flags `APPLICATIONS_ENABLED=false` e
-`RESUME_UPLOAD_ENABLED=false` continuam na Base de Prévias; em produção,
-`RESUME_UPLOAD_ENABLED=false` também continua em vigor. O layout da página de
-vagas não foi alterado.
+Após a homologação, as rotas temporárias de escrita foram removidas da branch,
+com o CI aprovado. O RH optou, em 05/11/2026, pelo fluxo **sem retenção do
+PDF/DOCX original**: o arquivo é convertido em memória para Markdown, o texto
+integral é salvo no D1 privado da GEX e um trecho de até 24.000 caracteres
+fica vinculado como observação na Recrutei. O PDF/DOCX binário original não
+permanece armazenado. Não há integração com R2 nem link de arquivo original.
 
-### Pendente antes da liberação pública
+Para a publicação aprovada, `RESUME_UPLOAD_ENABLED="true"` foi configurado
+**somente em produção**; a prévia mantém `APPLICATIONS_ENABLED="false"` e
+`RESUME_UPLOAD_ENABLED="false"`. Arquivos PDF e DOCX são obrigatórios na
+candidatura e limitados a 5 MB. O layout das páginas de vagas não foi alterado.
 
-1. Confirmar com o RH se basta o **conteúdo textual convertido** na observação
-   da Recrutei, já que o arquivo original não é salvo como anexo.
-2. Consultar o suporte da Recrutei sobre o HTTP 404 em
-   `PUT /api/v2/curriculum/filled`; a observação é o fallback homologado.
-3. Validar uma candidatura fictícia completa em prévia restrita com formulário,
-   consentimento e arquivo, sem abrir a criação pública de candidaturas.
-4. Validar a política de retenção, limitação de acesso e tratamento de falhas
-   antes de habilitar `RESUME_UPLOAD_ENABLED` na produção.
+A conversão `AI.toMarkdown` é gratuita para a maioria dos formatos conforme a
+documentação Cloudflare; documentos com processamento de imagens podem consumir
+quota Workers AI. O D1 Free tem limite de 500 MB por base. A retenção de
+Markdown da GEX continua configurada para 12 meses.
+
+### Acompanhamento pós-publicação
+
+1. Validar GET `/health` de produção e que `resume_upload_enabled` mudou
+   para `true` com AI + D1 presentes.
+2. Confirmar que o formulário oficial exibe upload PDF/DOCX sem mudanças de
+   layout e preserva o fluxo atual das vagas.
+3. Conferir uma candidatura real futura autorizada pelo RH na Recrutei, sem
+   usar dados de terceiros para testes.
+4. Consultar o suporte Recrutei sobre o 404 no campo personalizado (o
+   fallback por observação já está homologado).
+5. Monitorar falhas de conversão e quotas Free; rever retenção e segurança
+   da observação na Recrutei antes de escalar.
+
