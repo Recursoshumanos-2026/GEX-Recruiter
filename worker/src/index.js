@@ -1,4 +1,5 @@
-import { questionnaireFor, validateAnswers } from '../../questionnaires.js';
+import { validateQuestionnaireAnswers } from '../../questionnaires.js';
+import { loadVacancyQuestionnaire, publicQuestionnaires, handleRhRequest } from './rh-questionnaires.js';
 import { resumeAvailable, convertResume, assertResumeDatabase, storeResume, resumeField } from './resumes.js';
 import { cleanupExpiredResumes, RETENTION_CRON } from './retention.js';
 import { smokeResume } from './smoke.js';
@@ -746,8 +747,7 @@ function resumeMarkdownToObservationHtml(markdown) {
   return blocks.join('<br>') || '<p>Não foi possível extrair texto legível do currículo.</p>';
 }
 
-async function addQuestionnaireObservation(env, payload, createBody, answers) {
-  const questionnaire = questionnaireFor(payload.vacancy_id);
+async function addQuestionnaireObservation(env, payload, createBody, answers, questionnaire) {
   const { talentId, applicationId } = profileIds(createBody, payload.vacancy_id);
   if (![talentId, applicationId].every(id => /^[1-9]\d*$/.test(String(id)))) {
     return { ok: false, reason: 'IDs do talento/candidatura não retornados para a observação.' };
@@ -926,10 +926,12 @@ async function createProspect(env, rawPayload, ctx) {
   }
 
   let answers;
+  let questionnaire;
   try {
-    answers = validateAnswers(payload.vacancy_id, payload.questionnaire_answers);
+    questionnaire = await loadVacancyQuestionnaire(env, payload.vacancy_id);
+    answers = validateQuestionnaireAnswers(questionnaire, payload.questionnaire_answers);
   } catch (error) {
-    error.status = 400;
+    error.status ||= 400;
     throw error;
   }
 
@@ -1060,7 +1062,7 @@ async function createProspect(env, rawPayload, ctx) {
 
   const observationResult = answers
     ? await completeApplicationStep(() =>
-        addQuestionnaireObservation(env, payload, createBody, answers))
+        addQuestionnaireObservation(env, payload, createBody, answers, questionnaire))
     : null;
 
   // Keep one HR-readable observation even if the custom field succeeds:
@@ -1147,6 +1149,11 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
+    // Only Access-authenticated RH users can access the private editor.
+    if (url.pathname === '/rh' || url.pathname.startsWith('/rh/')) {
+      return handleRhRequest(request, env, ctx, () => listVacancies(env));
+    }
+
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
@@ -1179,9 +1186,11 @@ export default {
         request.method === 'GET' &&
         url.pathname === '/api/vagas'
       ) {
+        const vacancies = await listVacancies(env);
         return json(
           {
-            data: await listVacancies(env)
+            data: vacancies,
+            questionnaires: await publicQuestionnaires(env, vacancies)
           },
           200,
           env
