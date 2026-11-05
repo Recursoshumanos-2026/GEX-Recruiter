@@ -34,7 +34,7 @@ function fakeEnv(options={}) {
     AI:{ async toMarkdown(input) {
       assert.ok(input.name.endsWith('.pdf') || input.name.endsWith('.docx'));
       assert.equal(input.name.includes('Pessoa'),false);
-      return {data:'# Pessoa fictícia\n\n## Experiência profissional\n\nTrabalhou com atendimento e operações.',format:'markdown'};
+      return {data:options.markdown ?? '# Pessoa fictícia\n\n## Experiência profissional\n\nTrabalhou com atendimento e operações.',format:'markdown'};
     }},
     RESUME_DB:{prepare(sql) {
       return {
@@ -125,6 +125,22 @@ test('Markdown resume enters Recrutei custom informations field and D1 storage',
   assert.deepEqual(payload.informations[0],resumeField(r.dbRows[0].values[3]));
   assert.equal(r.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
   assert.equal(r.calls.filter(c=>c.path==='/api/v2/talents-observations').length,2);
+  const resumeNote=r.calls.filter(c=>c.path==='/api/v2/talents-observations')[1].init.body.get('description');
+  assert.ok(resumeNote.includes('<strong>Experiência profissional</strong>'));
+  assert.ok(resumeNote.includes('<p>Trabalhou com atendimento e operações.</p>'));
+  assert.ok(!resumeNote.includes('<pre>'));
+});
+
+test('organiza currículo em seções, parágrafos e listas sem interpretar HTML do candidato',async()=>{
+  const markdown = '# Profissional fictício\n\n## Resumo\n\nAtendimento ao cliente.\nResultados mensais.\n\n## Competências\n\n- **SQL**\n- <script>alert("x")</script>\n';
+  const r=await application(rawPdf(),{markdown});
+  const note=r.calls.filter(c=>c.path==='/api/v2/talents-observations')[1].init.body.get('description');
+  assert.ok(note.includes('<p><strong>Resumo</strong></p>'));
+  assert.ok(note.includes('<p>Atendimento ao cliente.<br>Resultados mensais.</p>'));
+  assert.ok(note.includes('<ul><li><strong>SQL</strong></li><li>&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;</li></ul>'));
+  assert.ok(!note.includes('<script>'));
+  assert.ok(!note.includes('<pre>'));
+  assert.equal(r.dbRows[0].values[3], markdown.trim());
 });
 
 test('when Recrutei custom field returns HTTP 404, fallback observation stores escaped Markdown',async()=>{
@@ -137,7 +153,7 @@ test('when Recrutei custom field returns HTTP 404, fallback observation stores e
   assert.equal(r.body.resume_completed,true);
   const notes=r.calls.filter(c=>c.path==='/api/v2/talents-observations');
   assert.equal(notes.length,2);
-  assert.ok(notes[1].init.body.get('description').includes('Currículo convertido em Markdown'));
+  assert.ok(notes[1].init.body.get('description').includes('Currículo do candidato'));
   assert.equal(r.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
 });
 
@@ -153,7 +169,7 @@ test('HTTP 406 preserva currículo convertido e registra nascimento/salário sem
   assert.equal(r.body.profile_fallback_observation_completed,true);
   const notes=r.calls.filter(c=>c.path==='/api/v2/talents-observations');
   assert.equal(notes.length,3);
-  assert.ok(notes.some(note=>note.init.body.get('description').includes('Currículo convertido em Markdown')));
+  assert.ok(notes.some(note=>note.init.body.get('description').includes('Currículo do candidato')));
   assert.ok(notes.some(note=>note.init.body.get('description').includes('Data de nascimento:')));
 });
 

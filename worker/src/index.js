@@ -663,6 +663,52 @@ function escapeHtml(value) {
   })[character]);
 }
 
+// Recrutei's observation editor doesn't preserve the whitespace inside <pre>.
+// Render the converted Markdown as simple, sanitized HTML so CV sections and
+// line breaks remain readable in the candidate's history.
+function resumeMarkdownToObservationHtml(markdown) {
+  const lines = String(markdown).replace(/\r\n?/g, '\n').split('\n');
+  const blocks = [];
+  let paragraph = [];
+  let bullets = [];
+
+  const inline = value => escapeHtml(value)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  const flushParagraph = () => {
+    if (paragraph.length) blocks.push(`<p>${paragraph.map(inline).join('<br>')}</p>`);
+    paragraph = [];
+  };
+  const flushBullets = () => {
+    if (bullets.length) blocks.push(`<ul>${bullets.map(item => `<li>${inline(item)}</li>`).join('')}</ul>`);
+    bullets = [];
+  };
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) {
+      flushParagraph();
+      flushBullets();
+      continue;
+    }
+    const heading = line.match(/^#{1,6}\s+(.+)$/);
+    const bullet = line.match(/^[-*•]\s+(.+)$/);
+    if (heading) {
+      flushParagraph();
+      flushBullets();
+      blocks.push(`<p><strong>${inline(heading[1])}</strong></p>`);
+    } else if (bullet) {
+      flushParagraph();
+      bullets.push(bullet[1]);
+    } else {
+      flushBullets();
+      paragraph.push(line);
+    }
+  }
+  flushParagraph();
+  flushBullets();
+  return blocks.join('') || '<p>Não foi possível extrair texto legível do currículo.</p>';
+}
+
 async function addQuestionnaireObservation(env, payload, createBody, answers) {
   const questionnaire = questionnaireFor(payload.vacancy_id);
   const { talentId, applicationId } = profileIds(createBody, payload.vacancy_id);
@@ -713,9 +759,9 @@ async function addResumeObservation(env, payload, createBody, markdown) {
   form.set('talent_observation_type_id', '7');
   form.set('action','1');
   form.set('description',
-    '<p><strong>GEX Talents | Currículo convertido em Markdown</strong></p>' +
-    '<p>Texto extraído do currículo enviado pelo candidato. Conteúdo armazenado nesta observação da Recrutei.</p>' +
-    '<pre>' + escapeHtml(excerpt + trailer) + '</pre>');
+    '<p><strong>GEX Talents | Currículo do candidato</strong></p>' +
+    '<p>Texto extraído do arquivo enviado, organizado para leitura do RH.</p>' +
+    resumeMarkdownToObservationHtml(excerpt + trailer));
   const response = await recrutei(env, '/api/v2/talents-observations', {
     method:'POST', body:form
   });
