@@ -213,6 +213,7 @@ test('health advertises resume upload only when both private storage and convers
   let r=await worker.fetch(new Request('https://worker.invalid/health'),env);
   const enabled = await r.json();
   assert.equal(enabled.resume_upload_enabled,true);
+  assert.equal(enabled.resume_observation_format,'sectioned_html_v1');
   assert.deepEqual(enabled.resume_connections,{workers_ai:true,d1_database:true});
   delete env.RESUME_DB;
   r=await worker.fetch(new Request('https://worker.invalid/health'),env);
