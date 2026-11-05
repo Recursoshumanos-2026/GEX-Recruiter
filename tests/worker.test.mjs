@@ -453,7 +453,9 @@ test('health da prévia informa candidaturas desabilitadas', async () => {
     ...env, APPLICATIONS_ENABLED: 'false'
   });
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).applications_enabled, false);
+  const health = await response.json();
+  assert.equal(health.applications_enabled, false);
+  assert.equal(health.profile_update_endpoint, 'talent_path_v2');
 });
 
 const diagnosticEnv = {
