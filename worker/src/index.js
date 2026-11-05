@@ -1118,6 +1118,8 @@ export default {
               env.APPLICATIONS_ENABLED === 'true' &&
               Boolean(env.PROSPECT_CHANNEL_ID),
             candidate_form_version: 2,
+            // Marcador público, sem dados pessoais, para confirmar o deploy da correção.
+            profile_update_endpoint: 'talent_path_v2',
             curriculum_storage: resumeAvailable(env),
             // Safe, non-sensitive connection diagnostics. These only report
             // whether bindings exist; they never access candidate data.
