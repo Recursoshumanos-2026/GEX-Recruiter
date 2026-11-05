@@ -111,14 +111,59 @@ O GitHub Actions inclui `tests/live-preview-integration.mjs`, um teste que acess
 Esse processo é exclusivo do ambiente de prévia, pois depende de `RESUME_DIAGNOSTIC_ENABLED="true"`, variável que não está prevista em produção. O upload para candidatos permanece desativado até concluir teste real da integração Recrutei e revisão de segurança. Nunca usar essa rota para candidatos reais.
 
 
-## Homologação da Recrutei — diagnóstico confirmado em 04/11/2026
+## Homologação Recrutei e currículos fictícios — 04/11/2026
 
-- O CI da prévia confirmou Workers AI → conversão de PDF fictício → leitura/gravação D1: **PASS**.
-- A tentativa **somente de leitura** `GET /api/diagnostico-perfil` retornou 502 com `lookup_http_status=null`, e o diagnóstico seguro `recrutei_credentials_configured=false`. Isso significa que **faltam as credenciais da Recrutei no ambiente Base de Prévias**; a API Recrutei não chegou a responder ao diagnóstico.
-- No painel Cloudflare, em `Workers & Pages → gex-talents-api → Configurações → Variáveis e segredos em tempo de execução → Base de Prévias`, adicionar como **Segredo** (não variável comum), com os valores oficiais mantidos de forma segura: `RECRUTEI_API_KEY`, `RECRUTEI_API_SECRET`, `RECRUTEI_EMAIL` e `RECRUTEI_PASSWORD`. **Não enviar valores de segredo por chat, print ou no GitHub.**
-- Se os valores de produção não estiverem disponíveis em um cofre de credenciais, a Cloudflare não permite recuperar os valores criptografados pelo painel; solicitar as credenciais ao responsável autorizado ou renová-las pela Recrutei.
-- **Não alterar `APPLICATIONS_ENABLED=false` e `RESUME_UPLOAD_ENABLED=false` na prévia**: os diagnósticos são de leitura, e qualquer escrita deve ser explicitamente homologada com um cadastro fictício existente.
-- Corrigida a separação de identificadores conforme o guia Recrutei: parâmetro `talent_id` na **query** recebe o ID da **prospecção** quando fornecido; `talent_id` no **JSON** permanece o ID do talento. Se o campo personalizado não persistir, o Worker também registra uma observação de currículo no Recrutei (pendente validar em conta real).
-- Registro do teste: [GitHub Actions do CI de prévia](https://github.com/Recursoshumanos-2026/GEX-Recruiter/actions).
+O teste foi executado **somente no Worker de prévia**, com os quatro segredos cadastrados
+pelo RH em Base de Prévias. Não houve publicação de credenciais nem uso de candidatos reais.
 
-O banco D1 de produção e o binding foram configurados no código após a confirmação do ID pelo RH. A funcionalidade continua **OFF** em produção até a homologação final.
+- Consulta do cadastro fictício da Recrutei: **HTTP 200**, IDs de vaga e candidatura
+  confirmados; nenhum candidato adicional foi criado.
+- Requisição `PUT /api/v2/curriculum/filled` (campo personalizado): **HTTP 404** para
+  esse cadastro fictício, apesar de ser o endpoint descrito na documentação oficial.
+  Portanto, não presumir que o campo personalizado esteja funcional.
+- `POST /api/v2/talents-observations`: **aceito pela Recrutei** com o Markdown de teste
+  vinculado à candidatura existente. O conteúdo pode ser consultado pelo RH em
+  observações, mas **não corresponde a um anexo PDF/DOCX original**.
+
+| Etapa de homologação | PDF fictício | DOCX fictício |
+| --- | --- | --- |
+| Arquivo reconhecido e convertido em Markdown | PASS | PASS |
+| Gravação e leitura de conferência no D1 privado | PASS | PASS (ID fictício isolado) |
+| Observação associada à candidatura fictícia Recrutei | PASS | PASS |
+| Candidaturas novas criadas | 0 | 0 |
+
+O D1 tem unicidade em `(vacancy_id, application_id)`, como esperado para **um
+currículo por candidatura**. Por isso, o segundo arquivo não podia ser gravado
+usando novamente os IDs do teste PDF; a gravação DOCX foi validada isoladamente
+com outro identificador **somente no banco de testes**, sem alterar dados reais.
+
+Após a homologação, as rotas temporárias de escrita foram removidas da branch,
+com o CI aprovado. O RH optou, em 05/11/2026, pelo fluxo **sem retenção do
+PDF/DOCX original**: o arquivo é convertido em memória para Markdown, o texto
+integral é salvo no D1 privado da GEX e um trecho de até 24.000 caracteres
+fica vinculado como observação na Recrutei. O PDF/DOCX binário original não
+permanece armazenado. Não há integração com R2 nem link de arquivo original.
+
+Para a publicação aprovada, `RESUME_UPLOAD_ENABLED="true"` foi configurado
+**somente em produção**; a prévia mantém `APPLICATIONS_ENABLED="false"` e
+`RESUME_UPLOAD_ENABLED="false"`. Arquivos PDF e DOCX são obrigatórios na
+candidatura e limitados a 5 MB. O layout das páginas de vagas não foi alterado.
+
+A conversão `AI.toMarkdown` é gratuita para a maioria dos formatos conforme a
+documentação Cloudflare; documentos com processamento de imagens podem consumir
+quota Workers AI. O D1 Free tem limite de 500 MB por base. A retenção de
+Markdown da GEX continua configurada para 12 meses.
+
+### Acompanhamento pós-publicação
+
+1. Validar GET `/health` de produção e que `resume_upload_enabled` mudou
+   para `true` com AI + D1 presentes.
+2. Confirmar que o formulário oficial exibe upload PDF/DOCX sem mudanças de
+   layout e preserva o fluxo atual das vagas.
+3. Conferir uma candidatura real futura autorizada pelo RH na Recrutei, sem
+   usar dados de terceiros para testes.
+4. Consultar o suporte Recrutei sobre o 404 no campo personalizado (o
+   fallback por observação já está homologado).
+5. Monitorar falhas de conversão e quotas Free; rever retenção e segurança
+   da observação na Recrutei antes de escalar.
+
