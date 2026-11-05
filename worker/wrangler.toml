@@ -6,7 +6,7 @@ compatibility_date = "2026-10-01"
 ALLOWED_ORIGIN = "https://recursoshumanos-2026.github.io"
 APPLICATIONS_ENABLED = "true"
 PROSPECT_CHANNEL_ID = "8"
-RESUME_UPLOAD_ENABLED = "false"
+RESUME_UPLOAD_ENABLED = "true"
 # Retencao automatica somente no D1, 12 meses; Recrutei nunca e alterada.
 RESUME_RETENTION_ENABLED = "true"
 RESUME_RETENTION_DRY_RUN = "false"
@@ -18,7 +18,8 @@ binding = "AI"
 
 # Cloudflare D1 - banco privado de curriculos de producao.
 # Associacao ja criada manualmente na Cloudflare; manter sincronizada no deploy.
-# O upload permanece DESATIVADO ate homologacao da Recrutei.
+# O upload converte PDF/DOCX em Markdown; nenhum arquivo original e armazenado.
+# O texto vai para D1 privado (retencao) e observacao na Recrutei.
 [[d1_databases]]
 binding = "RESUME_DB"
 database_name = "gex-talents-curriculos"
