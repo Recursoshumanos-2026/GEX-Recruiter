@@ -105,13 +105,38 @@ export const QUESTIONNAIRES = {
   }
 };
 
+// Updated from the private RH panel through the public vacancies endpoint.
+// No credentials or applicant information are included in these definitions.
+const publishedOverrides = new Map();
+
+export function setPublishedQuestionnaires(definitions) {
+  publishedOverrides.clear();
+  if (!definitions || typeof definitions !== 'object' || Array.isArray(definitions)) return;
+  for (const [id, definition] of Object.entries(definitions)) {
+    if (!/^[1-9][0-9]*$/.test(id)) continue;
+    if (definition === null) {
+      publishedOverrides.set(id, null); // RH explicitly disabled the legacy questions.
+    } else if (definition && typeof definition.title === 'string' &&
+               Array.isArray(definition.questions)) {
+      publishedOverrides.set(id, definition);
+    }
+  }
+}
+
 export function questionnaireFor(vacancyId) {
+  if (publishedOverrides.has(String(vacancyId))) {
+    return publishedOverrides.get(String(vacancyId));
+  }
   return Object.hasOwn(QUESTIONNAIRES, String(vacancyId))
     ? QUESTIONNAIRES[String(vacancyId)] : null;
 }
 
 export function validateAnswers(vacancyId, raw) {
-  const questionnaire = questionnaireFor(vacancyId);
+  return validateQuestionnaireAnswers(questionnaireFor(vacancyId), raw);
+}
+
+// The Worker passes its own D1-backed definition, avoiding shared in-memory state.
+export function validateQuestionnaireAnswers(questionnaire, raw) {
   if (!questionnaire) return null;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new Error('Responda às perguntas obrigatórias da vaga.');

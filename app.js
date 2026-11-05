@@ -1,4 +1,4 @@
-import { questionnaireFor, validateAnswers } from './questionnaires.js?v=5';
+import { questionnaireFor, validateAnswers, setPublishedQuestionnaires } from './questionnaires.js?v=6';
 
 const CONFIG = window.GEX_TALENTS_CONFIG || {};
 // A shareable presentation preview: all file and form interactions stay local.
@@ -955,6 +955,8 @@ async function loadJobs() {
 
     jobs =
       body.data || [];
+    // Only the RH can publish overrides. The API does not expose admin access.
+    setPublishedQuestionnaires(body.questionnaires || {});
     jobsLoadFailed = false;
 
     // Only the opened vacancy needs a full public job description.
