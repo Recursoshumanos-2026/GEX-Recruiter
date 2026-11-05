@@ -739,7 +739,10 @@ function resumeMarkdownToObservationHtml(markdown) {
   }
   flushParagraph();
   flushBullets();
-  return blocks.join('') || '<p>Não foi possível extrair texto legível do currículo.</p>';
+  // One blank line between content blocks; bullet items stay together.
+  // The Recrutei observation renderer ignores paragraph margins, so an
+  // explicit <br> is needed to give sections a little breathing room.
+  return blocks.join('<br>') || '<p>Não foi possível extrair texto legível do currículo.</p>';
 }
 
 async function addQuestionnaireObservation(env, payload, createBody, answers) {
@@ -1238,7 +1241,7 @@ export default {
             // Marcador público, sem dados pessoais, para confirmar o deploy da correção.
             profile_update_endpoint: 'talent_path_v2',
             vacancy_availability_check: 'recrutei_public_close_flags_v1',
-            resume_observation_format: 'sectioned_html_v2',
+            resume_observation_format: 'sectioned_html_v3',
             curriculum_storage: resumeAvailable(env),
             // Safe, non-sensitive connection diagnostics. These only report
             // whether bindings exist; they never access candidate data.
