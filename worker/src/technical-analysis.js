@@ -4,7 +4,7 @@ const MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const MAX_REQUIREMENTS = 8;
 const REQUIRED_SECTION = /requisit|qualifica|conhecimentos? t[eé]cnic|compet[eê]ncias? t[eé]cnic|o que esperamos|habilidades? t[eé]cnic/i;
 const FALLBACK_SECTION = /responsabilidades|atividades|dia a dia|atribuiç/i;
-const EXCLUDED_SECTION = /diferencia|benef[ií]cio|perfil comportamental|cultura|contrataç|combinado|remuneraç/i;
+const EXCLUDED_SECTION = /diferencia|benef[ií]cio|perfil comportamental|compet[eê]ncias? comportamentais|habilidades? comportamentais|cultura|contrataç|combinado|remuneraç|etapas? do processo/i;
 const EXCLUDED_CRITERION = /\b(?:idade|sexo|g[eê]nero|raça|cor de pele|religi[aã]o|estado civil|gravidez|defici[eê]ncia|cpf|data de nascimento|apar[eê]ncia)\b/i;
 
 export const technicalAnalysisAvailable = env =>
@@ -25,17 +25,26 @@ const visibleText = html => decodeHtml(String(html)
 
 export function technicalCriteria(description) {
   if (typeof description !== 'string' || !description.trim()) return [];
-  const matches = [...description.matchAll(/<h([1-6])\b[^>]*>[\s\S]*?<\/h\1>|<li\b[^>]*>[\s\S]*?<\/li>/gi)];
+  // Recrutei's rich-text editor often exports section titles as <p>Requisitos</p>
+  // instead of semantic headings. Keep them in document order with list items.
+  const matches = [...description.matchAll(/<h([1-6])\b[^>]*>[\s\S]*?<\/h\1>|<li\b[^>]*>[\s\S]*?<\/li>|<p\b[^>]*>[\s\S]*?<\/p>/gi)];
   const sections = { required: [], fallback: [] };
   let category = null;
   for (const match of matches) {
     const block = match[0];
-    if (/^<h/i.test(block)) {
+    const isHeading = /^<h[1-6]\b/i.test(block);
+    const isParagraph = /^<p\b/i.test(block);
+    if (isHeading || isParagraph) {
       const heading = visibleText(block);
+      // A body paragraph mentioning a requirement must not become a section.
+      // Paragraph headings are short labels without sentence punctuation.
+      if (isParagraph && (heading.length > 90 || /[.!?]$/.test(heading) ||
+          !(EXCLUDED_SECTION.test(heading) || REQUIRED_SECTION.test(heading) ||
+            FALLBACK_SECTION.test(heading)))) continue;
       if (EXCLUDED_SECTION.test(heading)) category = null;
       else if (REQUIRED_SECTION.test(heading)) category = 'required';
       else if (FALLBACK_SECTION.test(heading)) category = 'fallback';
-      else if (Number(match[1]) <= 2) category = null;
+      else if (isHeading && Number(match[1]) <= 2) category = null;
     } else if (category) {
       const criterion = visibleText(block);
       if (criterion.length >= 12 && criterion.length <= 260 &&

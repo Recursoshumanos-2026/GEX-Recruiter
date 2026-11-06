@@ -30,6 +30,35 @@ test('usa atribuições quando a vaga não lista requisitos, e exclui dados sens
   ]);
 });
 
+test('reconhece títulos em parágrafos do HTML real da Recrutei',()=>{
+  const description = '<p>TESTE INTERNO | Assistente Administrativo(a)</p>' +
+    '<p>Sobre a vaga</p><p>Apoio às rotinas administrativas.</p>' +
+    '<p>Principais responsabilidades</p><ul>' +
+    '<li><p>Organizar e atualizar planilhas de controle administrativo.</p></li>' +
+    '<li><p>Apoiar a elaboração de relatórios e indicadores.</p></li></ul>' +
+    '<p>Requisitos</p><ul>' +
+    '<li><p>Conhecimento básico ou intermediário em Excel e Google Sheets.</p></li>' +
+    '<li><p>Familiaridade com ferramentas do Google Workspace.</p></li>' +
+    '<li><p>Capacidade de gerenciar diferentes demandas.</p></li></ul>' +
+    '<p>Diferenciais</p><ul>' +
+    '<li><p>Experiência anterior em rotinas administrativas.</p></li></ul>' +
+    '<p>Competências comportamentais</p><ul>' +
+    '<li><p>Comunicação e organização no ambiente de trabalho.</p></li></ul>';
+  assert.deepEqual(technicalCriteria(description),[
+    'Conhecimento básico ou intermediário em Excel e Google Sheets.',
+    'Familiaridade com ferramentas do Google Workspace.',
+    'Capacidade de gerenciar diferentes demandas.'
+  ]);
+  assert.deepEqual(technicalCriteria('<p>Principais responsabilidades</p><ul>' +
+    '<li><p>Organizar e atualizar planilhas de controle administrativo.</p></li>' +
+    '<li><p>Apoiar a elaboração de relatórios e indicadores.</p></li>' +
+    '<li><p>Conferir as informações recebidas das áreas.</p></li></ul>'),[
+    'Organizar e atualizar planilhas de controle administrativo.',
+    'Apoiar a elaboração de relatórios e indicadores.',
+    'Conferir as informações recebidas das áreas.'
+  ]);
+});
+
 test('IA só pontua evidências literais e ignora comandos maliciosos no currículo',async()=>{
   const calls=[];
   const env={AI:{run:async (model,req)=>{
