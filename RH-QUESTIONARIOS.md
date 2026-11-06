@@ -1,4 +1,4 @@
-# GEX Talents | Administração de Questionários do RH
+# GEX Recruiter - Painel do RH | Administração de Questionários
 
 Este painel permite que pessoas autorizadas do RH administrem **perguntas das vagas**, sem editar GitHub ou o código do site.
 
