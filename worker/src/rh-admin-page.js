@@ -11,15 +11,15 @@ export function renderRhAdminPage(email, authMode='access') {
   const nonce = btoa(String.fromCharCode(...bytes));
   const html = `<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GEX Talents | Administração de Questionários</title>
+<title>GEX Recruiter - Painel do RH</title>
 <style nonce="${nonce}">${STYLES}</style></head><body>
-<header class="top"><a class="brand" href="https://recursoshumanos-2026.github.io/GEX-Recruiter/" rel="noopener noreferrer">GEX <span>Talents</span></a>
+<header class="top"><a class="brand" href="https://recursoshumanos-2026.github.io/GEX-Recruiter/" rel="noopener noreferrer">GEX <span>Recruiter - Painel do RH</span></a>
 <span class="top-separator"></span><span class="top-title">Administração de questionários</span><span class="signed">Acesso RH · ${escapeHtml(email)}</span>${authMode === 'password' ? '<button id="logout" type="button" class="quiet">Sair</button>' : ''}</header>
 <main class="layout"><aside class="sidebar"><div class="section-title"><div><small>RECRUTEI</small><h2>Vagas</h2></div><button id="refresh" type="button" class="quiet">Atualizar</button></div>
 <label class="search-label" for="search">Buscar vaga</label><input id="search" type="search" placeholder="Nome ou código da vaga">
 <div id="vacancies" class="vacancy-list" aria-label="Vagas da Recrutei"></div>
 <div class="aside-note">As vagas e seus títulos são sincronizados com a Recrutei. A edição do questionário é feita exclusivamente aqui.</div></aside>
-<section class="editor"><div class="editor-header"><div><small>GEX TALENTS / RH</small><h1 id="heading">Escolha uma vaga</h1><p id="subtitle">Cadastre as perguntas que aparecem na candidatura, sem alterar o GitHub.</p></div><span id="statusBadge" class="status-badge">Aguardando</span></div>
+<section class="editor"><div class="editor-header"><div><small>GEX RECRUITER / RH</small><h1 id="heading">Escolha uma vaga</h1><p id="subtitle">Cadastre as perguntas que aparecem na candidatura, sem alterar o GitHub.</p></div><span id="statusBadge" class="status-badge">Aguardando</span></div>
 <div class="toolbar"><button type="button" id="addQuestion" disabled>+ Adicionar pergunta</button><button type="button" id="copyFrom" class="secondary" disabled>Copiar outra vaga</button><select id="sourceVacancy" aria-label="Vaga de origem"><option value="">Escolha a vaga de origem</option></select></div>
 <div class="toolbar toolbar-model"><select id="templates" aria-label="Modelo de questionário"><option value="">Escolha um modelo salvo</option></select><button type="button" id="useTemplate" class="secondary" disabled>Usar modelo</button><button type="button" id="saveTemplate" class="secondary" disabled>Salvar como modelo</button></div>
 <label class="field-title" for="questionnaireTitle">Título do questionário</label><input id="questionnaireTitle" placeholder="Ex.: Triagem técnica — Analista de Dados" disabled maxlength="150">

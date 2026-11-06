@@ -60,6 +60,7 @@ test('login local exige conta configurada, não libera apenas pelo link e não v
   assert.equal(login.status,200);
   const html=await login.text();
   assert.match(html,/Área exclusiva do RH/);
+  assert.match(html,/GEX Recruiter - Painel do RH/);
   assert.doesNotMatch(html,/Frase-Muito-Forte-2026/);
   assert.match(login.headers.get('Content-Security-Policy'),/script-src 'nonce-/);
   const inline=html.match(/<script nonce="[^"]+">([\s\S]*?)<\/script>/)?.[1];
@@ -92,6 +93,7 @@ test('login válido emite cookie HttpOnly, permite edição autenticada e logout
   assert.equal(panel.status,200);
   const panelHtml=await panel.text();
   assert.match(panelHtml,/Administração de questionários/);
+  assert.match(panelHtml,/GEX Recruiter - Painel do RH/);
   assert.match(panelHtml,/>Sair<\/button>/);
   const adminScript=panelHtml.match(/<script type="module" nonce="[^"]+">([\s\S]*?)<\/script>/)?.[1];
   assert.ok(adminScript);
