@@ -70,17 +70,32 @@ async function passwordMatches(input, secret) {
   return difference === 0;
 }
 
+// Bind each session to its current account password without storing a
+// password-only fingerprint in D1. Rotating a password revokes older sessions.
+// The random cookie token is required to derive this verifier, so a D1 dump
+// alone cannot be used to test password guesses offline.
+function sessionProof(token, password) {
+  return sha256('gex-rh-session-v1\0' + token + '\0' + password);
+}
+
 export async function localRhIdentity(request, env) {
-  if (!localRhConfigured(env)) return null;
+  const accounts = configuredAccounts(env);
+  if (!accounts) return null;
   const token = cookieValue(request);
   if (!token) return null;
   try {
     const row = await env.RESUME_DB.prepare(
       'SELECT email, csrf, expires_at FROM gex_rh_sessions WHERE token_hash=?'
     ).bind(await sha256(token)).first();
+    const email = String(row?.email || '').toLowerCase();
+    const password = accounts.get(email);
+    const [csrf, proof, extra] = String(row?.csrf || '').split('.');
     if (!row || Number(row.expires_at) <= Math.floor(Date.now()/1000) ||
-        !configuredAccounts(env).has(String(row.email).toLowerCase())) return null;
-    return { email:String(row.email).toLowerCase(), csrf:String(row.csrf), mode:'password' };
+        !password || extra !== undefined ||
+        !/^[A-Za-z0-9_-]{43}$/.test(csrf || '') ||
+        !/^[a-f0-9]{64}$/.test(proof || '') ||
+        !await passwordMatches(proof,await sessionProof(token,password))) return null;
+    return { email, csrf, mode:'password' };
   } catch { return null; }
 }
 
@@ -154,9 +169,10 @@ export async function handleLocalRhAuth(request, env) {
     await env.RESUME_DB.prepare('DELETE FROM gex_rh_sessions WHERE expires_at<=?')
       .bind(now).run();
     const token=randomToken(), csrf=randomToken();
+    const boundCsrf=csrf+'.'+await sessionProof(token,accounts.get(email));
     await env.RESUME_DB.prepare(`INSERT INTO gex_rh_sessions
       (token_hash,email,csrf,expires_at,created_at) VALUES (?,?,?,?,?)`)
-      .bind(await sha256(token),email,csrf,now+SESSION_SECONDS,now).run();
+      .bind(await sha256(token),email,boundCsrf,now+SESSION_SECONDS,now).run();
     return json({signed_in:true},200,{'Set-Cookie':sessionCookie(token,SESSION_SECONDS)});
   } catch {
     return json({message:'Não foi possível iniciar a sessão. Tente novamente.'},503);

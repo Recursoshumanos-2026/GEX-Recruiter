@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { handleRhRequest } from '../worker/src/rh-questionnaires.js';
 import { localRhConfigured, localRhIdentity } from '../worker/src/rh-login.js';
 
@@ -128,4 +129,33 @@ test('senha incorreta é limitada a 5 tentativas por 15 minutos',async()=>{
   const blocked=await handleRhRequest(request('/rh/api/login','POST',
     {email:'yas@exemplo.com',password}),env,{},vacancies);
   assert.equal(blocked.status,429);
+});
+
+test('trocar a senha revoga a sessão anterior sem expor a senha no banco',async()=>{
+  const env=buildEnv();
+  const entered=await handleRhRequest(request('/rh/api/login','POST',
+    {email:'yas@exemplo.com',password}),env,{},vacancies);
+  assert.equal(entered.status,200);
+  const header={Cookie:entered.headers.get('Set-Cookie').split(';')[0]};
+  assert.equal((await handleRhRequest(request('/rh/api/session','GET',null,header),
+    env,{},vacancies)).status,200);
+  const newPassword='Senha-Diferente-Muito-Forte-2026!';
+  env.QUESTIONNAIRE_RH_ACCOUNTS=JSON.stringify({'yas@exemplo.com':newPassword});
+  assert.equal((await handleRhRequest(request('/rh/api/session','GET',null,header),
+    env,{},vacancies)).status,401);
+  assert.equal((await handleRhRequest(request('/rh/api/login','POST',
+    {email:'yas@exemplo.com',password:newPassword}),env,{},vacancies)).status,200);
+  assert.equal((await handleRhRequest(request('/rh/api/login','POST',
+    {email:'yas@exemplo.com',password}),env,{},vacancies)).status,401);
+});
+
+test('site público oferece aviso de privacidade com canal e retenção informados',()=>{
+  const home=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  const notice=readFileSync(new URL('../privacidade.html',import.meta.url),'utf8');
+  assert.match(home,/href="privacidade\.html"/);
+  assert.match(notice,/rh@institutoexperience\.com\.br/);
+  assert.match(notice,/até 12 meses/);
+  assert.match(notice,/Recrutei/);
+  assert.match(notice,/Cloudflare/);
+  assert.match(notice,/análise técnica automatizada/);
 });
