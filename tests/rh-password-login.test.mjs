@@ -61,6 +61,9 @@ test('login local exige conta configurada, não libera apenas pelo link e não v
   const html=await login.text();
   assert.match(html,/Área exclusiva do RH/);
   assert.match(html,/GEX Recruiter - Painel do RH/);
+  assert.match(html,/id="passwordVisibility" type="button"/);
+  assert.match(html,/aria-label="Mostrar senha" aria-pressed="false"/);
+  assert.match(html,/toggle\.setAttribute\('aria-label',visible\?'Ocultar senha':'Mostrar senha'\)/);
   assert.doesNotMatch(html,/Frase-Muito-Forte-2026/);
   assert.match(login.headers.get('Content-Security-Policy'),/script-src 'nonce-/);
   const inline=html.match(/<script nonce="[^"]+">([\s\S]*?)<\/script>/)?.[1];
