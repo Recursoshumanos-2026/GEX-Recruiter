@@ -1,12 +1,12 @@
-// Served on the Worker's own origin after verified Cloudflare Access authentication.
-// The public GitHub Pages site never receives credentials for these routes.
+// Served on the Worker's own origin after authenticated Cloudflare Access or
+// the private RH password session. The public site never receives credentials.
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, char => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   }[char]));
 }
 
-export function renderRhAdminPage(email) {
+export function renderRhAdminPage(email, authMode='access') {
   const bytes = crypto.getRandomValues(new Uint8Array(18));
   const nonce = btoa(String.fromCharCode(...bytes));
   const html = `<!doctype html>
@@ -14,7 +14,7 @@ export function renderRhAdminPage(email) {
 <title>GEX Talents | Administração de Questionários</title>
 <style nonce="${nonce}">${STYLES}</style></head><body>
 <header class="top"><a class="brand" href="https://recursoshumanos-2026.github.io/GEX-Recruiter/" rel="noopener noreferrer">GEX <span>Talents</span></a>
-<span class="top-separator"></span><span class="top-title">Administração de questionários</span><span class="signed">Acesso RH · ${escapeHtml(email)}</span></header>
+<span class="top-separator"></span><span class="top-title">Administração de questionários</span><span class="signed">Acesso RH · ${escapeHtml(email)}</span>${authMode === 'password' ? '<button id="logout" type="button" class="quiet">Sair</button>' : ''}</header>
 <main class="layout"><aside class="sidebar"><div class="section-title"><div><small>RECRUTEI</small><h2>Vagas</h2></div><button id="refresh" type="button" class="quiet">Atualizar</button></div>
 <label class="search-label" for="search">Buscar vaga</label><input id="search" type="search" placeholder="Nome ou código da vaga">
 <div id="vacancies" class="vacancy-list" aria-label="Vagas da Recrutei"></div>
@@ -45,10 +45,11 @@ const STYLES = String.raw`
 const CLIENT_JS = String.raw`
 'use strict';
 const $ = id => document.getElementById(id);
-const state = { vacancies: [], id: null, version: 0, dirty: false };
+const state = { vacancies: [], id: null, version: 0, dirty: false, csrf: null };
 function message(text, error) { $('message').textContent = text; $('message').classList.toggle('error', !!error); }
 async function api(path, options) {
-  const response = await fetch('/rh/api/' + path, { credentials: 'same-origin', cache: 'no-store', ...options });
+  const response = await fetch('/rh/api/' + path, { credentials: 'same-origin', cache: 'no-store',
+    ...options, headers:{...options?.headers,...(options?.method && options.method!=='GET' && state.csrf ? {'X-RH-CSRF':state.csrf} : {})} });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.message || 'Falha de comunicação com o servidor.');
   return data;
@@ -208,5 +209,14 @@ $('saveTemplate').addEventListener('click',async()=>{
     message('Modelo salvo para reutilização.');await refreshTemplates();}
   catch(error){message(error.message,true);}
 });
-await Promise.all([refreshVacancies(),refreshTemplates()]);
+try {
+  const session=await api('session');
+  state.csrf=session.csrf;
+  await Promise.all([refreshVacancies(),refreshTemplates()]);
+} catch(error) { message(error.message,true); }
+if ($('logout')) $('logout').addEventListener('click',async()=>{
+  if(state.dirty&&!confirm('Há alterações não salvas. Sair do painel?'))return;
+  try{await api('logout',{method:'POST'});window.location.replace('/rh/perguntas');}
+  catch(error){message(error.message,true);}
+});
 `;
