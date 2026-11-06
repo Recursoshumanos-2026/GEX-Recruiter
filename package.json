@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node tests/worker.test.mjs && node tests/questionnaire-controls.test.mjs && node tests/vacancy-details.test.mjs && node tests/resumes.test.mjs && node tests/technical-analysis.test.mjs && node tests/rh-questionnaires.test.mjs && node tests/retention.test.mjs && node tests/smoke.test.mjs",
+    "test": "node tests/worker.test.mjs && node tests/questionnaire-controls.test.mjs && node tests/vacancy-details.test.mjs && node tests/resumes.test.mjs && node tests/technical-analysis.test.mjs && node tests/rh-questionnaires.test.mjs && node tests/rh-password-login.test.mjs && node tests/retention.test.mjs && node tests/smoke.test.mjs",
     "test:ui": "node tests/browser.mjs",
-    "check": "node --check app.js && node --check questionnaires.js && node --check worker/src/index.js && node --check worker/src/rh-questionnaires.js && node --check worker/src/rh-admin-page.js && node --check worker/src/resumes.js && node --check worker/src/technical-analysis.js && node --check worker/src/retention.js && node --check worker/src/smoke.js"
+    "check": "node --check app.js && node --check questionnaires.js && node --check worker/src/index.js && node --check worker/src/rh-questionnaires.js && node --check worker/src/rh-login.js && node --check worker/src/rh-admin-page.js && node --check worker/src/resumes.js && node --check worker/src/technical-analysis.js && node --check worker/src/retention.js && node --check worker/src/smoke.js"
   },
   "devDependencies": {
     "playwright": "^1.64.1"

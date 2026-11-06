@@ -1,5 +1,7 @@
 import { questionnaireFor, validateQuestionnaireAnswers } from '../../questionnaires.js';
 import { renderRhAdminPage } from './rh-admin-page.js';
+import { handleLocalRhAuth, localRhConfigured, localRhIdentity,
+  renderRhLoginPage } from './rh-login.js';
 
 // All administrator endpoints are confined to /rh/. Cloudflare Access must
 // authenticate the path, AND these two application-level checks must pass.
@@ -14,6 +16,12 @@ export async function authorizedRhUser(env, ctx) {
   const allowed = String(env.QUESTIONNAIRE_RH_EMAILS).split(',')
     .map(value => value.trim().toLowerCase()).filter(Boolean);
   return email && allowed.includes(email) ? email : null;
+}
+
+async function authorizedRhIdentity(request, env, ctx) {
+  const accessEmail = await authorizedRhUser(env,ctx);
+  if (accessEmail) return {email:accessEmail,mode:'access'};
+  return localRhIdentity(request,env);
 }
 
 function validId(value) {
@@ -189,13 +197,23 @@ async function jsonBody(request) {
 }
 
 export async function handleRhRequest(request, env, ctx, loadVacancies) {
-  const email = await authorizedRhUser(env, ctx);
-  if (!email) return reject(403, 'Acesso reservado a usuários autorizados do RH.');
   const url = new URL(request.url);
   const path = url.pathname;
+  const localAuth = await handleLocalRhAuth(request, env);
+  if (localAuth) return localAuth;
+  const identity = await authorizedRhIdentity(request,env,ctx);
+  if (!identity) {
+    if (localRhConfigured(env) && request.method === 'GET' &&
+        (path === '/rh' || path === '/rh/' || path === '/rh/perguntas')) {
+      return renderRhLoginPage();
+    }
+    return reject(localRhConfigured(env) ? 401 : 403,
+      'Acesso reservado a usuários autorizados do RH.');
+  }
+  const email = identity.email;
   if (request.method === 'GET' && (path === '/rh' || path === '/rh/' ||
       path === '/rh/perguntas')) {
-    return renderRhAdminPage(email);
+    return renderRhAdminPage(email,identity.mode);
   }
   if (!path.startsWith('/rh/api/')) return reject(404, 'Página não encontrada.');
   if (!['GET', 'PUT', 'POST', 'DELETE'].includes(request.method)) {
@@ -204,8 +222,16 @@ export async function handleRhRequest(request, env, ctx, loadVacancies) {
   if (request.method !== 'GET' && request.headers.get('Origin') !== url.origin) {
     return reject(403, 'Origem não autorizada.');
   }
+  if (identity.mode === 'password' && request.method !== 'GET' &&
+      request.headers.get('X-RH-CSRF') !== identity.csrf) {
+    return reject(403, 'Sessão inválida. Atualize o painel e tente novamente.');
+  }
   try {
     await ensureTables(env);
+    if (request.method === 'GET' && path === '/rh/api/session') {
+      return reply({ email, mode: identity.mode,
+        csrf: identity.mode === 'password' ? identity.csrf : null });
+    }
     if (request.method === 'GET' && path === '/rh/api/vagas') {
       const vacancies = await loadVacancies();
       const { results } = await env.RESUME_DB.prepare(
