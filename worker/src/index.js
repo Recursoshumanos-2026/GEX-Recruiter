@@ -11,7 +11,7 @@ let tokenCache = { token: null, expiresAt: 0 };
 function cors(env) {
   return {
     'Access-Control-Allow-Origin':
-      env.ALLOWED_ORIGIN || 'https://recursoshumanos-2026.github.io',
+      env.ALLOWED_ORIGIN || 'https://carreiras.gexcorp.com.br',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
   };
@@ -1211,7 +1211,7 @@ export default {
         if (contentType.includes('multipart/form-data')) {
           // Do not accept untrusted cross-origin browser file submissions.
           if (request.headers.get('Origin') !==
-              (env.ALLOWED_ORIGIN || 'https://recursoshumanos-2026.github.io')) {
+              (env.ALLOWED_ORIGIN || 'https://carreiras.gexcorp.com.br')) {
             return json({ message:'Origem não permitida.' },403,env);
           }
           if (!resumeAvailable(env)) {

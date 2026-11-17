@@ -68,7 +68,7 @@ Depois faça commit no GitHub. O site passará a buscar as vagas reais.
 Configure `ALLOWED_ORIGIN` no backend com a origem do GitHub Pages. Exemplo:
 
 ```toml
-ALLOWED_ORIGIN = "https://recursoshumanos-2026.github.io"
+ALLOWED_ORIGIN = "https://carreiras.gexcorp.com.br"
 ```
 
 Também valide com a Recrutei qual canal de aquisição (`PROSPECT_CHANNEL_ID`) deve representar candidaturas vindas do GEX Talents.
