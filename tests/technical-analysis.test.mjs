@@ -159,3 +159,16 @@ test('aceita ferramentas cumulativas explícitas e não pontua uma citação sem
   assert.equal(result.criteria[2].status,'nao_verificado');
   assert.equal(result.criteria[2].evidence,'');
 });
+
+test('alternativa de nível não transforma Excel e Sheets em alternativas', async () => {
+  const jd=administrativeJob.replace('Conhecimento de Excel e Google Sheets','Conhecimento básico ou intermediário em Excel e Google Sheets');
+  const env={AI:{run:async()=>({response:{ratings:[
+    {index:0,status:'nao_verificado',evidence:''},
+    {index:1,status:'atendido',evidence:'Excel avançado'},
+    {index:2,status:'nao_verificado',evidence:''},
+    {index:3,status:'nao_verificado',evidence:''}
+  ]}})}};
+  const result=await evaluateTechnicalFit(env,jd,'Excel avançado.');
+  assert.equal(result.criteria[1].status,'parcial');
+  assert.equal(result.score,13);
+});
