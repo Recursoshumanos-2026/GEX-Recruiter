@@ -880,6 +880,7 @@ async function createProspect(env, rawPayload, ctx) {
   const required = [
     'name',
     'email',
+    'ssn',
     'telephone',
     'vacancy_id'
   ];
@@ -904,10 +905,34 @@ async function createProspect(env, rawPayload, ctx) {
 
   for (const key of required) {
     if (!payload[key]) {
-      throw new Error(
-        `Campo obrigatório ausente: ${key}`
-      );
+      const error = new Error(`Campo obrigatório ausente: ${key === 'ssn' ? 'CPF' : key === 'email' ? 'E-mail' : key}`);
+      error.status = 400;
+      throw error;
     }
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email) || payload.email.length > 254) {
+    const error = new Error('Informe um e-mail válido.');
+    error.status = 400;
+    throw error;
+  }
+  const cpf = payload.ssn;
+  if (!/^(?:\d{11}|\d{3}\.\d{3}\.\d{3}-\d{2})$/.test(cpf)) {
+    const error = new Error('Informe os 11 dígitos do CPF.');
+    error.status = 400;
+    throw error;
+  }
+  const digits = cpf.replace(/\D/g, '');
+  const checkDigit = length => {
+    const sum = [...digits.slice(0, length)].reduce((total, digit, index) =>
+      total + Number(digit) * (length + 1 - index), 0);
+    return (11 - sum % 11) % 11 % 10;
+  };
+  if (/^(\d)\1{10}$/.test(digits) ||
+      checkDigit(9) !== Number(digits[9]) || checkDigit(10) !== Number(digits[10])) {
+    const error = new Error('Informe um CPF válido.');
+    error.status = 400;
+    throw error;
   }
 
   if (completeForm) {
@@ -1297,7 +1322,7 @@ export default {
             profile_update_endpoint: 'talent_path_v2',
             vacancy_availability_check: 'recrutei_public_close_flags_v1',
             resume_observation_format: 'sectioned_html_v3',
-            technical_analysis_format: 'gex_evidence_score_v1',
+            technical_analysis_format: 'gex_evidence_score_v2',
             technical_analysis_enabled: technicalAnalysisAvailable(env),
             curriculum_storage: resumeAvailable(env),
             // Safe, non-sensitive connection diagnostics. These only report
