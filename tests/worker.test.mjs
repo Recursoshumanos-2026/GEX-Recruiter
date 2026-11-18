@@ -9,7 +9,7 @@ const answers = () => Object.fromEntries(questionnaireFor('158928').questions.ma
 ]));
 const payload = () => ({ name: 'Pessoa Teste', email: 'teste@example.invalid', telephone: '11999999999',
   vacancy_id: '158928', form_version: '2', birthday: '1990-01-01', intended_remuneration: '5000',
-  city: 'Cidade teste', state: 'SP', ssn: '000.000.000-00', available: 'Imediata',
+  city: 'Cidade teste', state: 'SP', ssn: '529.982.247-25', available: 'Imediata',
   linkedin_url: 'https://example.invalid/perfil', questionnaire_answers: answers() });
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
 const dataQuestionIds = ['age', 'linkedin', 'social', 'employment', 'start', 'remote', 'pj', 'salary'];
@@ -53,6 +53,16 @@ async function run(input, options = {}) {
     }), options.env ?? env);
     return { status: response.status, body: await response.json(), calls };
   } finally { globalThis.fetch = original; }
+}
+
+for (const [field, value] of [['ssn',null],['ssn','000.000.000-00'],['ssn','123'],['email',null],['email','sem-arroba']]) {
+  test('rejeita campo obrigatório inválido ou ausente: '+field+' '+String(value), async () => {
+    const input = payload();
+    if (value === null) delete input[field]; else input[field] = value;
+    const result = await run(input);
+    assert.equal(result.status,400);
+    assert.equal(result.calls.length,0);
+  });
 }
 
 test('cria observação multipart ordenada, preservando perfil e tag', async () => {

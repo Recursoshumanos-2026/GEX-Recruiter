@@ -106,3 +106,69 @@ test('análise indisponível sem binding e não simula nota',async()=>{
   await assert.rejects(()=>evaluateTechnicalFit(env,'<p>Sem requisitos.</p>',
     'Evidência fictícia'),/Critérios técnicos insuficientes/);
 });
+
+const administrativeJob = '<h2>Requisitos</h2><ul>' +
+  '<li>Ensino médio completo</li>' +
+  '<li>Conhecimento de Excel e Google Sheets</li>' +
+  '<li>Experiência com CRM ou ClickUp</li>' +
+  '<li>Experiência na elaboração de relatórios</li></ul>';
+
+test('reconhece formação superior concluída e não confunde Office com duas ferramentas', async () => {
+  const resume = 'Graduação em Psicologia concluída. Pacote Office. Uso de ClickUp. Elaboração de relatórios.';
+  const env = {AI:{run:async (_model,req) => {
+    assert.match(req.messages[0].content,/requisito composto/);
+    return {response:{ratings:[
+      {index:0,status:'parcial',evidence:'Graduação em Psicologia concluída'},
+      {index:1,status:'atendido',evidence:'Pacote Office'},
+      {index:2,status:'atendido',evidence:'Uso de ClickUp'},
+      {index:3,status:'atendido',evidence:'Elaboração de relatórios'}
+    ]}};
+  }}};
+  const result = await evaluateTechnicalFit(env,administrativeJob,resume);
+  assert.deepEqual(result.criteria.map(c=>c.status),['atendido','parcial','atendido','atendido']);
+  assert.equal(result.score,88);
+  const html=technicalAnalysisHtml('Vaga fictícia',result);
+  assert.ok(html.includes('GEX Talents | Análise Técnica Automatizada'));
+  assert.ok(html.includes('Confirmar parte não demonstrada: Conhecimento de Excel e Google Sheets'));
+  assert.ok(!html.includes('Verificar experiência em: Ensino médio completo'));
+});
+
+test('exige evidência para todas as ferramentas cumulativas, mas não para alternativas', async () => {
+  const resume = 'Graduação em Psicologia em andamento. Excel avançado. Uso de ClickUp. Elaboração de relatórios.';
+  const env = {AI:{run:async()=>({response:{ratings:[
+    {index:0,status:'parcial',evidence:'Graduação em Psicologia em andamento'},
+    {index:1,status:'atendido',evidence:'Excel avançado'},
+    {index:2,status:'atendido',evidence:'Uso de ClickUp'},
+    {index:3,status:'atendido',evidence:'Elaboração de relatórios'}
+  ]}})}};
+  const result = await evaluateTechnicalFit(env,administrativeJob,resume);
+  assert.equal(result.score,75);
+  assert.deepEqual(result.criteria.map(c=>c.status),['parcial','parcial','atendido','atendido']);
+});
+
+test('aceita ferramentas cumulativas explícitas e não pontua uma citação sem relação com a ferramenta', async () => {
+  const resume = 'Ensino médio concluído. Excel e Google Sheets. Experiência em recepção. Elaboração de relatórios.';
+  const env = {AI:{run:async()=>({response:{ratings:[
+    {index:0,status:'atendido',evidence:'Ensino médio concluído'},
+    {index:1,status:'atendido',evidence:'Excel e Google Sheets'},
+    {index:2,status:'atendido',evidence:'Experiência em recepção'},
+    {index:3,status:'atendido',evidence:'Elaboração de relatórios'}
+  ]}})}};
+  const result = await evaluateTechnicalFit(env,administrativeJob,resume);
+  assert.equal(result.score,75);
+  assert.equal(result.criteria[2].status,'nao_verificado');
+  assert.equal(result.criteria[2].evidence,'');
+});
+
+test('alternativa de nível não transforma Excel e Sheets em alternativas', async () => {
+  const jd=administrativeJob.replace('Conhecimento de Excel e Google Sheets','Conhecimento básico ou intermediário em Excel e Google Sheets');
+  const env={AI:{run:async()=>({response:{ratings:[
+    {index:0,status:'nao_verificado',evidence:''},
+    {index:1,status:'atendido',evidence:'Excel avançado'},
+    {index:2,status:'nao_verificado',evidence:''},
+    {index:3,status:'nao_verificado',evidence:''}
+  ]}})}};
+  const result=await evaluateTechnicalFit(env,jd,'Excel avançado.');
+  assert.equal(result.criteria[1].status,'parcial');
+  assert.equal(result.score,13);
+});

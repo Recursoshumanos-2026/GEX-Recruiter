@@ -142,7 +142,7 @@ test('vaga publicada na API mas com inscrições encerradas some da lista, dá 4
     assert.equal(detail.status,404);
     const apply = await worker.fetch(new Request('https://worker.invalid/api/candidatar',{
       method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-        name:'Pessoa Fictícia',email:'teste@example.invalid',telephone:'11999999999',vacancy_id:'161288'
+        name:'Pessoa Fictícia',email:'teste@example.invalid',ssn:'52998224725',telephone:'11999999999',vacancy_id:'161288'
       })
     }),{...env,APPLICATIONS_ENABLED:'true'});
     assert.equal(apply.status,400);
@@ -167,7 +167,7 @@ test('sem confirmação pública de disponibilidade, não anuncia nem recebe can
     assert.match((await listing.json()).message,/disponibilidade/);
     const apply = await worker.fetch(new Request('https://worker.invalid/api/candidatar',{
       method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-        name:'Pessoa Fictícia',email:'teste@example.invalid',telephone:'11999999999',vacancy_id:'161288'
+        name:'Pessoa Fictícia',email:'teste@example.invalid',ssn:'52998224725',telephone:'11999999999',vacancy_id:'161288'
       })
     }),{...env,APPLICATIONS_ENABLED:'true'});
     assert.equal(apply.status,503);

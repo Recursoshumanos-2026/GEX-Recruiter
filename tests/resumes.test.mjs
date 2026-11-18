@@ -17,7 +17,7 @@ const answers = () => Object.fromEntries(questionnaireFor('158928').questions.ma
 const formFor = file => {
   const form = new FormData();
   for (const [key,value] of Object.entries({
-    name:'Pessoa fictícia',email:'candidate@example.invalid',telephone:'11999999999',
+    name:'Pessoa fictícia',email:'candidate@example.invalid',ssn:'52998224725',telephone:'11999999999',
     vacancy_id:'158928',form_version:'2',birthday:'2000-01-01',
     intended_remuneration:'5000'
   })) form.set(key,value);
@@ -163,7 +163,7 @@ test('Vaga Ultra recebe análise técnica em observação separada sem alterar e
   const health=await worker.fetch(new Request('https://worker.invalid/health'),r.env);
   const version=await health.json();
   assert.equal(version.technical_analysis_enabled,true);
-  assert.equal(version.technical_analysis_format,'gex_evidence_score_v1');
+  assert.equal(version.technical_analysis_format,'gex_evidence_score_v2');
 });
 
 test('organiza currículo em seções, parágrafos e listas sem interpretar HTML do candidato',async()=>{

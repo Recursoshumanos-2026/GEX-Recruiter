@@ -56,6 +56,7 @@ try {
   const fillBase = async () => {
     await page.locator('[name="name"]').fill('Pessoa Teste');
     await page.locator('[name="email"]').fill('teste@example.invalid');
+    await page.locator('[name="ssn"]').fill('52998224725');
     await page.locator('[name="telephone"]').fill('11999999999');
     await page.locator('[name="birthday"]').fill('1990-01-01');
     await page.locator('[name="intended_remuneration"]').fill('5000');
@@ -64,10 +65,12 @@ try {
   const submit = () => page.locator('.submit-btn').click();
   await open('baseline', 999999);
   await page.evaluate(() => document.fonts.ready);
-  const before = await page.screenshot();
+  const before = await page.screenshot({mask:[page.locator('label:has([name="ssn"])')]});
   await open('current', 999999);
   await page.evaluate(() => document.fonts.ready);
-  const after = await page.screenshot();
+  const after = await page.screenshot({mask:[page.locator('label:has([name="ssn"])')]});
+  assert.equal(await page.locator('[name="ssn"]').getAttribute('required'),'');
+  assert.equal(await page.locator('[name="email"]').getAttribute('required'),'');
   assert.ok(before.equals(after), 'Outra vaga deve manter aparência idêntica à base aprovada');
   assert.equal(await page.locator('#vacancyQuestionnaire').isVisible(), false);
   assert.equal(await page.locator('[name^="question_"]').count(), 0);
