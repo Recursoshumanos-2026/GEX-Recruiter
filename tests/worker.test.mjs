@@ -55,7 +55,7 @@ async function run(input, options = {}) {
   } finally { globalThis.fetch = original; }
 }
 
-for (const [field, value] of [['ssn',null],['ssn','000.000.000-00'],['ssn','123'],['email',null],['email','sem-arroba']]) {
+for (const [field, value] of [['ssn',null],['ssn','000.000.000-00'],['ssn','123'],['email',null],['email','sem-arroba'],['email','nome@dominio'],['email','nome@.com'],['email','nome@dominio..com'],['email','nome..teste@dominio.com'],['ssn','52998224724']]) {
   test('rejeita campo obrigatório inválido ou ausente: '+field+' '+String(value), async () => {
     const input = payload();
     if (value === null) delete input[field]; else input[field] = value;
