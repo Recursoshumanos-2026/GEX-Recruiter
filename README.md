@@ -217,3 +217,33 @@ O fluxo de conversão Cloudflare Workers AI → Markdown → armazenamento **Clo
 ### Prévia Cloudflare para validação do upload
 
 A branch `feat/lucide-icons-gex` é usada somente para homologação de recursos ainda não publicados. No painel Cloudflare, a opção **Builds para branches de preview** deve estar ligada e o comando de prévia deve ser `npx wrangler preview`. Um novo push nessa branch dispara a compilação de prévia; isso não promove a versão para produção. O envio de currículos permanece desativado (`RESUME_UPLOAD_ENABLED=false`) até o teste real com dados fictícios.
+
+### Prevenção de candidaturas duplicadas (homologação)
+
+A flag opcional `DUPLICATE_CHECK_ENABLED=true` habilita, antes da criação,
+a consulta autenticada e paginada `POST /api/v1/search/talents` com o ID
+da vaga, sem filtro de etapa. O Worker compara o e-mail sem diferenciar
+maiúsculas e minúsculas; se o CPF já estiver presente na linha retornada,
+também compara seus dígitos. Não cria, move, altera nem anexa nada a um
+cadastro identificado como existente. A resposta pública não inclui
+nomes, identificadores, CPF, e-mail ou detalhes do perfil.
+
+A documentação pública da Recrutei não garante CPF na listagem, nem
+garante a cobertura de todas as situações históricas. A consulta de CPF
+com e-mail diferente só funciona quando esse campo está disponível na
+listagem. É necessário confirmar com o suporte uma consulta exata por CPF
+e vaga para cobertura completa, sem varrer perfis individuais.
+
+A proteção local de requisições simultâneas vale apenas em uma instância
+do Worker; não é uma garantia de unicidade distribuída. O limite é de 20
+páginas de 100 registros solicitados por tentativa. Falha, paginação
+inconclusiva ou limite excedido gera HTTP 503, não uma conclusão de que
+o candidato é novo. Duplicidade identificada gera HTTP 409.
+Não há novo banco, retenção de identificadores nem custo de serviço
+adicional contratado; a consulta consome a cota existente da API.
+
+A flag permanece desativada por padrão. Antes de ativá-la em produção,
+homologar o contrato real e a paginação usando uma vaga controlada,
+confirmar se a listagem inclui reprovados/desistentes e testar se o
+endpoint é permitido pelo plano da empresa. Confirmar a publicação da
+API e do portal; o diagnóstico `/health` informa apenas a flag.
