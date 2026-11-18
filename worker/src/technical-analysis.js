@@ -100,7 +100,12 @@ function refineRating(requirement, status, quote) {
   // Alternatives are not cumulative. Only enforce every named tool when the
   // requirement does not contain an ambiguous "or"; the prompt covers mixtures.
   const alternative = /\bou\b|\/|\be\/ou\b/.test(req);
-  if (present === 0 || (!alternative && present < requiredTools.length)) return 'parcial';
+  if (present === 0) {
+    // A suite or related application can support partial familiarity, not mastery.
+    const related = /\b(?:pacote office|microsoft office|office 365|microsoft 365|google workspace|g suite|planilhas|excel|google sheets|programacao|banco de dados|business intelligence|tableau|looker|crm)\b/.test(ev);
+    return related ? 'parcial' : 'nao_verificado';
+  }
+  if (!alternative && present < requiredTools.length) return 'parcial';
   return status;
 }
 
@@ -162,10 +167,11 @@ export async function evaluateTechnicalFit(env, description, markdown) {
     const status = rating.status;
     const quote = typeof rating.evidence === 'string' ? rating.evidence.trim().slice(0,220) : '';
     const verified = quote.length >= 8 && source.includes(normalizeEvidence(quote));
+    const refined = verified && ['atendido','parcial'].includes(status)
+      ? refineRating(requirements[rating.index], status, quote) : 'nao_verificado';
     byIndex.set(rating.index, {
-      status:verified && ['atendido','parcial'].includes(status) && rating.index >= 0 && rating.index < requirements.length
-        ? refineRating(requirements[rating.index], status, quote) : 'nao_verificado',
-      evidence:verified && ['atendido','parcial'].includes(status) ? quote : ''
+      status:refined,
+      evidence:refined === 'nao_verificado' ? '' : quote
     });
   }
   const criteria = requirements.map((requirement,index) => ({
