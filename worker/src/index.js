@@ -613,7 +613,7 @@ async function testProspectProfile(request, env) {
   }, 200, env);
 }
 
-async function addGexTalentsTag(env, payload, createBody) {
+async function addGexRecruiterTag(env, payload, createBody) {
   const { talentId, applicationId } = profileIds(
     createBody,
     payload.vacancy_id
@@ -639,7 +639,7 @@ async function addGexTalentsTag(env, payload, createBody) {
         application_id: Number(applicationId),
         talent_id: Number(talentId),
         key: 'generic',
-        value: 'GEX Talents',
+        value: 'GEX Recruiter',
         color: '#1e6fd9'
       })
     }
@@ -652,7 +652,7 @@ async function addGexTalentsTag(env, payload, createBody) {
       ok: false,
       reason:
         body.message ||
-        `Falha ao adicionar tag GEX Talents (${response.status})`
+        `Falha ao adicionar tag GEX Recruiter (${response.status})`
     };
   }
 
@@ -1044,7 +1044,7 @@ async function createProspect(env, rawPayload, ctx) {
   }
 
   const tagResult = await completeApplicationStep(() =>
-    addGexTalentsTag(env, payload, createBody)
+    addGexRecruiterTag(env, payload, createBody)
   );
 
   let tagCompleted = true;
@@ -1055,7 +1055,7 @@ async function createProspect(env, rawPayload, ctx) {
     tagWarning = tagResult.reason;
 
     console.error(
-      'GEX Talents: candidatura criada, mas a tag não foi adicionada:',
+      'GEX Recruiter: candidatura criada, mas a tag não foi adicionada:',
       tagResult.reason
     );
   }
@@ -1310,7 +1310,8 @@ export default {
             resume_required: resumeAvailable(env),
             resume_formats: ['pdf','docx'],
             resume_max_bytes: 5242880,
-            gex_talents_tag: true
+            gex_talents_tag: true,
+            candidate_tag_name: 'GEX Recruiter'
           },
           200,
           env
