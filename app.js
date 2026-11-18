@@ -71,7 +71,7 @@ function contactFieldError(name, value) {
   const text = String(value || '').trim();
   if (!text) return name === 'ssn' ? 'Informe seu CPF.' : 'Informe seu e-mail.';
   if (name === 'email') {
-    const valid = text.length <= 254 && /^[^\s@.]+(?:\.[^\s@.]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(text);
+    const valid = text.length <= 254 && /^[a-z0-9!#$%&'*+/=?^_\x60{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_\x60{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(text);
     return valid ? '' : 'Informe um e-mail válido, como nome@exemplo.com.';
   }
   if (!/^(?:\d{11}|\d{3}\.\d{3}\.\d{3}-\d{2})$/.test(text)) return 'Informe os 11 dígitos do CPF.';
@@ -103,7 +103,10 @@ function resetContactValidation() {
   for (const field of contactInputs) {
     if (!field) continue;
     delete field.dataset.touched;
-    validateContactField(field);
+    field.setCustomValidity('');
+    field.removeAttribute('aria-invalid');
+    const message = document.getElementById(field.name + 'Error');
+    if (message) { message.hidden = true; message.textContent = ''; }
   }
 }
 for (const field of contactInputs) {
