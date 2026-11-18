@@ -19,7 +19,7 @@
 
   <link rel="stylesheet" href="tokens.css" />
  <link rel="stylesheet" href="styles.css?v=9" />
-  <link rel="stylesheet" href="application.css?v=6" />
+  <link rel="stylesheet" href="application.css?v=7" />
   <link rel="stylesheet" href="animated-icons.css?v=1" />
   <link rel="stylesheet" href="visual-v2.css?v=2" />
   <link rel="stylesheet" href="vacancy-details.css?v=10" />
@@ -744,8 +744,11 @@
               required
               type="email"
               name="email"
+              maxlength="254"
+              aria-describedby="emailError"
               autocomplete="email"
             />
+            <span class="contact-field-error" id="emailError" aria-live="polite" hidden></span>
 
           </label>
 
@@ -786,6 +789,7 @@
             <input
               required
               name="ssn"
+              aria-describedby="ssnError"
               pattern="[0-9]{11}|[0-9]{3}\.[0-9]{3}\.[0-9]{3}\-[0-9]{2}"
               maxlength="14"
               title="Informe os 11 dígitos do CPF"
@@ -793,6 +797,7 @@
               placeholder="000.000.000-00"
               autocomplete="off"
             />
+            <span class="contact-field-error" id="ssnError" aria-live="polite" hidden></span>
 
           </label>
 
@@ -1040,7 +1045,7 @@
 
 
   <script src="config.js"></script>
-  <script type="module" src="app.js?v=32"></script>
+  <script type="module" src="app.js?v=33"></script>
   <script defer src="visual-v2.js?v=1"></script>
 
 </body>
