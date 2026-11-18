@@ -206,3 +206,8 @@
   border-color:#40baff;
   background:rgba(22,117,207,.17);
 }
+
+/* Feedback is shown only after interaction or an invalid submit. */
+.application-grid .contact-field-error[hidden]{display:none!important}
+.application-grid .contact-field-error{font-size:12px;line-height:1.4;font-weight:500;color:var(--negative)}
+.application-grid input[aria-invalid=true]{border-color:var(--negative)}

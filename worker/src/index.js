@@ -911,7 +911,7 @@ async function createProspect(env, rawPayload, ctx) {
     }
   }
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email) || payload.email.length > 254) {
+  if (!/^[a-z0-9!#$%&'*+/=?^_\x60{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_\x60{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(payload.email) || payload.email.length > 254) {
     const error = new Error('Informe um e-mail válido.');
     error.status = 400;
     throw error;
