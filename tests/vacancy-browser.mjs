@@ -258,6 +258,25 @@ try {
       });
       // Only UI preview — never submit a candidate to the mocked or real Recrutei API.
     }
+    const cpf = page.locator('[name="ssn"]');
+    const email = page.locator('[name="email"]');
+    await cpf.fill('52998224724');
+    await cpf.blur();
+    assert.equal(await page.locator('#ssnError').isVisible(),true);
+    assert.match(await page.locator('#ssnError').textContent(),/CPF inválido/);
+    assert.equal(await cpf.evaluate(el=>el.checkValidity()),false);
+    await email.fill('pessoa@dominio');
+    await email.blur();
+    assert.equal(await page.locator('#emailError').isVisible(),true);
+    assert.equal(await email.evaluate(el=>el.checkValidity()),false);
+    await page.locator('.submit-btn').click();
+    assert.equal(requests.length,0);
+    await cpf.fill('529.982.247-25');
+    await email.fill('pessoa@example.invalid');
+    assert.equal(await cpf.evaluate(el=>el.checkValidity()),true);
+    assert.equal(await email.evaluate(el=>el.checkValidity()),true);
+    assert.equal(await page.locator('#ssnError').isVisible(),false);
+    assert.equal(await page.locator('#emailError').isVisible(),false);
     assert.equal(await page.locator('#vacancyId').inputValue(),'158883');
     assert.equal(await page.locator('[name="question_age"]').count(),1);
     await page.locator('#closeDialog').click();
