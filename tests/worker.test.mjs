@@ -37,6 +37,14 @@ async function run(input, options = {}) {
           vacancy: { id: Number(input.vacancy_id) } }
       } } })+'</script>', { status: 200 });
     }
+    if (path === '/api/v1/search/talents') {
+      const page = Number(new URL(url).searchParams.get('page'));
+      assert.deepEqual(JSON.parse(init.body),{vacancy_id:[Number(input.vacancy_id)]});
+      if (options.searchFail) return json({message:'Erro de consulta'},503);
+      if (options.searchMalformed) return json({data:[]});
+      const pages = options.searchPages || [[]];
+      return json({data:pages[page-1] || [],meta:{current_page:page,last_page:pages.length}});
+    }
     if (path.endsWith('/prospects')) return json(options.createBody ?? {
       data: { talent: { id: 22, prospect: { id: 44 } }, application: { id: 33 } }
     }, options.createStatus ?? 201);
@@ -65,6 +73,41 @@ for (const [field, value] of [['ssn',null],['ssn','000.000.000-00'],['ssn','123'
   });
 }
 
+const duplicateEnv = {...env,DUPLICATE_CHECK_ENABLED:'true'};
+test('bloqueia e-mail existente na mesma vaga, inclusive em páginas posteriores e com caixa diferente', async () => {
+  const result=await run(payload(),{env:duplicateEnv,searchPages:[
+    [{id:1,email:'outra@example.invalid'}],[{id:2,email:'TESTE@example.invalid',status:'Reprovado'}]
+  ]});
+  assert.equal(result.status,409);
+  assert.equal(result.body.code,'DUPLICATE_APPLICATION');
+  assert.equal(result.body.application_created,false);
+  assert.equal(result.calls.filter(c=>c.path==='/api/v1/search/talents').length,2);
+  assert.ok(!result.calls.some(c=>c.path==='/api/v2/prospects'));
+  assert.ok(!JSON.stringify(result.body).includes('teste@example.invalid'));
+});
+test('bloqueia CPF igual com e-mail diferente quando a listagem retorna CPF', async () => {
+  const result=await run(payload(),{env:duplicateEnv,searchPages:[[{id:2,email:'outro@example.invalid',ssn:'52998224725'}]]});
+  assert.equal(result.status,409);
+  assert.equal(result.body.code,'DUPLICATE_APPLICATION');
+  assert.ok(!result.calls.some(c=>c.path==='/api/v2/prospects'));
+});
+test('permite a candidatura nova e não usa dados de outra oportunidade', async () => {
+  const result=await run(payload(),{env:duplicateEnv,searchPages:[[{id:2,vacancy_id:999999,email:'teste@example.invalid'},{id:3,email:'outro@example.invalid'}]]});
+  assert.equal(result.status,201);
+  assert.equal(result.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
+});
+test('permite candidatura em vaga sem inscritos',async()=>{
+  const result=await run(payload(),{env:duplicateEnv,searchPages:[[]]});
+  assert.equal(result.status,201);
+});
+for (const failure of [{searchFail:true},{searchMalformed:true}]) {
+  test('consulta incompleta não cria candidatura nem simula duplicidade '+JSON.stringify(failure),async()=>{
+    const result=await run(payload(),{env:duplicateEnv,...failure});
+    assert.equal(result.status,503);
+    assert.equal(result.body.code,'DUPLICATE_CHECK_UNAVAILABLE');
+    assert.ok(!result.calls.some(c=>c.path==='/api/v2/prospects'));
+  });
+}
 test('cria observação multipart ordenada, preservando perfil e tag', async () => {
   const input = payload();
   input.questionnaire_answers.pj = `  <script>alert("x")</script> & 'PJ'  `;

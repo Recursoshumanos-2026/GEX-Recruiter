@@ -862,6 +862,74 @@ async function completeApplicationStep(operation) {
 }
 
 
+// Read-only, vacancy-scoped preflight. The public API docs list email, but do
+// not guarantee CPF in the list response. Never enumerate full private profiles
+// just to compare CPF; only compare a CPF if it is actually included in a row.
+const duplicateCheckEnabled = env => env.DUPLICATE_CHECK_ENABLED === 'true';
+const duplicateInFlight = new Set();
+function duplicateError(code = 'DUPLICATE_APPLICATION') {
+  const error = new Error(code === 'DUPLICATE_APPLICATION'
+    ? 'Não foi possível realizar uma nova candidatura nesta oportunidade. Se você já se inscreveu, não precisa enviar novamente.'
+    : 'Não foi possível confirmar sua candidatura agora. Aguarde alguns instantes e tente novamente.');
+  error.code = code;
+  error.status = code === 'DUPLICATE_APPLICATION' ? 409 : 503;
+  return error;
+}
+const comparableEmail = value => typeof value === 'string' ? value.trim().toLowerCase() : '';
+const comparableCpf = value => typeof value === 'string' ? value.replace(/\D/g, '') : '';
+
+async function verifyNoExistingApplication(env, payload) {
+  const vacancyId = Number(payload.vacancy_id);
+  const email = comparableEmail(payload.email);
+  const cpf = comparableCpf(payload.ssn);
+  // Bound requests on the existing Workers plan; never treat an incomplete
+  // or unavailable search as confirmation that the candidate is new.
+  for (let page = 1; page <= 20; page++) {
+    let body;
+    try {
+      const response = await recrutei(env, '/api/v1/search/talents?page=' + page + '&perPage=100', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({vacancy_id:[vacancyId]})
+      });
+      if (!response.ok) throw Error();
+      body = await response.json();
+    } catch { throw duplicateError('DUPLICATE_CHECK_UNAVAILABLE'); }
+    if (!Array.isArray(body?.data)) throw duplicateError('DUPLICATE_CHECK_UNAVAILABLE');
+    for (const row of body.data) {
+      if (!row || (row.vacancy_id != null && Number(row.vacancy_id) !== vacancyId)) continue;
+      const emails = [row.email,row.talent?.email,row.talent?.user?.email,row.talent?.prospect?.email];
+      const cpfs = [row.ssn,row.talent?.ssn];
+      if (emails.some(value => comparableEmail(value) === email) ||
+          cpfs.some(value => comparableCpf(value) === cpf)) throw duplicateError();
+    }
+    const current = Number(body.meta?.current_page);
+    const last = Number(body.meta?.last_page ?? body.meta?.total?.pages);
+    if (current !== page || !Number.isInteger(last) || last < 0) {
+      throw duplicateError('DUPLICATE_CHECK_UNAVAILABLE');
+    }
+    if (last <= page) return;
+    if (!body.data.length) throw duplicateError('DUPLICATE_CHECK_UNAVAILABLE');
+  }
+  throw duplicateError('DUPLICATE_CHECK_UNAVAILABLE');
+}
+
+// Supplements the API preflight for simultaneous requests in this isolate.
+// No persistent personal data; this is not a distributed lock.
+async function withDuplicatePreflight(env, payload, submit) {
+  if (!duplicateCheckEnabled(env)) return submit();
+  const keys = ['email:' + comparableEmail(payload.email),'cpf:' + comparableCpf(payload.ssn)]
+    .map(identity => String(payload.vacancy_id) + ':' + identity);
+  if (keys.some(key => duplicateInFlight.has(key))) throw duplicateError('DUPLICATE_CHECK_UNAVAILABLE');
+  for (const key of keys) duplicateInFlight.add(key);
+  try {
+    await verifyNoExistingApplication(env, payload);
+    return await submit();
+  } finally {
+    for (const key of keys) duplicateInFlight.delete(key);
+  }
+}
+
 async function createProspect(env, rawPayload, ctx) {
   if (env.APPLICATIONS_ENABLED !== 'true') {
     const error = new Error('O envio de candidaturas está desativado neste ambiente.');
@@ -997,6 +1065,7 @@ async function createProspect(env, rawPayload, ctx) {
     );
   }
 
+  return withDuplicatePreflight(env, payload, async () => {
   // Convert before creating a candidate: invalid / unconvertible resumes
   // must never create partial applications.
   const resumeFile = payload.resume;
@@ -1161,6 +1230,7 @@ async function createProspect(env, rawPayload, ctx) {
       ? { tag_warning: tagWarning }
       : {})
   };
+  });
 }
 
 export default {
@@ -1324,6 +1394,7 @@ export default {
             resume_observation_format: 'sectioned_html_v3',
             technical_analysis_format: 'gex_evidence_score_v2',
             technical_analysis_enabled: technicalAnalysisAvailable(env),
+            duplicate_check_enabled: duplicateCheckEnabled(env),
             curriculum_storage: resumeAvailable(env),
             // Safe, non-sensitive connection diagnostics. These only report
             // whether bindings exist; they never access candidate data.
@@ -1355,13 +1426,16 @@ export default {
         {
           message:
             error.message || 'Erro interno',
+          ...(['DUPLICATE_APPLICATION','DUPLICATE_CHECK_UNAVAILABLE'].includes(error.code) ? {
+            code: error.code, application_created: false
+          } : {}),
           ...(error.code === 'APPLICATIONS_DISABLED' ? {
             code: 'APPLICATIONS_DISABLED',
             applications_enabled: false,
             application_created: false
           } : {})
         },
-        [400, 413, 415, 422, 503].includes(error.status) ? error.status : 500,
+        [400, 409, 413, 415, 422, 503].includes(error.status) ? error.status : 500,
         env
       );
     }

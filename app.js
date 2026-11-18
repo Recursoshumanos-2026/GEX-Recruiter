@@ -1310,6 +1310,23 @@ form.addEventListener(
           );
 
 
+      if (response.status === 409 && body.code === 'DUPLICATE_APPLICATION') {
+        formMessage.className = 'form-message error';
+        formMessage.textContent = 'Não é necessário realizar uma nova candidatura se você já se inscreveu nesta oportunidade. Confira seus dados ou entre em contato com o RH caso precise de ajuda.';
+        const otherJobs = document.createElement('a');
+        otherJobs.href = allJobsUrl() + '#vagas';
+        otherJobs.textContent = 'Conheça outras oportunidades';
+        formMessage.append(document.createElement('br'), otherJobs);
+        formMessage.hidden = false;
+        return;
+      }
+      if (response.status === 503 && body.code === 'DUPLICATE_CHECK_UNAVAILABLE') {
+        formMessage.className = 'form-message error';
+        formMessage.textContent = 'Não foi possível verificar a inscrição agora. Aguarde alguns instantes e tente novamente.';
+        formMessage.hidden = false;
+        return;
+      }
+
       if (!response.ok && body.code === 'APPLICATIONS_DISABLED') {
         applicationsEnabled = false;
         formMessage.className = 'form-message error';
