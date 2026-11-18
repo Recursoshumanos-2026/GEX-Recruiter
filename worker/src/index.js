@@ -111,6 +111,44 @@ async function recrutei(env, path, options = {}) {
   });
 }
 
+// Only post-creation operations are eligible. One repeat, with a small bounded
+// delay. 429 is an explicit rate-limit rejection, not a lost acknowledgement.
+// For POST of tags/observations, timeouts/network errors/5xx are ambiguous:
+// never replay them without a reliable readback or upstream idempotency key.
+async function recoverAfterCreation(env, path, options) {
+  const isProfilePut = options.method === 'PUT' && /^\/api\/v2\/curriculum\/filled\/[1-9]\d*$/.test(path);
+  const isSupportingPost = options.method === 'POST' &&
+    ['/api/v2/tags/talent','/api/v2/talents-observations'].includes(path);
+  if (!isProfilePut && !isSupportingPost) return recrutei(env, path, options);
+  let response;
+  try {
+    response = await recrutei(env, path, options);
+  } catch (error) {
+    // A PUT repeats exactly the same replacement of fields, for the same IDs.
+    if (!isProfilePut) throw error;
+    await new Promise(resolve => setTimeout(resolve, 250));
+    return recrutei(env, path, options);
+  }
+  if (response.status !== 429 &&
+      !(isProfilePut && [502,503,504].includes(response.status))) return response;
+  const retryAfter = response.headers.get('Retry-After');
+  const delay = retryAfter == null ? 250 :
+    /^\d+$/.test(retryAfter.trim()) ? Number(retryAfter.trim()) * 1000 :
+      Math.max(0, Date.parse(retryAfter) - Date.now());
+  // Respect upstream delay; do not hold an application open for a long outage.
+  if (!Number.isFinite(delay) || delay > 2000) return response;
+  if (response.body) await response.body.cancel().catch(() => {});
+  if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
+  return recrutei(env, path, options);
+}
+
+function unconfirmedCreationError() {
+  const error = new Error('Não foi possível confirmar se a candidatura foi recebida. Não envie outra inscrição antes de confirmar com o RH.');
+  error.code = 'APPLICATION_CREATION_UNCONFIRMED';
+  error.status = 503;
+  return error;
+}
+
 async function rawVacancies(env) {
   const response = await recrutei(
     env,
@@ -507,7 +545,7 @@ async function updateProspectProfile(env, payload, createBody, resumeMarkdown = 
     return { ok: true };
   }
 
-  const response = await recrutei(
+  const response = await recoverAfterCreation(
     env,
     `/api/v2/curriculum/filled/${encodeURIComponent(talentId)}`,
     {
@@ -627,7 +665,7 @@ async function addGexRecruiterTag(env, payload, createBody) {
     };
   }
 
-  const response = await recrutei(
+  const response = await recoverAfterCreation(
     env,
     '/api/v2/tags/talent',
     {
@@ -769,7 +807,7 @@ async function addQuestionnaireObservation(env, payload, createBody, answers, qu
   form.set('talent_observation_type_id', '7');
   form.set('description', description);
   form.set('action', '1');
-  const response = await recrutei(env, '/api/v2/talents-observations', {
+  const response = await recoverAfterCreation(env, '/api/v2/talents-observations', {
     method: 'POST', body: form
   });
   // Não refletir mensagens externas ou dados pessoais no retorno público.
@@ -799,7 +837,7 @@ async function addResumeObservation(env, payload, createBody, markdown) {
     '<p><strong>GEX Talents | Currículo do candidato</strong></p>' +
     '<p>Texto extraído do arquivo enviado, organizado para leitura do RH.</p>' +
     resumeMarkdownToObservationHtml(excerpt + trailer));
-  const response = await recrutei(env, '/api/v2/talents-observations', {
+  const response = await recoverAfterCreation(env, '/api/v2/talents-observations', {
     method:'POST', body:form
   });
   return response.ok ? { ok:true } :
@@ -819,7 +857,7 @@ async function addTechnicalAnalysisObservation(env, payload, createBody, markdow
   form.set('talent_observation_type_id', '7');
   form.set('action', '1');
   form.set('description', technicalAnalysisHtml(vacancyTitle, assessment));
-  const response = await recrutei(env, '/api/v2/talents-observations', {
+  const response = await recoverAfterCreation(env, '/api/v2/talents-observations', {
     method:'POST', body:form
   });
   if (!response.ok) throw Error('Recrutei não confirmou o registro da análise.');
@@ -844,7 +882,7 @@ async function addReadOnlyProfileObservation(env, payload, createBody) {
     'A integração não pode alterar os dados do perfil.</p>' +
     `<p><strong>Data de nascimento:</strong> ${escapeHtml(payload.birthday || 'Não informada')}</p>` +
     `<p><strong>Pretensão salarial:</strong> ${escapeHtml(payload.intended_remuneration || 'Não informada')}</p>`);
-  const response = await recrutei(env, '/api/v2/talents-observations', {
+  const response = await recoverAfterCreation(env, '/api/v2/talents-observations', {
     method: 'POST', body: form
   });
   return response.ok ? { ok: true } : {
@@ -1085,14 +1123,14 @@ async function createProspect(env, rawPayload, ctx) {
   form.set('vacancy_id', vacancy.id);
   form.set('pipe_stage_id', pipeStageId);
 
-  const response = await recrutei(
-    env,
-    '/api/v2/prospects',
-    {
-      method: 'POST',
-      body: form
-    }
-  );
+  let response;
+  try {
+    response = await recrutei(env, '/api/v2/prospects', { method:'POST', body:form });
+  } catch {
+    // The request may have reached the ATS. Never re-create on uncertainty.
+    throw unconfirmedCreationError();
+  }
+  if (response.status >= 500) throw unconfirmedCreationError();
 
   const createBody = await response
     .json()
@@ -1174,7 +1212,7 @@ async function createProspect(env, rawPayload, ctx) {
     (profileCompleted || resumeObservation?.ok === true);
 
   // Run after the candidate-facing submission has finished, so slow AI cannot
-  // delay or invalidate an otherwise successful application. One attempt only.
+  // delay or invalidate an otherwise successful application. Only explicit rate-limit rejection can repeat the observation write.
   const technicalDescription = publicStatus?.description ||
     vacancy.description || vacancy.job_description ||
     PUBLIC_JD_SNAPSHOTS[String(vacancy.id)] || '';
@@ -1395,6 +1433,7 @@ export default {
             technical_analysis_format: 'gex_evidence_score_v2',
             technical_analysis_enabled: technicalAnalysisAvailable(env),
             duplicate_check_enabled: duplicateCheckEnabled(env),
+            safe_recovery_format: 'bounded_retry_v1',
             curriculum_storage: resumeAvailable(env),
             // Safe, non-sensitive connection diagnostics. These only report
             // whether bindings exist; they never access candidate data.
@@ -1428,6 +1467,9 @@ export default {
             error.message || 'Erro interno',
           ...(['DUPLICATE_APPLICATION','DUPLICATE_CHECK_UNAVAILABLE'].includes(error.code) ? {
             code: error.code, application_created: false
+          } : {}),
+          ...(error.code === 'APPLICATION_CREATION_UNCONFIRMED' ? {
+            code: error.code, application_created: null
           } : {}),
           ...(error.code === 'APPLICATIONS_DISABLED' ? {
             code: 'APPLICATIONS_DISABLED',
