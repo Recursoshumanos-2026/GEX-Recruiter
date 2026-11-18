@@ -65,6 +65,59 @@ const formMessage =
   document.querySelector('#formMessage');
 
 
+// Show field-specific feedback before any network request. The Worker also
+// independently validates these fields; browser checks are not identity checks.
+function contactFieldError(name, value) {
+  const text = String(value || '').trim();
+  if (!text) return name === 'ssn' ? 'Informe seu CPF.' : 'Informe seu e-mail.';
+  if (name === 'email') {
+    const valid = text.length <= 254 && /^[^\s@.]+(?:\.[^\s@.]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(text);
+    return valid ? '' : 'Informe um e-mail válido, como nome@exemplo.com.';
+  }
+  if (!/^(?:\d{11}|\d{3}\.\d{3}\.\d{3}-\d{2})$/.test(text)) return 'Informe os 11 dígitos do CPF.';
+  const digits = text.replace(/\D/g, '');
+  const digit = length => {
+    const sum = [...digits.slice(0, length)].reduce((total, n, i) => total + Number(n) * (length + 1 - i), 0);
+    return (11 - sum % 11) % 11 % 10;
+  };
+  return /^(\d)\1{10}$/.test(digits) || digit(9) !== Number(digits[9]) || digit(10) !== Number(digits[10])
+    ? 'CPF inválido. Confira os números e tente novamente.' : '';
+}
+
+const contactInputs = ['email', 'ssn'].map(name => form.elements.namedItem(name));
+function validateContactField(field, show = false) {
+  if (!field || PRESENTATION_PREVIEW) return;
+  const error = contactFieldError(field.name, field.value) ||
+    (field.name === 'email' && field.validity.typeMismatch ? 'Informe um e-mail válido.' : '');
+  field.setCustomValidity(error);
+  const message = document.getElementById(field.name + 'Error');
+  const visible = Boolean(error && show);
+  if (message) {
+    message.textContent = visible ? error : '';
+    message.hidden = !visible;
+  }
+  if (visible) field.setAttribute('aria-invalid', 'true');
+  else field.removeAttribute('aria-invalid');
+}
+function resetContactValidation() {
+  for (const field of contactInputs) {
+    if (!field) continue;
+    delete field.dataset.touched;
+    validateContactField(field);
+  }
+}
+for (const field of contactInputs) {
+  if (!field) continue;
+  field.addEventListener('blur', () => {
+    field.dataset.touched = 'true';
+    validateContactField(field, true);
+  });
+  field.addEventListener('input', () => validateContactField(field, field.dataset.touched === 'true'));
+  field.addEventListener('invalid', () => {
+    field.dataset.touched = 'true';
+    validateContactField(field, true);
+  });
+}
 function workMode(job) {
   return Number(job.remote) === 1
     ? 'Remoto'
@@ -1032,6 +1085,7 @@ function openApply(id) {
 
 
   form.reset();
+  resetContactValidation();
   form.dataset.applicationCreated = '';
   form.querySelector('.submit-btn').disabled = false;
 
@@ -1171,6 +1225,7 @@ form.addEventListener(
       true;
 
     validateQuestionnaireControls();
+    for (const field of contactInputs) validateContactField(field, true);
 
     if (
       !form.reportValidity()
@@ -1331,6 +1386,7 @@ form.addEventListener(
       }
 
       form.reset();
+  resetContactValidation();
 
 
       document.querySelector(
