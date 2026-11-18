@@ -169,7 +169,7 @@ test('site público recebe perguntas da vaga nova e Recrutei recebe respostas da
     assert.equal(list.status,200);
     const data=await list.json();
     assert.deepEqual(data.questionnaires['999999'],custom);
-    const input={name:'Pessoa fictícia',email:'teste@example.invalid',telephone:'11911111111',
+    const input={name:'Pessoa fictícia',email:'teste@example.invalid',ssn:'52998224725',telephone:'11911111111',
       vacancy_id:'999999',questionnaire_answers:{q_tech:'Experiência em REST',q_crm:['CRM']}};
     const blocked=await worker.fetch(new Request(origin+'/api/candidatar',{
       method:'POST',headers:{'Content-Type':'application/json'},
