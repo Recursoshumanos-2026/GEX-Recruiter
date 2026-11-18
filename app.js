@@ -1090,6 +1090,7 @@ function openApply(id) {
   form.reset();
   resetContactValidation();
   form.dataset.applicationCreated = '';
+  form.dataset.creationUnconfirmed = '';
   form.querySelector('.submit-btn').disabled = false;
 
   formMessage.hidden =
@@ -1310,6 +1311,13 @@ form.addEventListener(
           );
 
 
+      if (response.status === 503 && body.code === 'APPLICATION_CREATION_UNCONFIRMED') {
+        form.dataset.creationUnconfirmed = 'true';
+        formMessage.className = 'form-message error';
+        formMessage.textContent = 'Não foi possível confirmar se sua candidatura foi recebida. Antes de enviar novamente, confirme com o RH da GEX.';
+        formMessage.hidden = false;
+        return;
+      }
       if (response.status === 409 && body.code === 'DUPLICATE_APPLICATION') {
         formMessage.className = 'form-message error';
         formMessage.textContent = 'Não é necessário realizar uma nova candidatura se você já se inscreveu nesta oportunidade. Confira seus dados ou entre em contato com o RH caso precise de ajuda.';
@@ -1437,7 +1445,7 @@ form.addEventListener(
 
     } finally {
 
-      button.disabled = !applicationsEnabled || form.dataset.applicationCreated === 'true';
+      button.disabled = !applicationsEnabled || form.dataset.applicationCreated === 'true' || form.dataset.creationUnconfirmed === 'true';
 
 
       button.textContent =

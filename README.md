@@ -247,3 +247,24 @@ homologar o contrato real e a paginação usando uma vaga controlada,
 confirmar se a listagem inclui reprovados/desistentes e testar se o
 endpoint é permitido pelo plano da empresa. Confirmar a publicação da
 API e do portal; o diagnóstico `/health` informa apenas a flag.
+
+### Recuperação segura de falhas (primeira etapa)
+
+Após a confirmação da criação, o Worker pode repetir **uma única vez** o
+mesmo PUT de perfil em caso de falha de rede ou HTTP 429/502/503/504.
+A criação de tags e observações (respostas, currículo e análise técnica)
+só é repetida após recusa explícita HTTP 429. A espera respeita
+Retry-After até dois segundos; se maior, a pendência é preservada.
+POST com erro de rede ou 5xx não é repetido, pois pode já ter sido
+gravado. Nenhum POST de criação de candidatura é repetido automaticamente.
+Quando a confirmação da criação se perde, a API retorna código
+APPLICATION_CREATION_UNCONFIRMED e a interface instrui o candidato
+a consultar o RH antes de reenviar, preservando o formulário.
+
+Não há fila persistente nesta etapa, reprocessamento após encerramento
+do Worker, repetição automática de gravação D1 ou garantia de recuperação
+de todas as falhas. Para reprocessar POST de resultado incerto, é preciso
+homologar uma leitura exata da tag/observação ou idempotência upstream.
+O monitoramento de pendências e a recuperação posterior ficam para a
+próxima fase. O comportamento é testado sem criar candidatos reais.
+O diagnóstico /health informa safe_recovery_format: bounded_retry_v1.

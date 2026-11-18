@@ -45,9 +45,14 @@ async function run(input, options = {}) {
       const pages = options.searchPages || [[]];
       return json({data:pages[page-1] || [],meta:{current_page:page,last_page:pages.length}});
     }
+    if (path.endsWith('/prospects') && options.createThrows) throw new Error('Simulated lost creation acknowledgement');
     if (path.endsWith('/prospects')) return json(options.createBody ?? {
       data: { talent: { id: 22, prospect: { id: 44 } }, application: { id: 33 } }
     }, options.createStatus ?? 201);
+    if (path === options.transientPath && calls.filter(c=>c.path===path).length === 1) {
+      if (options.transientThrow) throw new Error('Simulated lost acknowledgement');
+      return new Response('{}',{status:options.transientStatus || 429,headers:{'Retry-After':options.retryAfter || '0'}});
+    }
     if (path === options.throwPath) throw new Error('Simulated network failure');
     if (path === options.failPath) return json(options.failBody ?? { message: 'upstream rejected' }, options.failStatus ?? 422);
     if (['/api/v2/curriculum/filled/22', '/api/v2/tags/talent', '/api/v2/talents-observations'].includes(path)) {
@@ -106,6 +111,53 @@ for (const failure of [{searchFail:true},{searchMalformed:true}]) {
     assert.equal(result.status,503);
     assert.equal(result.body.code,'DUPLICATE_CHECK_UNAVAILABLE');
     assert.ok(!result.calls.some(c=>c.path==='/api/v2/prospects'));
+  });
+}
+for (const path of ['/api/v2/curriculum/filled/22','/api/v2/tags/talent','/api/v2/talents-observations']) {
+  test('recupera recusa temporária 429 sem repetir a candidatura: '+path,async()=>{
+    const result=await run(payload(),{transientPath:path});
+    assert.equal(result.status,201);
+    assert.equal(result.body.application_created,true);
+    assert.equal(result.body.profile_completed,true);
+    assert.equal(result.body.tag_completed,true);
+    assert.equal(result.body.observation_completed,true);
+    assert.equal(result.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
+    const attempts=result.calls.filter(c=>c.path===path);
+    assert.equal(attempts.length,2);
+    const serialize=body=>body instanceof FormData ? JSON.stringify([...body.entries()]) : body;
+    assert.equal(serialize(attempts[0].init.body),serialize(attempts[1].init.body));
+  });
+}
+test('PUT de perfil recupera falha temporária 503',async()=>{
+  const result=await run(payload(),{transientPath:'/api/v2/curriculum/filled/22',transientStatus:503});
+  assert.equal(result.body.profile_completed,true);
+  assert.equal(result.calls.filter(c=>c.path==='/api/v2/curriculum/filled/22').length,2);
+});
+for (const path of ['/api/v2/tags/talent','/api/v2/talents-observations']) {
+  for (const failure of [{transientThrow:true},{transientStatus:503}]) {
+    test('POST sem confirmação não é repetido: '+path+' '+JSON.stringify(failure),async()=>{
+      const result=await run(payload(),{transientPath:path,...failure});
+      assert.equal(result.status,201);
+      assert.equal(result.body[path.includes('tags')?'tag_completed':'observation_completed'],false);
+      assert.equal(result.calls.filter(c=>c.path===path).length,1);
+      assert.equal(result.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
+    });
+  }
+}
+test('respeita Retry-After longo e preserva pendência',async()=>{
+  const path='/api/v2/tags/talent';
+  const result=await run(payload(),{transientPath:path,retryAfter:'60'});
+  assert.equal(result.body.tag_completed,false);
+  assert.equal(result.calls.filter(c=>c.path===path).length,1);
+});
+for (const failure of [{createThrows:true},{createStatus:503}]) {
+  test('criação sem confirmação nunca é repetida: '+JSON.stringify(failure),async()=>{
+    const result=await run(payload(),failure);
+    assert.equal(result.status,503);
+    assert.equal(result.body.code,'APPLICATION_CREATION_UNCONFIRMED');
+    assert.equal(result.body.application_created,null);
+    assert.equal(result.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
+    assert.ok(!result.calls.some(c=>/curriculum|tags\/talent|talents-observations/.test(c.path)));
   });
 }
 test('cria observação multipart ordenada, preservando perfil e tag', async () => {
