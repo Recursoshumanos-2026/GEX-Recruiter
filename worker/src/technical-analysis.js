@@ -80,7 +80,7 @@ const namedTools = [
   /\bexcel\b/, /\b(?:google sheets|planilhas (?:do )?google)\b/,
   /\b(?:google workspace|g suite)\b/, /\bpower\s*bi\b/, /\bpython\b/,
   /\bsql\b/, /\bjavascript\b/, /\btypescript\b/, /\bclickup\b/,
-  /\bsalesforce\b/, /\bhubspot\b/, /\btableau\b/, /\bfigma\b/,
+  /\bcrm\b/, /\bsalesforce\b/, /\bhubspot\b/, /\btableau\b/, /\bfigma\b/,
   /\bphotoshop\b/, /\bpremiere(?: pro)?\b/, /\bafter effects\b/,
   /\bdocker\b/, /\bkubernetes\b/, /\b(?:aws|amazon web services)\b/,
   /\b(?:gcp|google cloud(?: platform)?)\b/, /\b(?:azure|microsoft azure)\b/
@@ -94,18 +94,28 @@ function refineRating(requirement, status, quote) {
       !/\b(?:incomplet[ao]|cursando|em andamento|nao conclu|trancad|previsao)\b/.test(ev) &&
       !/\b(?:e|alem de|mais)\b/.test(req)) return 'atendido';
   if (status !== 'atendido') return status;
-  const requiredTools = namedTools.filter(tool => tool.test(req));
+  const requiredTools = namedTools.map(tool => ({tool, match:req.match(tool)}))
+    .filter(item => item.match).sort((a,b) => a.match.index - b.match.index);
   if (!requiredTools.length) return status;
-  const present = requiredTools.filter(tool => tool.test(ev)).length;
-  // Alternatives are not cumulative. Only enforce every named tool when the
-  // requirement does not contain an ambiguous "or"; the prompt covers mixtures.
-  const alternative = /\bou\b|\/|\be\/ou\b/.test(req);
-  if (present === 0) {
-    // A suite or related application can support partial familiarity, not mastery.
-    const related = /\b(?:pacote office|microsoft office|office 365|microsoft 365|google workspace|g suite|planilhas|excel|google sheets|programacao|banco de dados|business intelligence|tableau|looker|crm)\b/.test(ev);
-    return related ? 'parcial' : 'nao_verificado';
+  // Detect alternatives between named tools, not "ou" in a qualification
+  // such as "básico ou intermediário em Excel e Google Sheets".
+  const groups = [];
+  for (const item of requiredTools) {
+    const previous = groups.at(-1)?.at(-1);
+    const gap = previous ? req.slice(previous.match.index + previous.match[0].length, item.match.index) : '';
+    if (previous && /(?:\bou\b|\/)/.test(gap) && !/\be\b(?!\s*\/\s*ou)/.test(gap)) {
+      groups.at(-1).push(item);
+    } else groups.push([item]);
   }
-  if (!alternative && present < requiredTools.length) return 'parcial';
+  const present = requiredTools.filter(item => item.tool.test(ev)).length;
+  if (present === 0) {
+    const officeRequired = /\b(?:excel|google sheets|planilhas (?:do )?google|google workspace|g suite)\b/.test(req);
+    const officeEvidence = /\b(?:pacote office|microsoft office|office 365|microsoft 365|google workspace|g suite|planilhas|excel|google sheets)\b/.test(ev);
+    // Without explicit evidence of the named tool, do not grant full credit.
+    // Preserve partial familiarity only for demonstrably related office tools.
+    return officeRequired && officeEvidence ? 'parcial' : 'nao_verificado';
+  }
+  if (groups.some(group => !group.some(item => item.tool.test(ev)))) return 'parcial';
   return status;
 }
 
