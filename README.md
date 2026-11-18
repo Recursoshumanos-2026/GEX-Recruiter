@@ -98,7 +98,7 @@ linha são preservadas na observação depois do escape HTML.
 
 O navegador envia `questionnaire_answers` junto dos dados existentes. O Worker valida
 novamente as respostas antes de qualquer chamada à Recrutei e, após criar a candidatura,
-mantém a tentativa de preenchimento complementar e a tag `GEX Talents`, acrescentando
+mantém a tentativa de preenchimento complementar e a tag `GEX Recruiter`, acrescentando
 `POST /api/v2/talents-observations` em multipart com HTML escapado.
 Nenhum token foi acrescentado ao front-end.
 

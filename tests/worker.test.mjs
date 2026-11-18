@@ -88,7 +88,7 @@ test('cria observação multipart ordenada, preservando perfil e tag', async () 
     }
   }
   const tag = result.calls.find(c => c.path.endsWith('/tags/talent'));
-  assert.equal(JSON.parse(tag.init.body).value, 'GEX Talents');
+  assert.equal(JSON.parse(tag.init.body).value, 'GEX Recruiter');
   const profile = JSON.parse(result.calls.find(c => c.path.endsWith('/curriculum/filled/22')).init.body);
   assert.equal(Object.hasOwn(profile, 'talent_id'), false);
   assert.equal(profile.application_id, 33);
