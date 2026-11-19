@@ -189,3 +189,25 @@ test('site público recebe perguntas da vaga nova e Recrutei recebe respostas da
     assert.match(observation.options.body.get('description'),/CRM/);
   }finally{globalThis.fetch=previous;}
 });
+
+test('página de login indisponível informa motivo sem revelar credenciais',async()=>{
+  const path='/rh/perguntas';
+  const base=envWithDb();
+  for(const [env,code] of [
+    [{...base,QUESTIONNAIRE_ADMIN_ENABLED:'false'},'RH_CONFIG_DISABLED'],
+    [{...base,RESUME_DB:undefined},'RH_DATABASE_UNAVAILABLE'],
+    [base,'RH_ACCOUNTS_MISSING'],
+    [{...base,QUESTIONNAIRE_RH_ACCOUNTS:'malformed-private-value'},'RH_ACCOUNTS_INVALID_JSON'],
+    [{...base,QUESTIONNAIRE_RH_ACCOUNTS:JSON.stringify({'private@example.invalid':'short-secret'})},'RH_ACCOUNTS_INVALID_FORMAT']
+  ]){
+    const r=await handleRhRequest(req(path),env,{},vacancies);
+    assert.equal(r.status,403);
+    const data=await r.json();
+    assert.equal(data.diagnostic,code);
+    assert.doesNotMatch(JSON.stringify(data),/private@example|short-secret|malformed-private/);
+  }
+  const valid={...base,QUESTIONNAIRE_RH_ACCOUNTS:JSON.stringify({'private@example.invalid':'fictional-password-long-enough'})};
+  const login=await handleRhRequest(req(path),valid,{},vacancies);
+  assert.equal(login.status,200);
+  assert.doesNotMatch(await login.text(),/fictional-password-long-enough/);
+});
