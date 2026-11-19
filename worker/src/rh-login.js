@@ -7,27 +7,43 @@ const SESSION_SECONDS = 8 * 60 * 60;
 const LOCK_SECONDS = 15 * 60;
 const MAX_FAILURES = 5;
 
-function configuredAccounts(env) {
-  if (env?.QUESTIONNAIRE_ADMIN_ENABLED !== 'true' ||
-      typeof env?.QUESTIONNAIRE_RH_ACCOUNTS !== 'string' ||
-      typeof env?.RESUME_DB?.prepare !== 'function') return null;
-  try {
-    const parsed = JSON.parse(env.QUESTIONNAIRE_RH_ACCOUNTS);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-    const accounts = new Map();
-    for (const [address, secret] of Object.entries(parsed)) {
-      const email = address.trim().toLowerCase();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-          typeof secret !== 'string' || secret.length < 16 || secret.length > 256 ||
-          accounts.has(email)) return null;
-      accounts.set(email, secret);
-    }
-    return accounts.size ? accounts : null;
-  } catch { return null; }
+// Diagnostic codes describe configuration categories only; never return,
+// log or stringify account names, secret contents or parsing exceptions.
+function accountConfiguration(env) {
+  if (env?.QUESTIONNAIRE_ADMIN_ENABLED !== 'true')
+    return {code:'RH_CONFIG_DISABLED',accounts:null};
+  if (typeof env?.RESUME_DB?.prepare !== 'function')
+    return {code:'RH_DATABASE_UNAVAILABLE',accounts:null};
+  if (typeof env?.QUESTIONNAIRE_RH_ACCOUNTS !== 'string' ||
+      !env.QUESTIONNAIRE_RH_ACCOUNTS.trim())
+    return {code:'RH_ACCOUNTS_MISSING',accounts:null};
+  let parsed;
+  try { parsed=JSON.parse(env.QUESTIONNAIRE_RH_ACCOUNTS); }
+  catch { return {code:'RH_ACCOUNTS_INVALID_JSON',accounts:null}; }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
+    return {code:'RH_ACCOUNTS_INVALID_FORMAT',accounts:null};
+  const accounts = new Map();
+  for (const [address, secret] of Object.entries(parsed)) {
+    const email = address.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || accounts.has(email))
+      return {code:'RH_ACCOUNTS_INVALID_FORMAT',accounts:null};
+    if (typeof secret !== 'string' || secret.length < 16 || secret.length > 256)
+      return {code:'RH_ACCOUNTS_INVALID_FORMAT',accounts:null};
+    accounts.set(email,secret);
+  }
+  return accounts.size ? { code:'RH_CONFIG_READY',accounts } :
+    {code:'RH_ACCOUNTS_INVALID_FORMAT',accounts:null};
 }
+
+function configuredAccounts(env) { return accountConfiguration(env).accounts; }
 
 export function localRhConfigured(env) {
   return configuredAccounts(env) !== null;
+}
+
+// Only a coarse configuration code; no credential data leaves the Worker.
+export function localRhConfigCode(env) {
+  return accountConfiguration(env).code;
 }
 
 export async function ensureRhAuthTables(env) {
