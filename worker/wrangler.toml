@@ -8,6 +8,8 @@ keep_vars = true
 ALLOWED_ORIGIN = "https://carreiras.gexcorp.com.br"
 APPLICATIONS_ENABLED = "true"
 QUESTIONNAIRE_ADMIN_ENABLED = "true"
+# Piloto aprovado: somente esta vaga; não habilita bloqueio global.
+DUPLICATE_PILOT_VACANCY_ID = "164607"
 PROSPECT_CHANNEL_ID = "8"
 RESUME_UPLOAD_ENABLED = "true"
 INTEGRATION_MONITOR_ENABLED = "true"
