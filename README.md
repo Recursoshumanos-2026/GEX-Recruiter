@@ -286,3 +286,24 @@ aprovação/reprovação automática, mudança de etapa ou nova chamada de IA.
 A comparação entre pessoas deve considerar a mesma versão da descrição
 e do método; pontuações históricas não são recalculadas nesta alteração.
 O diagnóstico /health identifica gex_evidence_weighted_v3.
+
+### Monitoramento operacional da integração
+
+INTEGRATION_MONITOR_ENABLED=true habilita eventos estruturados em logs
+privados do Worker por etapa: criação da candidatura, perfil, tag,
+questionário, armazenamento e observação do currículo, dados complementares
+e resultado da análise técnica. A rotina diária existente (06h UTC,
+03h de Brasília) verifica a resposta da listagem autenticada de vagas e
+a disponibilidade da tabela D1. A checagem da IA indica somente presença
+dos bindings, não executa inferência real. O /health sinaliza a configuração
+do monitor, não a saúde operacional em tempo real.
+
+Não envia notificações externas, não registra dados pessoais nem IDs
+nos eventos, não cria candidatos de teste e não adiciona painel de RH.
+Os resultados devem ser consultados nos logs privados da Cloudflare
+(é necessário habilitar/certificar a retenção de logs no painel e observar
+as cotas do plano). Alarmes por Discord/e-mail exigem canal autorizado
+e configuração separada. O monitoramento não substitui fila persistente
+de recuperação, auditoria por candidato ou verificação de entrega de cada campo.
+A configuração de produção está habilitada no repositório, mas depende
+de publicação e homologação do Worker.
