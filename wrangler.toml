@@ -3,10 +3,13 @@
 name = "gex-talents-api"
 main = "worker/src/index.js"
 compatibility_date = "2026-10-01"
+# Preserve dashboard-only RH configuration during deployment.
+keep_vars = true
 
 [vars]
 ALLOWED_ORIGIN = "https://carreiras.gexcorp.com.br"
 APPLICATIONS_ENABLED = "true"
+QUESTIONNAIRE_ADMIN_ENABLED = "true"
 PROSPECT_CHANNEL_ID = "8"
 RESUME_UPLOAD_ENABLED = "true"
 INTEGRATION_MONITOR_ENABLED = "true"
@@ -20,6 +23,7 @@ RESUME_RETENTION_MONTHS = "12"
 [previews.vars]
 ALLOWED_ORIGIN = "https://gex-talents-previa-questionario.yasmimbsouza80.chatgpt.site"
 APPLICATIONS_ENABLED = "false"
+QUESTIONNAIRE_ADMIN_ENABLED = "false"
 PROSPECT_CHANNEL_ID = "8"
 RESUME_UPLOAD_ENABLED = "false"
 INTEGRATION_MONITOR_ENABLED = "false"
