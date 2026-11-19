@@ -235,8 +235,8 @@ listagem. É necessário confirmar com o suporte uma consulta exata por CPF
 e vaga para cobertura completa, sem varrer perfis individuais.
 
 A proteção local de requisições simultâneas vale apenas em uma instância
-do Worker; não é uma garantia de unicidade distribuída. O limite é de 20
-páginas de 100 registros solicitados por tentativa. Falha, paginação
+do Worker; não é uma garantia de unicidade distribuída. O limite é de 30
+páginas de 250 registros solicitados (quantidade realmente retornada depende da API) por tentativa. Falha, paginação
 inconclusiva ou limite excedido gera HTTP 503, não uma conclusão de que
 o candidato é novo. Duplicidade identificada gera HTTP 409.
 A consulta original consome a cota existente da API.
@@ -356,7 +356,7 @@ A confirmação requer acesso ao Worker e D1 em produção; testes são simulado
 ### Diagnóstico privado de duplicidade
 
 Depois de autenticar no painel do RH, acessar /rh/api/diagnostico-duplicidade.
-Consulta somente a vaga de teste 164607, paginação limitada e somente leitura.
+Por padrão consulta a vaga de teste 164607; parâmetro opcional `?vaga=158928` permite conferir outra vaga com autenticação RH. Paginação limitada e somente leitura, com contagem total e checagem de páginas repetidas.
 Retorna contagens agregadas de linhas, e-mails e CPFs disponíveis, sem dados
 pessoais, e informa se a consulta completou ou não. O bloqueio global não é
 ativado por este diagnóstico. Confirmar o contrato da API e implementar
