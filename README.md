@@ -269,6 +269,24 @@ O monitoramento de pendências e a recuperação posterior ficam para a
 próxima fase. O comportamento é testado sem criar candidatos reais.
 O diagnóstico /health informa safe_recovery_format: bounded_retry_v1.
 
+### Análise técnica com pesos automáticos por vaga
+
+A observação existente **GEX Talents | Análise Técnica Automatizada**
+continua na Recrutei, sem novo painel ou etapa para o RH. O plano de
+critérios (até oito) depende somente da descrição da vaga. Itens
+explicitamente prioritários recebem mais peso; seções obrigatórias
+têm prioridade sobre requisitos gerais e responsabilidades complementares.
+Diferenciais/desejáveis explícitos não reduzem a pontuação. Requisitos
+com a mesma prioridade têm peso equivalente (ajuste inteiro para somar 100%).
+Sem sinais de prioridade, os pesos são equivalentes; não se inventam
+prioridades a partir do currículo. Os pesos e sua justificativa são
+visíveis na observação. Mantém a verificação textual de evidências,
+critérios sensíveis excluídos e revisão humana obrigatória. Nenhuma
+aprovação/reprovação automática, mudança de etapa ou nova chamada de IA.
+A comparação entre pessoas deve considerar a mesma versão da descrição
+e do método; pontuações históricas não são recalculadas nesta alteração.
+O diagnóstico /health identifica gex_evidence_weighted_v3.
+
 ### Análise retroativa controlada (portal GEX)
 
 Experimental, desativada por padrão. Usa o agendamento existente e somente os
