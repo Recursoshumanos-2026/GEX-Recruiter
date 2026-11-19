@@ -1,7 +1,7 @@
 import { questionnaireFor, validateQuestionnaireAnswers } from '../../questionnaires.js';
 import { renderRhAdminPage } from './rh-admin-page.js';
 import { handleLocalRhAuth, localRhConfigured, localRhIdentity,
-  renderRhLoginPage } from './rh-login.js';
+  renderRhLoginPage, localRhConfigCode } from './rh-login.js';
 
 // All administrator endpoints are confined to /rh/. Cloudflare Access must
 // authenticate the path, AND these two application-level checks must pass.
@@ -206,6 +206,10 @@ export async function handleRhRequest(request, env, ctx, loadVacancies) {
     if (localRhConfigured(env) && request.method === 'GET' &&
         (path === '/rh' || path === '/rh/' || path === '/rh/perguntas')) {
       return renderRhLoginPage();
+    }
+    if (request.method === 'GET' && path === '/rh/perguntas') {
+      return reply({message:'Acesso reservado a usuários autorizados do RH.',
+        diagnostic:localRhConfigCode(env)},403);
     }
     return reject(localRhConfigured(env) ? 401 : 403,
       'Acesso reservado a usuários autorizados do RH.');
