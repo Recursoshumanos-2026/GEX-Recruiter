@@ -196,7 +196,7 @@ async function jsonBody(request) {
   return JSON.parse(raw);
 }
 
-export async function handleRhRequest(request, env, ctx, loadVacancies) {
+export async function handleRhRequest(request, env, ctx, loadVacancies, diagnostics = {}) {
   const url = new URL(request.url);
   const path = url.pathname;
   const localAuth = await handleLocalRhAuth(request, env);
@@ -231,6 +231,10 @@ export async function handleRhRequest(request, env, ctx, loadVacancies) {
     return reject(403, 'Sessão inválida. Atualize o painel e tente novamente.');
   }
   try {
+    if (path === '/rh/api/diagnostico-duplicidade' && request.method === 'GET') {
+      if (typeof diagnostics.duplicatePilot !== 'function') return reject(404,'Diagnóstico indisponível.');
+      return reply(await diagnostics.duplicatePilot());
+    }
     await ensureTables(env);
     if (request.method === 'GET' && path === '/rh/api/session') {
       return reply({ email, mode: identity.mode,
