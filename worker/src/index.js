@@ -5,6 +5,7 @@ import { cleanupExpiredResumes, RETENTION_CRON } from './retention.js';
 import { smokeResume } from './smoke.js';
 import { technicalAnalysisAvailable, technicalCriteria, evaluateTechnicalFit, technicalAnalysisHtml } from './technical-analysis.js';
 import { runRetroactiveAnalysis } from './retroactive-analysis.js';
+import { duplicateIndexReady, checkDuplicatePair, duplicateCpfKnown, rememberDuplicatePair, cleanupDuplicateIndex } from './duplicate-index.js';
 
 import { integrationMonitoringEnabled, integrationEvent, monitorApplication, checkIntegration } from './integration-monitoring.js';
 
@@ -1003,6 +1004,9 @@ async function withDuplicatePreflight(env, payload, submit) {
   if (keys.some(key => duplicateInFlight.has(key))) throw duplicateError('DUPLICATE_CHECK_UNAVAILABLE');
   for (const key of keys) duplicateInFlight.add(key);
   try {
+    let cpfKnown=false;
+    try { cpfKnown=await duplicateCpfKnown(env,payload); } catch { /* ATS verification remains mandatory. */ }
+    if(cpfKnown) throw duplicateError();
     await verifyNoExistingApplication(env, payload);
     return await submit();
   } finally {
@@ -1190,6 +1194,11 @@ async function createProspect(env, rawPayload, ctx) {
     );
   }
 
+  try {
+    const {applicationId}=profileIds(createBody,payload.vacancy_id);
+    await rememberDuplicatePair(env,payload,applicationId);
+  } catch { console.warn('GEX Recruiter: índice de duplicidade indisponível; candidatura preservada.'); }
+
   let resumeStored = false;
   let resumeStoreWarning = null;
   if (markdown) {
@@ -1336,6 +1345,7 @@ export default {
         return Array.isArray((await response.json())?.data);
       }});
     }
+    try { await cleanupDuplicateIndex(env,controller.scheduledTime); } catch { console.warn('GEX Recruiter: limpeza do índice de duplicidade indisponível.'); }
     const report = await cleanupExpiredResumes(env, { now:controller.scheduledTime });
     // No resume content, names, emails or IDs in logs.
     console.info('GEX Talents | retenção D1:', report.status,
@@ -1401,6 +1411,23 @@ export default {
           200,
           env
         );
+      }
+
+      if (request.method === 'POST' && url.pathname === '/api/verificar-inscricao') {
+        const answer=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{...cors(env),'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}});
+        if (request.headers.get('Origin') !== (env.ALLOWED_ORIGIN || 'https://carreiras.gexcorp.com.br')) return answer({status:'unavailable'},403);
+        if (env.APPLICATIONS_ENABLED !== 'true' || !duplicateIndexReady(env)) return answer({status:'unavailable'});
+        try {
+          if (!request.headers.get('content-type')?.includes('application/json') || Number(request.headers.get('content-length')||0)>2048) return answer({status:'unavailable'},400);
+          const reader=request.body?.getReader();
+          if(!reader) return answer({status:'unavailable'},400);
+          const decoder=new TextDecoder(); let raw='',size=0;
+          while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>2048){await reader.cancel();return answer({status:'unavailable'},413);}raw+=decoder.decode(value,{stream:true});}
+          raw+=decoder.decode();
+          const payload=JSON.parse(raw);
+          if(!positiveId(payload?.vacancy_id) || !duplicateCheckForVacancy(env,payload.vacancy_id)) return answer({status:'unavailable'});
+          return answer(await checkDuplicatePair(env,payload,request.headers.get('CF-Connecting-IP')));
+        } catch { return answer({status:'unavailable'}); }
       }
 
       if (
@@ -1506,6 +1533,7 @@ export default {
             technical_analysis_format: 'gex_evidence_weighted_v3',
             technical_analysis_enabled: technicalAnalysisAvailable(env),
             duplicate_check_enabled: duplicateCheckEnabled(env),
+            duplicate_early_check_enabled: duplicateIndexReady(env) && env.APPLICATIONS_ENABLED==='true',
             duplicate_pilot_enabled:duplicatePilotEnabled(env,164607),
             safe_recovery_format: 'bounded_retry_v1',
             integration_monitoring_enabled: integrationMonitoringEnabled(env),
