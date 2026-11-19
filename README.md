@@ -268,3 +268,26 @@ homologar uma leitura exata da tag/observação ou idempotência upstream.
 O monitoramento de pendências e a recuperação posterior ficam para a
 próxima fase. O comportamento é testado sem criar candidatos reais.
 O diagnóstico /health informa safe_recovery_format: bounded_retry_v1.
+
+### Análise retroativa controlada (portal GEX)
+
+Experimental, desativada por padrão. Usa o agendamento existente e somente os
+currículos íntegros já armazenados no D1 privado (mais de 24 horas), com
+candidatura em processo e vaga ainda publicada. Não acessa currículos externos,
+não cria candidatos e não altera etapas ou análises anteriores.
+
+* RETROACTIVE_ANALYSIS_ENABLED=true: habilita a simulação no próximo cron.
+* RETROACTIVE_ANALYSIS_APPLICATION_IDS: lista privada de até cinco IDs
+  de candidaturas confirmadas pelo RH; nunca colocar IDs em GitHub.
+* RETROACTIVE_ANALYSIS_WRITE_ENABLED=true: habilita escrita apenas após
+  homologar a leitura de observações, conferir simulação e publicar a versão
+  ponderada da análise técnica. Sem esta flag, não executa IA nem escreve.
+  
+Usa GET /api/v1/applications/{id} para conferir IDs, status e observações.
+Se as observações não estiverem disponíveis ou houver qualquer análise
+existente no talento, não escreve. Duplicatas de currículo D1 também
+exigem conferência manual. Uma reserva D1 impede repetir resultado incerto;
+o registro guarda somente ID e data, limpo quando não houver currículo
+correspondente. Se a leitura após escrita falhar, não tenta novamente.
+Logs agregados, sem dados pessoais. Desativar as flags após o lote.
+A confirmação requer acesso ao Worker e D1 em produção; testes são simulados.
