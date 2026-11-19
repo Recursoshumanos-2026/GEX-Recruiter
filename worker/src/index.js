@@ -1442,7 +1442,7 @@ export default {
             profile_update_endpoint: 'talent_path_v2',
             vacancy_availability_check: 'recrutei_public_close_flags_v1',
             resume_observation_format: 'sectioned_html_v3',
-            technical_analysis_format: 'gex_evidence_score_v2',
+            technical_analysis_format: 'gex_evidence_weighted_v3',
             technical_analysis_enabled: technicalAnalysisAvailable(env),
             duplicate_check_enabled: duplicateCheckEnabled(env),
             safe_recovery_format: 'bounded_retry_v1',
