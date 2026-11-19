@@ -83,6 +83,40 @@ function contactFieldError(name, value) {
     ? 'CPF inválido. Confira os números e tente novamente.' : '';
 }
 
+let earlyDuplicateEnabled=false, earlyDuplicateTimer, earlyDuplicateVersion=0, earlyDuplicateController, earlyDuplicateBlocked=false;
+const earlyDuplicateNotice=document.getElementById('earlyDuplicateNotice');
+function resetEarlyDuplicate() {
+  earlyDuplicateVersion++;
+  clearTimeout(earlyDuplicateTimer);
+  earlyDuplicateController?.abort();
+  earlyDuplicateBlocked=false;
+  if(earlyDuplicateNotice){earlyDuplicateNotice.hidden=true;earlyDuplicateNotice.replaceChildren();}
+  const button=form.querySelector('.submit-btn');
+  if(button && button.textContent.trim()!=='Enviando candidatura...') button.disabled=!applicationsEnabled || form.dataset.applicationCreated==='true' || form.dataset.creationUnconfirmed==='true';
+}
+function queueEarlyDuplicate() {
+  resetEarlyDuplicate();
+  if(!earlyDuplicateEnabled || PRESENTATION_PREVIEW || !dialog.open || !earlyDuplicateNotice) return;
+  const email=form.elements.namedItem('email').value.trim();
+  const ssn=form.elements.namedItem('ssn').value.trim();
+  const vacancy_id=form.elements.namedItem('vacancy_id').value;
+  if(!vacancy_id || contactFieldError('email',email) || contactFieldError('ssn',ssn)) return;
+  const version=earlyDuplicateVersion;
+  earlyDuplicateTimer=setTimeout(async()=>{
+    const controller=new AbortController();earlyDuplicateController=controller;
+    try{
+      const response=await fetch(`${CONFIG.API_BASE_URL.replace(/\/$/,'')}/api/verificar-inscricao`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,ssn,vacancy_id}),signal:controller.signal});
+      const body=await response.json();
+      if(version!==earlyDuplicateVersion || !dialog.open || !response.ok || body.status!=='duplicate')return;
+      earlyDuplicateBlocked=true;
+      earlyDuplicateNotice.textContent='Não é necessário realizar uma nova candidatura se você já se inscreveu nesta oportunidade. Confira seus dados ou entre em contato com o RH caso precise de ajuda.';
+      const link=document.createElement('a');link.href=allJobsUrl()+'#vagas';link.textContent='Conheça outras oportunidades';
+      earlyDuplicateNotice.append(document.createElement('br'),link);
+      earlyDuplicateNotice.hidden=false;
+      form.querySelector('.submit-btn').disabled=true;
+    }catch{/* A checagem final continua obrigatória. */}
+  },500);
+}
 const contactInputs = ['email', 'ssn'].map(name => form.elements.namedItem(name));
 function validateContactField(field, show = false) {
   if (!field || PRESENTATION_PREVIEW) return;
@@ -114,7 +148,7 @@ for (const field of contactInputs) {
     field.dataset.touched = 'true';
     validateContactField(field, true);
   });
-  field.addEventListener('input', () => validateContactField(field, field.dataset.touched === 'true'));
+  field.addEventListener('input', () => {validateContactField(field, field.dataset.touched === 'true');queueEarlyDuplicate();});
   field.addEventListener('invalid', () => {
     field.dataset.touched = 'true';
     validateContactField(field, true);
@@ -896,6 +930,7 @@ return;
       PRESENTATION_PREVIEW || Boolean(
         body.applications_enabled
       );
+    earlyDuplicateEnabled = body.duplicate_early_check_enabled === true;
     resumeUploadEnabled = !PRESENTATION_PREVIEW && applicationsEnabled &&
       body.resume_upload_enabled === true;
     syncResumeInput();
@@ -1015,6 +1050,7 @@ function openApply(id) {
 
 
   form.reset();
+  resetEarlyDuplicate();
   resetContactValidation();
   form.dataset.applicationCreated = '';
   form.dataset.creationUnconfirmed = '';
@@ -1152,6 +1188,7 @@ form.addEventListener(
       return;
     }
 
+    if(earlyDuplicateBlocked){earlyDuplicateNotice?.scrollIntoView({block:'nearest'});return;}
     formMessage.hidden =
       true;
 
@@ -1372,7 +1409,7 @@ form.addEventListener(
 
     } finally {
 
-      button.disabled = !applicationsEnabled || form.dataset.applicationCreated === 'true' || form.dataset.creationUnconfirmed === 'true';
+      button.disabled = earlyDuplicateBlocked || !applicationsEnabled || form.dataset.applicationCreated === 'true' || form.dataset.creationUnconfirmed === 'true';
 
 
       button.textContent =
@@ -1399,6 +1436,8 @@ document
       dialog.close()
   );
 
+
+dialog.addEventListener('close',resetEarlyDuplicate);
 
 dialog.addEventListener(
   'click',
