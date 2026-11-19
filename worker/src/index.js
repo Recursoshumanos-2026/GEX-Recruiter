@@ -907,6 +907,11 @@ async function completeApplicationStep(operation) {
 // not guarantee CPF in the list response. Never enumerate full private profiles
 // just to compare CPF; only compare a CPF if it is actually included in a row.
 const duplicateCheckEnabled = env => env.DUPLICATE_CHECK_ENABLED === 'true';
+const duplicatePilotEnabled = (env, vacancyId) =>
+  /^[1-9][0-9]*$/.test(env.DUPLICATE_PILOT_VACANCY_ID || '') &&
+  String(vacancyId) === env.DUPLICATE_PILOT_VACANCY_ID;
+const duplicateCheckForVacancy = (env, vacancyId) =>
+  duplicateCheckEnabled(env) || duplicatePilotEnabled(env, vacancyId);
 const duplicateInFlight = new Set();
 function duplicateError(code = 'DUPLICATE_APPLICATION') {
   const error = new Error(code === 'DUPLICATE_APPLICATION'
@@ -924,6 +929,7 @@ const comparableCpf = value => typeof value === 'string' ? value.replace(/\D/g, 
 async function duplicatePilot(env) {
   const vacancyId = 164607;
   const report = {vacancy_id:vacancyId, production_block_enabled:duplicateCheckEnabled(env),
+    pilot_block_enabled:duplicatePilotEnabled(env,vacancyId),
     status:'incomplete', pages_checked:0, rows_checked:0, email_available:0, cpf_available:0};
   for (let page=1; page<=20; page++) {
     let response, body;
@@ -964,7 +970,7 @@ async function verifyNoExistingApplication(env, payload) {
       const response = await recrutei(env, '/api/v1/search/talents?page=' + page + '&perPage=100', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({vacancy_id:[vacancyId]})
+        body:JSON.stringify({vacancy_id:[vacancyId]}), signal:AbortSignal.timeout(10000)
       });
       if (!response.ok) throw Error();
       body = await response.json();
@@ -991,7 +997,7 @@ async function verifyNoExistingApplication(env, payload) {
 // Supplements the API preflight for simultaneous requests in this isolate.
 // No persistent personal data; this is not a distributed lock.
 async function withDuplicatePreflight(env, payload, submit) {
-  if (!duplicateCheckEnabled(env)) return submit();
+  if (!duplicateCheckForVacancy(env,payload.vacancy_id)) return submit();
   const keys = ['email:' + comparableEmail(payload.email),'cpf:' + comparableCpf(payload.ssn)]
     .map(identity => String(payload.vacancy_id) + ':' + identity);
   if (keys.some(key => duplicateInFlight.has(key))) throw duplicateError('DUPLICATE_CHECK_UNAVAILABLE');
@@ -1500,6 +1506,7 @@ export default {
             technical_analysis_format: 'gex_evidence_weighted_v3',
             technical_analysis_enabled: technicalAnalysisAvailable(env),
             duplicate_check_enabled: duplicateCheckEnabled(env),
+            duplicate_pilot_enabled:duplicatePilotEnabled(env,164607),
             safe_recovery_format: 'bounded_retry_v1',
             integration_monitoring_enabled: integrationMonitoringEnabled(env),
             retroactive_analysis_enabled: env.RETROACTIVE_ANALYSIS_ENABLED === 'true',
