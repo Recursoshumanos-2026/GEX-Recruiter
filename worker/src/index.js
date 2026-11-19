@@ -919,6 +919,39 @@ function duplicateError(code = 'DUPLICATE_APPLICATION') {
 const comparableEmail = value => typeof value === 'string' ? value.trim().toLowerCase() : '';
 const comparableCpf = value => typeof value === 'string' ? value.replace(/\D/g, '') : '';
 
+// Authenticated, read-only pilot for the internal vacancy. No candidate
+// fields, identities or raw upstream errors are returned to the browser.
+async function duplicatePilot(env) {
+  const vacancyId = 164607;
+  const report = {vacancy_id:vacancyId, production_block_enabled:duplicateCheckEnabled(env),
+    status:'incomplete', pages_checked:0, rows_checked:0, email_available:0, cpf_available:0};
+  for (let page=1; page<=20; page++) {
+    let response, body;
+    try {
+      response = await recrutei(env,'/api/v1/search/talents?page='+page+'&perPage=100',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({vacancy_id:[vacancyId]}),signal:AbortSignal.timeout(10000)
+      });
+      report.upstream_status=response.status;
+      if(!response.ok)return report;
+      body=await response.json();
+    }catch{return report;}
+    const current=Number(body?.meta?.current_page);
+    const last=Number(body?.meta?.last_page ?? body?.meta?.total?.pages);
+    if(!Array.isArray(body?.data)||current!==page||!Number.isInteger(last)||last<0)return report;
+    if(body.data.some(row=>!row||typeof row!=='object'||(row.vacancy_id!=null&&Number(row.vacancy_id)!==vacancyId)))return report;
+    report.pages_checked++;
+    for(const row of body.data){
+      report.rows_checked++;
+      if([row.email,row.talent?.email,row.talent?.user?.email,row.talent?.prospect?.email].some(v=>comparableEmail(v)))report.email_available++;
+      if([row.ssn,row.talent?.ssn].some(v=>comparableCpf(v).length===11))report.cpf_available++;
+    }
+    if(last<=page){report.status='complete';return report;}
+    if(!body.data.length)return report;
+  }
+  return report;
+}
+
 async function verifyNoExistingApplication(env, payload) {
   const vacancyId = Number(payload.vacancy_id);
   const email = comparableEmail(payload.email);
@@ -1318,7 +1351,7 @@ export default {
 
     // Only Access-authenticated RH users can access the private editor.
     if (url.pathname === '/rh' || url.pathname.startsWith('/rh/')) {
-      return handleRhRequest(request, env, ctx, () => listVacancies(env));
+      return handleRhRequest(request, env, ctx, () => listVacancies(env), { duplicatePilot: () => duplicatePilot(env) });
     }
 
     if (request.method === 'OPTIONS') {
