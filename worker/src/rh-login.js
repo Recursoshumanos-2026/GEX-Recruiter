@@ -21,18 +21,20 @@ function accountConfiguration(env) {
   try { parsed=JSON.parse(env.QUESTIONNAIRE_RH_ACCOUNTS); }
   catch { return {code:'RH_ACCOUNTS_INVALID_JSON',accounts:null}; }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
-    return {code:'RH_ACCOUNTS_INVALID_FORMAT',accounts:null};
+    return {code:'RH_ACCOUNTS_NOT_OBJECT',accounts:null};
   const accounts = new Map();
   for (const [address, secret] of Object.entries(parsed)) {
     const email = address.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || accounts.has(email))
-      return {code:'RH_ACCOUNTS_INVALID_FORMAT',accounts:null};
-    if (typeof secret !== 'string' || secret.length < 16 || secret.length > 256)
-      return {code:'RH_ACCOUNTS_INVALID_FORMAT',accounts:null};
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      return {code:'RH_EMAIL_FORMAT_INVALID',accounts:null};
+    if (accounts.has(email)) return {code:'RH_EMAIL_DUPLICATED',accounts:null};
+    if (typeof secret !== 'string') return {code:'RH_PASSWORD_NOT_TEXT',accounts:null};
+    if (secret.length < 16) return {code:'RH_PASSWORD_TOO_SHORT',accounts:null};
+    if (secret.length > 256) return {code:'RH_PASSWORD_TOO_LONG',accounts:null};
     accounts.set(email,secret);
   }
   return accounts.size ? { code:'RH_CONFIG_READY',accounts } :
-    {code:'RH_ACCOUNTS_INVALID_FORMAT',accounts:null};
+    {code:'RH_ACCOUNTS_EMPTY',accounts:null};
 }
 
 function configuredAccounts(env) { return accountConfiguration(env).accounts; }
