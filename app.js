@@ -33,7 +33,6 @@ const DEFAULT_DESCRIPTION =
 const grid = document.querySelector('#jobsGrid');
 const empty = document.querySelector('#jobsEmpty');
 const search = document.querySelector('#jobSearch');
-const locationFilter = document.querySelector('#jobLocation');
 const statusPill = document.querySelector('#integrationStatus');
 
 const jobsHeading =
@@ -131,12 +130,6 @@ function workMode(job) {
         : 'Presencial';
 }
 
-
-function locationLabel(job) {
-  return job.city
-    ? `${job.city}${job.state ? `, ${job.state}` : ''}`
-    : '';
-}
 
 
 function safe(value = '') {
@@ -638,11 +631,6 @@ function renderGeneralJobs() {
       .toLowerCase()
       .trim();
 
-
-  const selectedLocation =
-    locationFilter.value;
-
-
   const filtered =
     jobs
       .filter(
@@ -659,29 +647,11 @@ function renderGeneralJobs() {
 
         const text = `
           ${job.title || ''}
-          ${job.city || ''}
-          ${job.state || ''}
           ${job.department || ''}
         `.toLowerCase();
 
         return text.includes(
           term
-        );
-
-      })
-      .filter(job => {
-
-        if (!selectedLocation) {
-          return true;
-        }
-
-        const location =
-          locationLabel(job) ||
-          workMode(job);
-
-        return (
-          location ===
-          selectedLocation
         );
 
       });
@@ -690,9 +660,6 @@ function renderGeneralJobs() {
   grid.innerHTML =
     filtered
       .map(job => {
-
-        const location =
-          locationLabel(job);
 
         return `
           <article
@@ -720,16 +687,6 @@ function renderGeneralJobs() {
                   workMode(job)
                 )}
               </span>
-
-              ${
-                location
-                  ? `
-                    <span>
-                      ${safe(location)}
-                    </span>
-                  `
-                  : ''
-              }
 
             </div>
 
@@ -830,7 +787,6 @@ function renderSpecificVacancy(id) {
   if (meta) meta.content = `${job.title} — oportunidade na GEX Corporation.`;
 
   const description = safeJobDescription(job.description);
-  const location = locationLabel(job);
   // Contract model must only be displayed when actually supplied by the ATS.
   const contract = typeof job.contract_model === 'string' ? job.contract_model : '';
   grid.innerHTML = `
@@ -847,7 +803,6 @@ function renderSpecificVacancy(id) {
                 <p class="vacancy-hero-lead">Conheça os desafios, requisitos e benefícios para descobrir se esta oportunidade combina com você.</p>
                 <div class="vacancy-meta-large">
                   <span><strong>Modalidade</strong>${safe(workMode(job))}</span>
-                  ${location ? `<span><strong>Localidade</strong>${safe(location)}</span>` : ''}
                   ${contract ? `<span><strong>Contratação</strong>${safe(contract)}</span>` : ''}
                   <span><strong>Vaga</strong>#${safe(job.id)}</span>
                 </div>
@@ -910,31 +865,6 @@ function render() {
   renderGeneralJobs();
 }
 
-
-function populateLocations() {
-
-  const locations = [
-    ...new Set(
-      jobs
-        .map(
-          job =>
-            locationLabel(job) ||
-            workMode(job)
-        )
-        .filter(Boolean)
-    )
-  ].sort();
-
-
-  locationFilter.innerHTML =
-    '<option value="">Todas as localidades</option>' +
-    locations
-      .map(
-        value =>
-          `<option value="${safe(value)}">${safe(value)}</option>`
-      )
-      .join('');
-}
 
 
 async function readBackendStatus() {
@@ -1061,9 +991,6 @@ async function loadJobs() {
       'Não foi possível carregar as vagas agora';
 
   }
-
-
-  populateLocations();
 
   render();
 }
@@ -1458,12 +1385,6 @@ form.addEventListener(
 
 search.addEventListener(
   'input',
-  render
-);
-
-
-locationFilter.addEventListener(
-  'change',
   render
 );
 
