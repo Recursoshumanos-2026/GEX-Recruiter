@@ -61,7 +61,9 @@ test('login local exige conta configurada, não libera apenas pelo link e não v
   assert.equal(login.status,200);
   const html=await login.text();
   assert.match(html,/Área exclusiva do RH/);
-  assert.match(html,/GEX Recruiter - Painel do RH/);
+  assert.ok(html.includes('<title>GEX Recruiter | Painel do RH</title>'));
+  assert.ok(html.includes('rel="icon" type="image/png" href="https://carreiras.gexcorp.com.br/assets/gex-simbolo.png"'));
+  assert.ok(login.headers.get('Content-Security-Policy').includes('img-src https://carreiras.gexcorp.com.br;'));
   assert.match(html,/id="passwordVisibility" type="button"/);
   assert.match(html,/aria-label="Mostrar senha" aria-pressed="false"/);
   assert.match(html,/toggle\.setAttribute\('aria-label',visible\?'Ocultar senha':'Mostrar senha'\)/);
@@ -97,7 +99,9 @@ test('login válido emite cookie HttpOnly, permite edição autenticada e logout
   assert.equal(panel.status,200);
   const panelHtml=await panel.text();
   assert.match(panelHtml,/Administração de questionários/);
-  assert.match(panelHtml,/GEX Recruiter - Painel do RH/);
+  assert.ok(panelHtml.includes('<title>GEX Recruiter | Painel do RH</title>'));
+  assert.ok(panelHtml.includes('rel="icon" type="image/png" href="https://carreiras.gexcorp.com.br/assets/gex-simbolo.png"'));
+  assert.ok(panel.headers.get('Content-Security-Policy').includes("img-src 'self' https://carreiras.gexcorp.com.br;"));
   assert.match(panelHtml,/>Sair<\/button>/);
   const adminScript=panelHtml.match(/<script type="module" nonce="[^"]+">([\s\S]*?)<\/script>/)?.[1];
   assert.ok(adminScript);
