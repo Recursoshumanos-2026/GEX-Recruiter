@@ -3,7 +3,8 @@ import { loadVacancyQuestionnaire, publicQuestionnaires, handleRhRequest } from 
 import { resumeAvailable, convertResume, assertResumeDatabase, storeResume, resumeField } from './resumes.js';
 import { cleanupExpiredResumes, RETENTION_CRON } from './retention.js';
 import { smokeResume } from './smoke.js';
-import { technicalAnalysisAvailable, evaluateTechnicalFit, technicalAnalysisHtml } from './technical-analysis.js';
+import { technicalAnalysisAvailable, technicalCriteria, evaluateTechnicalFit, technicalAnalysisHtml } from './technical-analysis.js';
+import { runRetroactiveAnalysis } from './retroactive-analysis.js';
 
 import { integrationMonitoringEnabled, integrationEvent, monitorApplication, checkIntegration } from './integration-monitoring.js';
 
@@ -1300,6 +1301,17 @@ export default {
     // No resume content, names, emails or IDs in logs.
     console.info('GEX Talents | retenção D1:', report.status,
       report.status === 'dry_run' ? report.eligible : report.deleted);
+    if (env.RETROACTIVE_ANALYSIS_ENABLED === 'true') {
+      try {
+        const result = await runRetroactiveAnalysis(env, {
+          available: technicalAnalysisAvailable, criteria: technicalCriteria,
+          lookup: lookupApplication, vacancy: getVacancyDetails,
+          submit: addTechnicalAnalysisObservation
+        }, { now: controller.scheduledTime });
+        // Only aggregate counters. No IDs, résumés or AI output in logs.
+        console.info('GEX Recruiter | análise retroativa:', JSON.stringify(result));
+      } catch { console.warn('GEX Recruiter | análise retroativa indisponível.'); }
+    }
   },
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -1457,6 +1469,8 @@ export default {
             duplicate_check_enabled: duplicateCheckEnabled(env),
             safe_recovery_format: 'bounded_retry_v1',
             integration_monitoring_enabled: integrationMonitoringEnabled(env),
+            retroactive_analysis_enabled: env.RETROACTIVE_ANALYSIS_ENABLED === 'true',
+            retroactive_analysis_write_enabled: env.RETROACTIVE_ANALYSIS_ENABLED === 'true' && env.RETROACTIVE_ANALYSIS_WRITE_ENABLED === 'true',
             curriculum_storage: resumeAvailable(env),
             // Safe, non-sensitive connection diagnostics. These only report
             // whether bindings exist; they never access candidate data.
