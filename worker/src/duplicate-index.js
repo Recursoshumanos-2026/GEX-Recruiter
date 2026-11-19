@@ -63,8 +63,12 @@ export async function checkDuplicatePair(env, payload, client, now=Date.now()) {
 }
 export async function cleanupDuplicateIndex(env,now=Date.now()) {
   if (typeof env?.RESUME_DB?.prepare !== 'function' || env.RESUME_RETENTION_ENABLED!=='true' || env.RESUME_RETENTION_DRY_RUN!=='false') return;
-  if (!duplicateIndexReady(env)) return;
+  // Clean even after the lookup secret is removed, provided tables existed.
+  if (!duplicateIndexReady(env)) {
+    const existing=await env.RESUME_DB.prepare("SELECT 1 AS found FROM sqlite_master WHERE type='table' AND name='gex_duplicate_index'").first();
+    if(!existing)return;
+  }
   await table(env); await rateTable(env);
   await env.RESUME_DB.prepare('DELETE FROM gex_duplicate_index WHERE rowid IN (SELECT rowid FROM gex_duplicate_index WHERE created_at < ? LIMIT 500)').bind(cutoff(now)).run();
-  await env.RESUME_DB.prepare('DELETE FROM gex_duplicate_rate WHERE expires_at < ?').bind(now).run();
+  await env.RESUME_DB.prepare('DELETE FROM gex_duplicate_rate WHERE rowid IN (SELECT rowid FROM gex_duplicate_rate WHERE expires_at < ? LIMIT 5000)').bind(now).run();
 }
