@@ -198,7 +198,12 @@ test('página de login indisponível informa motivo sem revelar credenciais',asy
     [{...base,RESUME_DB:undefined},'RH_DATABASE_UNAVAILABLE'],
     [base,'RH_ACCOUNTS_MISSING'],
     [{...base,QUESTIONNAIRE_RH_ACCOUNTS:'malformed-private-value'},'RH_ACCOUNTS_INVALID_JSON'],
-    [{...base,QUESTIONNAIRE_RH_ACCOUNTS:JSON.stringify({'private@example.invalid':'short-secret'})},'RH_ACCOUNTS_INVALID_FORMAT']
+    [{...base,QUESTIONNAIRE_RH_ACCOUNTS:JSON.stringify({'private@example.invalid':'short-secret'})},'RH_PASSWORD_TOO_SHORT'],
+    [{...base,QUESTIONNAIRE_RH_ACCOUNTS:'[]'},'RH_ACCOUNTS_NOT_OBJECT'],
+    [{...base,QUESTIONNAIRE_RH_ACCOUNTS:'{}'},'RH_ACCOUNTS_EMPTY'],
+    [{...base,QUESTIONNAIRE_RH_ACCOUNTS:JSON.stringify({email:'private@example.invalid',password:'fictional-password-long-enough'})},'RH_EMAIL_FORMAT_INVALID'],
+    [{...base,QUESTIONNAIRE_RH_ACCOUNTS:JSON.stringify({'private@example.invalid':123})},'RH_PASSWORD_NOT_TEXT'],
+    [{...base,QUESTIONNAIRE_RH_ACCOUNTS:JSON.stringify({'private@example.invalid':'a'.repeat(257)})},'RH_PASSWORD_TOO_LONG']
   ]){
     const r=await handleRhRequest(req(path),env,{},vacancies);
     assert.equal(r.status,403);
