@@ -9,6 +9,7 @@ ALLOWED_ORIGIN = "https://carreiras.gexcorp.com.br"
 APPLICATIONS_ENABLED = "true"
 PROSPECT_CHANNEL_ID = "8"
 RESUME_UPLOAD_ENABLED = "true"
+INTEGRATION_MONITOR_ENABLED = "true"
 # Retencao automatica somente no D1, 12 meses; Recrutei nunca e alterada.
 RESUME_RETENTION_ENABLED = "true"
 RESUME_RETENTION_DRY_RUN = "false"
@@ -21,6 +22,7 @@ ALLOWED_ORIGIN = "https://gex-talents-previa-questionario.yasmimbsouza80.chatgpt
 APPLICATIONS_ENABLED = "false"
 PROSPECT_CHANNEL_ID = "8"
 RESUME_UPLOAD_ENABLED = "false"
+INTEGRATION_MONITOR_ENABLED = "false"
 # Preview permanece sem exclusao real.
 RESUME_RETENTION_ENABLED = "true"
 RESUME_RETENTION_DRY_RUN = "true"
