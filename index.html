@@ -697,7 +697,7 @@
             </h3>
 
             <p>
-              Informações essenciais para identificarmos seu perfil.
+              Informações essenciais para identificarmos seu perfil. A conferência de inscrição utiliza e-mail e CPF para evitar duplicidades. <a href="privacidade.html" target="_blank" rel="noopener noreferrer">Aviso de Privacidade</a>.
             </p>
 
           </div>
@@ -706,19 +706,6 @@
 
 
         <div class="form-grid application-grid">
-
-          <label class="full">
-
-            Nome completo *
-
-            <input
-              required
-              name="name"
-              autocomplete="name"
-            />
-
-          </label>
-
 
           <label>
 
@@ -733,6 +720,41 @@
               autocomplete="email"
             />
             <span class="contact-field-error" id="emailError" aria-live="polite" hidden></span>
+
+          </label>
+
+
+          <label>
+
+            CPF *
+
+            <input
+              required
+              name="ssn"
+              aria-describedby="ssnError"
+              pattern="[0-9]{11}|[0-9]{3}\.[0-9]{3}\.[0-9]{3}\-[0-9]{2}"
+              maxlength="14"
+              title="Informe os 11 dígitos do CPF"
+              inputmode="numeric"
+              placeholder="000.000.000-00"
+              autocomplete="off"
+            />
+            <span class="contact-field-error" id="ssnError" aria-live="polite" hidden></span>
+
+          </label>
+
+
+          <div id="earlyDuplicateNotice" class="form-message error full" role="status" aria-live="polite" hidden></div>
+
+          <label class="full">
+
+            Nome completo *
+
+            <input
+              required
+              name="name"
+              autocomplete="name"
+            />
 
           </label>
 
@@ -762,26 +784,6 @@
               name="birthday"
               autocomplete="bday"
             />
-
-          </label>
-
-
-          <label>
-
-            CPF *
-
-            <input
-              required
-              name="ssn"
-              aria-describedby="ssnError"
-              pattern="[0-9]{11}|[0-9]{3}\.[0-9]{3}\.[0-9]{3}\-[0-9]{2}"
-              maxlength="14"
-              title="Informe os 11 dígitos do CPF"
-              inputmode="numeric"
-              placeholder="000.000.000-00"
-              autocomplete="off"
-            />
-            <span class="contact-field-error" id="ssnError" aria-live="polite" hidden></span>
 
           </label>
 
@@ -1025,7 +1027,7 @@
 
 
   <script src="config.js"></script>
-  <script type="module" src="app.js?v=35"></script>
+  <script type="module" src="app.js?v=36"></script>
   <script defer src="visual-v2.js?v=1"></script>
 
 </body>

@@ -239,14 +239,36 @@ do Worker; não é uma garantia de unicidade distribuída. O limite é de 20
 páginas de 100 registros solicitados por tentativa. Falha, paginação
 inconclusiva ou limite excedido gera HTTP 503, não uma conclusão de que
 o candidato é novo. Duplicidade identificada gera HTTP 409.
-Não há novo banco, retenção de identificadores nem custo de serviço
-adicional contratado; a consulta consome a cota existente da API.
+A consulta original consome a cota existente da API.
 
 A flag permanece desativada por padrão. Antes de ativá-la em produção,
 homologar o contrato real e a paginação usando uma vaga controlada,
 confirmar se a listagem inclui reprovados/desistentes e testar se o
 endpoint é permitido pelo plano da empresa. Confirmar a publicação da
 API e do portal; o diagnóstico `/health` informa apenas a flag.
+
+### Conferência antecipada de novas inscrições
+
+A consulta antes do envio é opcional e requer Secret de produção
+`DUPLICATE_LOOKUP_SECRET` (chave aleatória dedicada de pelo menos 32 caracteres).
+Nunca inserir a chave no GitHub, no JavaScript público ou no chat. Sem ela,
+a validação final existente segue funcionando. A conferência só consulta
+o índice quando o bloqueio está habilitado naquela vaga; o piloto é 164607.
+O índice D1 privado é alimentado apenas por novas candidaturas do portal
+com criação confirmada e ID de candidatura retornado. Não importa registros
+antigos. Guarda HMAC de e-mail + CPF e HMAC de CPF, vinculados à vaga e ID
+da candidatura, sem os identificadores em texto aberto. A consulta pública
+antecipada requer os dois campos válidos e correspondência da combinação;
+não consulta a ATS, não revela qual campo coincidiu e tem limite de dez
+tentativas por janela de dez minutos por origem de rede, com chave HMAC.
+A consulta final mantém a checagem ATS e compara CPF no índice quando
+disponível. Dados anteriores à ativação ou criados fora do portal podem
+ser identificados só pela conferência ATS; CPF não é garantido na listagem.
+O cron limpa registros do índice após 12 meses e contadores expirados;
+em pedidos de exclusão, excluir também a linha do índice D1 pelo ID da
+candidatura e vaga, além dos registros pertinentes nas outras plataformas.
+Uma falha de índice não desfaz candidatura confirmada. Guardar a chave
+com segurança; sua troca invalida a comparação dos HMAC antigos.
 
 ### Recuperação segura de falhas (primeira etapa)
 
