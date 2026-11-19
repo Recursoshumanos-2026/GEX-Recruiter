@@ -251,6 +251,7 @@ export function technicalAnalysisHtml(vacancyTitle, result) {
     '<p><strong>Vaga:</strong> ' + escape(vacancyTitle) + '</p>',
     '<p><strong>Aderência documental estimada:</strong> ' + result.score + '/100</p>',
     '<p>Indicador baseado apenas nas evidências do currículo para até oito requisitos técnicos da vaga. ' +
+      'Pesos definidos automaticamente pela descrição da vaga; prioridades equivalentes recebem pesos equivalentes, com ajuste de arredondamento. Diferenciais não reduzem a pontuação. ' +
       'Não é uma nota de competência, não comprova ausência de habilidades e não determina aprovação ou reprovação. ' +
       'Revisão humana obrigatória.</p>',
     '<p><strong>Critérios e evidências:</strong></p>',
