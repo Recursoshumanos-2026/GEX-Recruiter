@@ -233,7 +233,9 @@ export async function handleRhRequest(request, env, ctx, loadVacancies, diagnost
   try {
     if (path === '/rh/api/diagnostico-duplicidade' && request.method === 'GET') {
       if (typeof diagnostics.duplicatePilot !== 'function') return reject(404,'Diagnóstico indisponível.');
-      return reply(await diagnostics.duplicatePilot());
+      const vacancyId=url.searchParams.get('vaga') || '164607';
+      if(!/^[1-9][0-9]*$/.test(vacancyId)||!Number.isSafeInteger(Number(vacancyId))) return reject(400,'Vaga inválida.');
+      return reply(await diagnostics.duplicatePilot(Number(vacancyId)));
     }
     await ensureTables(env);
     if (request.method === 'GET' && path === '/rh/api/session') {
