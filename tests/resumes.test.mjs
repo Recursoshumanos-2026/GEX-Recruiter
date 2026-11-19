@@ -155,7 +155,11 @@ test('Vaga Ultra recebe análise técnica em observação separada sem alterar e
   assert.equal(notes.length,3);
   const analysis=notes[2].init.body.get('description');
   assert.ok(analysis.includes('GEX Talents | Análise Técnica Automatizada'));
-  assert.ok(analysis.includes('50/100'));
+  // Three equivalent criteria divide 100 into 34/33/33 (integer rounding).
+  // First fully evidenced + second partially evidenced = 50.5, rounded to 51.
+  assert.ok(analysis.includes('51/100'));
+  assert.ok(analysis.includes('Peso: 34%'));
+  assert.equal((analysis.match(/Peso: 33%/g) || []).length,2);
   assert.ok(analysis.includes('Revisão humana obrigatória'));
   assert.ok(!analysis.includes('candidate@example.invalid'));
   assert.equal(r.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
@@ -163,7 +167,7 @@ test('Vaga Ultra recebe análise técnica em observação separada sem alterar e
   const health=await worker.fetch(new Request('https://worker.invalid/health'),r.env);
   const version=await health.json();
   assert.equal(version.technical_analysis_enabled,true);
-  assert.equal(version.technical_analysis_format,'gex_evidence_score_v2');
+  assert.equal(version.technical_analysis_format,'gex_evidence_weighted_v3');
 });
 
 test('organiza currículo em seções, parágrafos e listas sem interpretar HTML do candidato',async()=>{

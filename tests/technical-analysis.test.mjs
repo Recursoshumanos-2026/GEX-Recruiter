@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { technicalCriteria, technicalAnalysisAvailable, evaluateTechnicalFit,
+import { technicalCriteria, technicalCriterionPlan, technicalAnalysisAvailable, evaluateTechnicalFit,
   technicalAnalysisHtml } from '../worker/src/technical-analysis.js';
 
 const job = '<h2>Sobre a vaga</h2><p>Empresa remota.</p>' +
@@ -171,4 +171,53 @@ test('alternativa de nível não transforma Excel e Sheets em alternativas', asy
   const result=await evaluateTechnicalFit(env,jd,'Excel avançado.');
   assert.equal(result.criteria[1].status,'parcial');
   assert.equal(result.score,13);
+});
+
+const weightedJob = '<h2>Requisitos</h2><ul>' +
+  '<li>Experiência em atendimento ao cliente (imprescindível)</li>' +
+  '<li>Experiência com retenção de clientes</li>' +
+  '<li>Conhecimento de Excel</li>' +
+  '<li>Vivência com Salesforce (desejável)</li></ul>' +
+  '<h2>Diferenciais</h2><ul><li>Inglês intermediário</li></ul>';
+
+test('pesos priorizam sinal explícito do JD, excluem diferenciais e totalizam 100',()=>{
+  const plan=technicalCriterionPlan(weightedJob);
+  assert.deepEqual(plan.map(c=>c.weight),[50,25,25]);
+  assert.equal(plan.length,3);
+  assert.equal(plan.reduce((sum,c)=>sum+c.weight,0),100);
+  assert.deepEqual(technicalCriterionPlan(job).map(c=>c.weight),[25,25,25,25]);
+});
+test('prioridade do JD não depende do currículo nem de pesos inventados pela IA',async()=>{
+  const responses=[
+    [{index:0,status:'atendido',evidence:'Experiência em atendimento ao cliente',weight:0},
+     {index:1,status:'parcial',evidence:'Retenção de clientes',weight:0}],
+    [{index:2,status:'atendido',evidence:'Excel avançado',weight:100}]
+  ];
+  const evidence=['Experiência em atendimento ao cliente. Retenção de clientes.','Excel avançado.'];
+  const results=[];
+  for(let i=0;i<responses.length;i++){
+    const env={AI:{run:async()=>({response:{ratings:responses[i]}})}};
+    results.push(await evaluateTechnicalFit(env,weightedJob,evidence[i]));
+  }
+  assert.deepEqual(results[0].criteria.map(c=>c.weight),[50,25,25]);
+  assert.deepEqual(results[1].criteria.map(c=>c.weight),[50,25,25]);
+  assert.equal(results[0].score,63);
+  assert.equal(results[1].score,25);
+  const html=technicalAnalysisHtml('Analista de Atendimento',results[0]);
+  assert.match(html,/Peso: 50%/);
+  assert.match(html,/Diferenciais não reduzem a pontuação/);
+  assert.match(html,/Revisão humana obrigatória/);
+});
+test('responsabilidades complementares têm peso menor quando faltam requisitos',()=>{
+  const jd='<h2>Requisitos obrigatórios</h2><ul><li>Experiência em atendimento ao cliente</li></ul>' +
+    '<h2>Responsabilidades</h2><ul><li>Registrar interações no CRM</li><li>Acompanhar indicadores de qualidade</li></ul>';
+  assert.deepEqual(technicalCriterionPlan(jd).map(c=>c.weight),[60,20,20]);
+});
+test('prioridade explícita não é descartada quando há mais de oito requisitos',()=>{
+  const jd='<h2>Requisitos</h2><ul>'+Array.from({length:9},(_,i)=>'<li>Conhecimento técnico na plataforma '+i+'</li>').join('')+
+    '<li>Experiência com atendimento ao cliente (essencial)</li></ul>';
+  const plan=technicalCriterionPlan(jd);
+  assert.equal(plan.length,8);
+  assert.ok(plan.some(c=>c.requirement.includes('essencial')));
+  assert.equal(plan.reduce((sum,c)=>sum+c.weight,0),100);
 });

@@ -23,38 +23,80 @@ const visibleText = html => decodeHtml(String(html)
   .replace(/<[^>]*>/g, ' '))
   .replace(/\s+/g, ' ').trim();
 
-export function technicalCriteria(description) {
+// The plan depends exclusively on the vacancy, never on candidate evidence,
+// model output, or which requirements an individual candidate satisfies.
+const OPTIONAL_ITEM = /\b(?:desej[aá]vel|diferenciais?|n[aã]o obrigat[oó]ri[oa]|opcional|ser[aá] um plus|ser[aá] considerado um diferencial)\b/i;
+const PRIORITY_ITEM = /\b(?:imprescind[ií]vel|indispens[aá]vel|essencia(?:l|is)|fundamenta(?:l|is)|priorit[aá]ri[oa]s?|obrigat[oó]ri[oa]s?)\b/i;
+
+function criterionEntries(description) {
   if (typeof description !== 'string' || !description.trim()) return [];
-  // Recrutei's rich-text editor often exports section titles as <p>Requisitos</p>
-  // instead of semantic headings. Keep them in document order with list items.
+  // Recrutei may export section titles as paragraphs rather than headings.
   const matches = [...description.matchAll(/<h([1-6])\b[^>]*>[\s\S]*?<\/h\1>|<li\b[^>]*>[\s\S]*?<\/li>|<p\b[^>]*>[\s\S]*?<\/p>/gi)];
   const sections = { required: [], fallback: [] };
-  let category = null;
+  let category = null, prioritySection = false;
   for (const match of matches) {
     const block = match[0];
     const isHeading = /^<h[1-6]\b/i.test(block);
     const isParagraph = /^<p\b/i.test(block);
     if (isHeading || isParagraph) {
       const heading = visibleText(block);
-      // A body paragraph mentioning a requirement must not become a section.
-      // Paragraph headings are short labels without sentence punctuation.
       if (isParagraph && (heading.length > 90 || /[.!?]$/.test(heading) ||
           !(EXCLUDED_SECTION.test(heading) || REQUIRED_SECTION.test(heading) ||
             FALLBACK_SECTION.test(heading)))) continue;
-      if (EXCLUDED_SECTION.test(heading)) category = null;
-      else if (REQUIRED_SECTION.test(heading)) category = 'required';
-      else if (FALLBACK_SECTION.test(heading)) category = 'fallback';
-      else if (isHeading && Number(match[1]) <= 2) category = null;
+      if (EXCLUDED_SECTION.test(heading) || OPTIONAL_ITEM.test(heading)) {
+        category = null; prioritySection = false;
+      } else if (REQUIRED_SECTION.test(heading)) {
+        category = 'required';
+        prioritySection = PRIORITY_ITEM.test(heading);
+      } else if (FALLBACK_SECTION.test(heading)) {
+        category = 'fallback'; prioritySection = false;
+      } else if (isHeading && Number(match[1]) <= 2) {
+        category = null; prioritySection = false;
+      }
     } else if (category) {
-      const criterion = visibleText(block);
-      if (criterion.length >= 12 && criterion.length <= 260 &&
-          !EXCLUDED_CRITERION.test(criterion)) sections[category].push(criterion);
+      const requirement = visibleText(block);
+      if (requirement.length >= 12 && requirement.length <= 260 &&
+          !EXCLUDED_CRITERION.test(requirement) && !OPTIONAL_ITEM.test(requirement)) {
+        const explicitPriority = category === 'required' && PRIORITY_ITEM.test(requirement);
+        const units = explicitPriority ? 4 : prioritySection ? 3 : category === 'required' ? 2 : 1;
+        const basis = explicitPriority ? 'Prioridade expressa no requisito' :
+          prioritySection ? 'Seção de requisitos prioritários/obrigatórios' :
+          category === 'required' ? 'Requisito da vaga' : 'Responsabilidade complementar';
+        sections[category].push({requirement, units, basis});
+      }
     }
   }
   const items = sections.required.length >= 3 ? sections.required :
     [...sections.required, ...sections.fallback];
-  return [...new Map(items.map(item => [item.toLowerCase(), item])).values()]
-    .slice(0, MAX_REQUIREMENTS);
+  // Deduplicate, prioritizing the explicit requirement over repeated duties.
+  const unique = new Map();
+  for (const item of items) {
+    const key = item.requirement.toLowerCase();
+    const prior = unique.get(key);
+    if (!prior || prior.units < item.units) unique.set(key,item);
+  }
+  const ordered = [...unique.values()].map((item, order) => ({...item,order}));
+  // Protect explicit priorities from truncation at the eight-criterion cap.
+  return ordered.sort((a,b)=>b.units-a.units || a.order-b.order)
+    .slice(0,MAX_REQUIREMENTS).sort((a,b)=>a.order-b.order);
+}
+
+export function technicalCriteria(description) {
+  return criterionEntries(description).map(item=>item.requirement);
+}
+
+export function technicalCriterionPlan(description) {
+  const entries = criterionEntries(description);
+  const total = entries.reduce((sum,item)=>sum+item.units,0);
+  if (!total) return [];
+  const allocation = entries.map(({requirement,units,basis},index)=>{
+    const exact = 100 * units / total;
+    return {requirement,basis,weight:Math.floor(exact),remainder:exact-Math.floor(exact),index};
+  });
+  const remaining = 100 - allocation.reduce((sum,item)=>sum+item.weight,0);
+  const ranked = [...allocation].sort((a,b)=>b.remainder-a.remainder || a.index-b.index);
+  for (let i=0;i<remaining;i++) ranked[i].weight++;
+  return allocation.map(({requirement,basis,weight})=>({requirement,basis,weight}));
 }
 
 // Avoid sending contact data and explicit demographic details to the scoring model.
@@ -128,7 +170,8 @@ function parseResponse(output) {
 
 export async function evaluateTechnicalFit(env, description, markdown) {
   if (!technicalAnalysisAvailable(env)) throw Error('Análise técnica indisponível.');
-  const requirements = technicalCriteria(description);
+  const plan = technicalCriterionPlan(description);
+  const requirements = plan.map(item=>item.requirement);
   if (requirements.length < 3) throw Error('Critérios técnicos insuficientes na descrição da vaga.');
   const evidence = candidateEvidence(markdown);
   const schema = {
@@ -184,13 +227,12 @@ export async function evaluateTechnicalFit(env, description, markdown) {
       evidence:refined === 'nao_verificado' ? '' : quote
     });
   }
-  const criteria = requirements.map((requirement,index) => ({
-    requirement,
+  const criteria = plan.map((item,index) => ({
+    ...item,
     ...byIndex.get(index) || {status:'nao_verificado',evidence:''}
   }));
-  const score = Math.round(100 * criteria.reduce((total, item) =>
-    total + (item.status === 'atendido' ? 1 : item.status === 'parcial' ? 0.5 : 0), 0) /
-    criteria.length);
+  const score = Math.round(criteria.reduce((total, item) =>
+    total + item.weight * (item.status === 'atendido' ? 1 : item.status === 'parcial' ? 0.5 : 0), 0));
   return { score, criteria };
 }
 
@@ -202,12 +244,14 @@ export function technicalAnalysisHtml(vacancyTitle, result) {
   const statuses = { atendido:'Evidenciado', parcial:'Parcialmente evidenciado',
     nao_verificado:'Não verificado no currículo' };
   const rows = result.criteria.map(row => '<li><strong>' + escape(row.requirement) + '</strong> — ' +
+    (Number.isInteger(row.weight) ? 'Peso: ' + row.weight + '% (' + escape(row.basis) + ') — ' : '') +
     statuses[row.status] + (row.evidence ? '. Evidência: “' + escape(row.evidence) + '”' : '') + '</li>');
   return [
     '<p><strong>GEX Talents | Análise Técnica Automatizada</strong></p>',
     '<p><strong>Vaga:</strong> ' + escape(vacancyTitle) + '</p>',
     '<p><strong>Aderência documental estimada:</strong> ' + result.score + '/100</p>',
     '<p>Indicador baseado apenas nas evidências do currículo para até oito requisitos técnicos da vaga. ' +
+      'Pesos definidos automaticamente pela descrição da vaga; prioridades equivalentes recebem pesos equivalentes, com ajuste de arredondamento. Diferenciais não reduzem a pontuação. ' +
       'Não é uma nota de competência, não comprova ausência de habilidades e não determina aprovação ou reprovação. ' +
       'Revisão humana obrigatória.</p>',
     '<p><strong>Critérios e evidências:</strong></p>',
