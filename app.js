@@ -83,7 +83,7 @@ function contactFieldError(name, value) {
     ? 'CPF inválido. Confira os números e tente novamente.' : '';
 }
 
-let earlyDuplicateEnabled=false, earlyDuplicateTimer, earlyDuplicateVersion=0, earlyDuplicateController, earlyDuplicateBlocked=false;
+let earlyDuplicateEnabled=false, earlyDuplicateGlobal=false, earlyDuplicatePilot=false, earlyDuplicateTimer, earlyDuplicateVersion=0, earlyDuplicateController, earlyDuplicateBlocked=false;
 const earlyDuplicateNotice=document.getElementById('earlyDuplicateNotice');
 function resetEarlyDuplicate() {
   earlyDuplicateVersion++;
@@ -100,7 +100,7 @@ function queueEarlyDuplicate() {
   const email=form.elements.namedItem('email').value.trim();
   const ssn=form.elements.namedItem('ssn').value.trim();
   const vacancy_id=form.elements.namedItem('vacancy_id').value;
-  if(!vacancy_id || contactFieldError('email',email) || contactFieldError('ssn',ssn)) return;
+  if(!vacancy_id || (!earlyDuplicateGlobal && !(earlyDuplicatePilot && vacancy_id==='164607')) || contactFieldError('email',email) || contactFieldError('ssn',ssn)) return;
   const version=earlyDuplicateVersion;
   earlyDuplicateTimer=setTimeout(async()=>{
     const controller=new AbortController();earlyDuplicateController=controller;
@@ -931,6 +931,8 @@ return;
         body.applications_enabled
       );
     earlyDuplicateEnabled = body.duplicate_early_check_enabled === true;
+    earlyDuplicateGlobal = body.duplicate_check_enabled === true;
+    earlyDuplicatePilot = body.duplicate_pilot_enabled === true;
     resumeUploadEnabled = !PRESENTATION_PREVIEW && applicationsEnabled &&
       body.resume_upload_enabled === true;
     syncResumeInput();
@@ -1245,6 +1247,9 @@ form.addEventListener(
 
     button.textContent =
       'Enviando candidatura...';
+    earlyDuplicateVersion++;
+    clearTimeout(earlyDuplicateTimer);
+    earlyDuplicateController?.abort();
 
 
     try {
