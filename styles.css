@@ -690,7 +690,7 @@ svg{
 
 .jobs-toolbar{
   display:grid;
-  grid-template-columns:minmax(0,1fr) 260px;
+  grid-template-columns:minmax(0,1fr);
   gap:12px;
   margin-bottom:22px
 }
