@@ -200,7 +200,7 @@ export async function handleLocalRhAuth(request, env) {
 export function renderRhLoginPage() {
   const nonce=bytesToBase64Url(crypto.getRandomValues(new Uint8Array(18)));
   const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>GEX Recruiter - Painel do RH</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>GEX Recruiter | Painel do RH</title><link rel="icon" type="image/png" href="https://carreiras.gexcorp.com.br/assets/gex-simbolo.png">
 <style nonce="${nonce}">:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#f2f5fd;background:#080d18}*{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;padding:25px}.card{width:100%;max-width:430px;background:#121b2b;border:1px solid #283850;border-radius:20px;padding:34px;box-shadow:0 22px 85px #0006}.brand{font-size:26px;font-weight:850;letter-spacing:-1px}.brand span{color:#60abff;font-weight:500}h1{font-size:24px;margin:28px 0 7px}p{color:#a6b5ca;line-height:1.5;font-size:13px;margin:0 0 24px}label{display:block;font-size:12px;font-weight:700;margin:14px 0 7px}input{width:100%;border-radius:9px;border:1px solid #3c4c64;background:#080e19;color:white;padding:13px 14px;font:inherit}input:focus{outline:2px solid #2674e5}button{margin-top:24px;border:0;width:100%;border-radius:10px;padding:13px;background:#2374e2;color:white;font-weight:750;font:inherit;cursor:pointer}button:disabled{opacity:.6}.password-field{position:relative}.password-field input{padding-right:55px}.show-password{position:absolute;top:50%;right:7px;transform:translateY(-50%);display:grid;place-items:center;width:42px;height:42px;margin:0;padding:0;background:transparent;color:#a6b5ca;border-radius:8px}.show-password:hover{color:white;background:#25354a}.show-password:focus-visible{outline:2px solid #60abff;outline-offset:1px}.show-password .slash{display:none}.show-password[aria-pressed="true"] .slash{display:block}#message{margin:16px 0 0;min-height:20px;color:#ffb1b7}small{display:block;margin-top:22px;color:#7888a0;text-align:center}</style></head>
 <body><main class="card"><div class="brand">GEX <span>Recruiter - Painel do RH</span></div><h1>Área exclusiva do RH</h1><p>Entre para administrar as perguntas das vagas. Os candidatos não utilizam este acesso.</p>
 <form id="login"><label for="email">E-mail autorizado</label><input id="email" type="email" autocomplete="username" required maxlength="254">
@@ -210,6 +210,6 @@ export function renderRhLoginPage() {
   return new Response(html,{status:200,headers:{
     'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store',
     'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY',
-    'Content-Security-Policy':"default-src 'none'; style-src 'nonce-"+nonce+"'; script-src 'nonce-"+nonce+"'; connect-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+    'Content-Security-Policy':"default-src 'none'; img-src https://carreiras.gexcorp.com.br; style-src 'nonce-"+nonce+"'; script-src 'nonce-"+nonce+"'; connect-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
   }});
 }

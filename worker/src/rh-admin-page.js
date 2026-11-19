@@ -11,7 +11,7 @@ export function renderRhAdminPage(email, authMode='access') {
   const nonce = btoa(String.fromCharCode(...bytes));
   const html = `<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GEX Recruiter - Painel do RH</title>
+<title>GEX Recruiter | Painel do RH</title><link rel="icon" type="image/png" href="https://carreiras.gexcorp.com.br/assets/gex-simbolo.png">
 <style nonce="${nonce}">${STYLES}</style></head><body>
 <header class="top"><a class="brand" href="https://recursoshumanos-2026.github.io/GEX-Recruiter/" rel="noopener noreferrer">GEX <span>Recruiter - Painel do RH</span></a>
 <span class="top-separator"></span><span class="top-title">Administração de questionários</span><span class="signed">Acesso RH · ${escapeHtml(email)}</span>${authMode === 'password' ? '<button id="logout" type="button" class="quiet">Sair</button>' : ''}</header>
@@ -33,7 +33,7 @@ export function renderRhAdminPage(email, authMode='access') {
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'no-referrer',
     'X-Frame-Options': 'DENY',
-    'Content-Security-Policy': "default-src 'none'; connect-src 'self'; img-src 'self'; style-src 'nonce-" + nonce + "'; script-src 'nonce-" + nonce + "'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    'Content-Security-Policy': "default-src 'none'; connect-src 'self'; img-src 'self' https://carreiras.gexcorp.com.br; style-src 'nonce-" + nonce + "'; script-src 'nonce-" + nonce + "'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
   }});
 }
 
