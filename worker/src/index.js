@@ -5,6 +5,8 @@ import { cleanupExpiredResumes, RETENTION_CRON } from './retention.js';
 import { smokeResume } from './smoke.js';
 import { technicalAnalysisAvailable, evaluateTechnicalFit, technicalAnalysisHtml } from './technical-analysis.js';
 
+import { integrationMonitoringEnabled, integrationEvent, monitorApplication, checkIntegration } from './integration-monitoring.js';
+
 const API_BASE = 'https://api.recrutei.com.br';
 let tokenCache = { token: null, expiresAt: 0 };
 
@@ -1128,15 +1130,20 @@ async function createProspect(env, rawPayload, ctx) {
     response = await recrutei(env, '/api/v2/prospects', { method:'POST', body:form });
   } catch {
     // The request may have reached the ATS. Never re-create on uncertainty.
+    integrationEvent(env,'application','uncertain');
     throw unconfirmedCreationError();
   }
-  if (response.status >= 500) throw unconfirmedCreationError();
+  if (response.status >= 500) {
+    integrationEvent(env,'application','uncertain');
+    throw unconfirmedCreationError();
+  }
 
   const createBody = await response
     .json()
     .catch(() => ({}));
 
   if (!response.ok) {
+    integrationEvent(env,'application','failed');
     throw new Error(
       createBody.message ||
       `Falha ao criar candidatura (${response.status})`
@@ -1169,8 +1176,7 @@ async function createProspect(env, rawPayload, ctx) {
       profileError = profileResult.diagnostics || { http_status: null, fields: [] };
 
       console.error(
-        'GEX Talents: candidatura criada, mas perfil complementar falhou:',
-        profileResult.reason
+        'GEX Talents: candidatura criada, mas perfil complementar falhou.'
       );
     }
   }
@@ -1187,8 +1193,7 @@ async function createProspect(env, rawPayload, ctx) {
     tagWarning = tagResult.reason;
 
     console.error(
-      'GEX Recruiter: candidatura criada, mas a tag não foi adicionada:',
-      tagResult.reason
+      'GEX Recruiter: candidatura criada, mas a tag não foi adicionada.'
     );
   }
 
@@ -1211,6 +1216,10 @@ async function createProspect(env, rawPayload, ctx) {
   const resumeLinked = Boolean(markdown) &&
     (profileCompleted || resumeObservation?.ok === true);
 
+  monitorApplication(env, { application:true, profile:profileCompleted, tag:tagCompleted,
+    questionnaire:observationResult?.ok, resume_storage:markdown ? resumeStored : null,
+    resume_note:resumeObservation?.ok, profile_fallback:readOnlyProfileObservation?.ok });
+
   // Run after the candidate-facing submission has finished, so slow AI cannot
   // delay or invalidate an otherwise successful application. Only explicit rate-limit rejection can repeat the observation write.
   const technicalDescription = publicStatus?.description ||
@@ -1222,7 +1231,9 @@ async function createProspect(env, rawPayload, ctx) {
   if (technicalScheduled) {
     const task = addTechnicalAnalysisObservation(env, payload, createBody,
       markdown, technicalDescription, vacancy.title)
+      .then(result => { integrationEvent(env,'technical_analysis',result?.ok ? 'ok' : 'failed'); return result; })
       .catch(() => {
+        integrationEvent(env,'technical_analysis','uncertain');
         // Never log candidate text, model output, contact details or identifiers.
         console.warn('GEX Talents: análise técnica não concluída; candidatura preservada.');
         return {ok:false};
@@ -1233,7 +1244,7 @@ async function createProspect(env, rawPayload, ctx) {
     } else {
       technicalAnalysisStatus = (await task).ok ? 'completed' : 'unavailable';
     }
-  }
+  } else if (markdown) integrationEvent(env,'technical_analysis','unavailable');
 
   return {
     ok: true,
@@ -1274,6 +1285,17 @@ async function createProspect(env, rawPayload, ctx) {
 export default {
   async scheduled(controller, env) {
     if (controller.cron !== RETENTION_CRON) return;
+    if (integrationMonitoringEnabled(env)) {
+      await checkIntegration(env,{checkRecrutei:async () => {
+        const response = await recrutei(env,'/api/v2/vacancies/filter?page=1&perPage=1',{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({orderBy:{field:'created_at',type:'DESC'}}),
+          signal:AbortSignal.timeout(10000)
+        });
+        if (!response.ok) return false;
+        return Array.isArray((await response.json())?.data);
+      }});
+    }
     const report = await cleanupExpiredResumes(env, { now:controller.scheduledTime });
     // No resume content, names, emails or IDs in logs.
     console.info('GEX Talents | retenção D1:', report.status,
@@ -1434,6 +1456,7 @@ export default {
             technical_analysis_enabled: technicalAnalysisAvailable(env),
             duplicate_check_enabled: duplicateCheckEnabled(env),
             safe_recovery_format: 'bounded_retry_v1',
+            integration_monitoring_enabled: integrationMonitoringEnabled(env),
             curriculum_storage: resumeAvailable(env),
             // Safe, non-sensitive connection diagnostics. These only report
             // whether bindings exist; they never access candidate data.
