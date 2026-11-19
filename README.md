@@ -331,3 +331,12 @@ correspondente. Se a leitura após escrita falhar, não tenta novamente.
 Logs agregados, sem dados pessoais. Desativar as flags após o lote.
 A confirmação requer acesso ao Worker e D1 em produção; testes são simulados.
 
+
+### Diagnóstico privado de duplicidade
+
+Depois de autenticar no painel do RH, acessar /rh/api/diagnostico-duplicidade.
+Consulta somente a vaga de teste 164607, paginação limitada e somente leitura.
+Retorna contagens agregadas de linhas, e-mails e CPFs disponíveis, sem dados
+pessoais, e informa se a consulta completou ou não. O bloqueio global não é
+ativado por este diagnóstico. Confirmar o contrato da API e implementar
+consulta eficiente antes de habilitar vagas de grande volume.
