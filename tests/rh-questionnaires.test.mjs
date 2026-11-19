@@ -216,3 +216,16 @@ test('página de login indisponível informa motivo sem revelar credenciais',asy
   assert.equal(login.status,200);
   assert.doesNotMatch(await login.text(),/fictional-password-long-enough/);
 });
+
+test('diagnóstico de duplicidade só está disponível após autenticação do RH',async()=>{
+  let calls=0;
+  const env=envWithDb(), deps={duplicatePilot:async()=>{calls++;return {status:'complete',rows_checked:1,email_available:1,cpf_available:0}}};
+  const path='/rh/api/diagnostico-duplicidade';
+  const denied=await handleRhRequest(req(path),env,{},vacancies,deps);
+  assert.equal(denied.status,403);
+  assert.equal(calls,0);
+  const allowed=await handleRhRequest(req(path),env,fakeAccess,vacancies,deps);
+  assert.equal(allowed.status,200);
+  assert.deepEqual(await allowed.json(),{status:'complete',rows_checked:1,email_available:1,cpf_available:0});
+  assert.equal(calls,1);
+});
