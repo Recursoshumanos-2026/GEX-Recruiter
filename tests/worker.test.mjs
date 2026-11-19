@@ -90,6 +90,21 @@ test('bloqueia e-mail existente na mesma vaga, inclusive em páginas posteriores
   assert.ok(!result.calls.some(c=>c.path==='/api/v2/prospects'));
   assert.ok(!JSON.stringify(result.body).includes('teste@example.invalid'));
 });
+test('piloto bloqueia somente na vaga selecionada sem habilitar o bloqueio global',async()=>{
+  const pilotEnv={...env,DUPLICATE_CHECK_ENABLED:'false',DUPLICATE_PILOT_VACANCY_ID:'158928'};
+  const searchPages=[[{id:1,email:'TESTE@example.invalid'}]];
+  const same=await run(payload(),{env:pilotEnv,searchPages});
+  assert.equal(same.status,409);
+  assert.ok(!same.calls.some(c=>c.path==='/api/v2/prospects'));
+  const newApplicant=await run(payload(),{env:pilotEnv,searchPages:[[{id:1,email:'other@example.invalid'}]]});
+  assert.equal(newApplicant.status,201);
+  const other=await run(dataPayload(),{env:pilotEnv,searchPages});
+  assert.equal(other.status,201);
+  assert.ok(!other.calls.some(c=>c.path==='/api/v1/search/talents'));
+  const unavailable=await run(payload(),{env:pilotEnv,searchFail:true});
+  assert.equal(unavailable.status,503);
+  assert.ok(!unavailable.calls.some(c=>c.path==='/api/v2/prospects'));
+});
 test('bloqueia CPF igual com e-mail diferente quando a listagem retorna CPF', async () => {
   const result=await run(payload(),{env:duplicateEnv,searchPages:[[{id:2,email:'outro@example.invalid',ssn:'52998224725'}]]});
   assert.equal(result.status,409);
