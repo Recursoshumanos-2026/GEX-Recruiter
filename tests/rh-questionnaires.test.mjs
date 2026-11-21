@@ -261,3 +261,18 @@ test('botão de teste Discord só funciona para RH autenticado e na mesma origem
   assert.match(html,/Testar alerta do Discord/);
   assert.doesNotMatch(html,/discord\.com\/api\/webhooks/);
 });
+
+test('painel RH oferece conferência apenas de leitura por vaga, sem revelar dados de candidatos',async()=>{
+  const env=envWithDb();
+  const notLogged=await handleRhRequest(req('/rh/perguntas'),env,{},vacancies);
+  assert.equal(notLogged.status,403);
+  const page=await handleRhRequest(req('/rh/perguntas'),env,fakeAccess,vacancies);
+  assert.equal(page.status,200);
+  const html=await page.text();
+  assert.match(html,/id="auditDuplicates"/);
+  assert.match(html,/id="auditResult"/);
+  assert.ok(html.includes('diagnostico-duplicidade?vaga='));
+  assert.match(html,/Consulta incompleta ou não confirmada/);
+  assert.match(html,/Não ativar bloqueio nesta vaga/);
+  assert.doesNotMatch(html,/api\/v2\/prospects|DISCORD_ALERT_WEBHOOK/);
+});
