@@ -271,7 +271,7 @@ test('painel RH oferece conferência apenas de leitura por vaga, sem revelar dad
   const html=await page.text();
   assert.match(html,/id="auditDuplicates"/);
   assert.match(html,/id="auditResult"/);
-  assert.match(html,/diagnostico-duplicidade\\?vaga=/);
+  assert.ok(html.includes('diagnostico-duplicidade?vaga='));
   assert.match(html,/Consulta incompleta ou não confirmada/);
   assert.match(html,/Não ativar bloqueio nesta vaga/);
   assert.doesNotMatch(html,/api\/v2\/prospects|DISCORD_ALERT_WEBHOOK/);
