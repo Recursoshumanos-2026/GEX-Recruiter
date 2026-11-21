@@ -237,6 +237,14 @@ export async function handleRhRequest(request, env, ctx, loadVacancies, diagnost
       if(!/^[1-9][0-9]*$/.test(vacancyId)||!Number.isSafeInteger(Number(vacancyId))) return reject(400,'Vaga inválida.');
       return reply(await diagnostics.duplicatePilot(Number(vacancyId)));
     }
+    if (path === '/rh/api/teste-alerta-discord') {
+      if (request.method !== 'POST') return reject(405,'Método não permitido.');
+      if (typeof diagnostics.testDiscordAlert !== 'function') return reject(404,'Teste indisponível.');
+      const status=await diagnostics.testDiscordAlert();
+      if (status==='sent') return reply({status,message:'Mensagem de teste enviada ao canal do Discord.'});
+      if (status==='cooldown') return reply({status,message:'Já enviamos um teste nas últimas seis horas. Confira o canal do Discord.'});
+      return reply({status,message:status==='disabled'?'Configure os alertas do Discord na Cloudflare.':'Não foi possível confirmar o envio ao Discord. Confira a configuração.'},503);
+    }
     await ensureTables(env);
     if (request.method === 'GET' && path === '/rh/api/session') {
       return reply({ email, mode: identity.mode,
