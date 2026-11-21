@@ -91,3 +91,10 @@ test('eventos do monitor acionam notificações somente para falhas e sem interr
   assert.equal(logs.every(l=>!l.includes('ficticio@example.invalid')),true);
  }finally{globalThis.fetch=previous;console.warn=oldWarn;console.info=oldInfo;}
 });
+
+test('aviso de teste é identificado como simulação, nunca como falha real',async()=>{
+ const env=envWith(),messages=[];
+ assert.equal(await sendDiscordAlert(env,'monitor_test','test',{fetchFn:async(_url,init)=>{messages.push(JSON.parse(init.body).content);return {ok:true};}}),'sent');
+ assert.match(messages[0],/Teste de notificação/);
+ assert.doesNotMatch(messages[0],/Alerta de integração/);
+});
