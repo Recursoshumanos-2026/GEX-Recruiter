@@ -330,6 +330,32 @@ de recuperação, auditoria por candidato ou verificação de entrega de cada ca
 A configuração de produção está habilitada no repositório, mas depende
 de publicação e homologação do Worker.
 
+### Alertas opcionais de integração no Discord
+
+Configuração privada no Worker Cloudflare: criar Secret `DISCORD_ALERT_WEBHOOK`
+com a URL completa de um webhook do canal autorizado do RH
+(`https://discord.com/api/webhooks/...`). Não publicar o webhook em
+GitHub, chat, captura de tela ou site. Criar uma variável normal
+`DISCORD_ALERTS_ENABLED=true` somente quando o canal for aprovado.
+Sem essas duas configurações, os logs existentes continuam funcionando,
+sem envio de mensagens externas. Uma URL inválida é rejeitada.
+
+A notificação usa apenas o nome fixo da etapa e estado (falha, resultado
+incerto ou indisponibilidade); não inclui nome, e-mail, CPF, currículo,
+resultado da IA, ID ou mensagens do provedor. Desativa menções no Discord,
+usa tempo limite e mantém cooldown de seis horas por tipo de falha no D1
+privado, compartilhado entre instâncias, para evitar enxurrada de avisos.
+Falha do próprio Discord não impede candidatura nem altera seus dados.
+Se o D1 estiver indisponível, o cron diário pode notificar sem cooldown
+naquele dia; envios disparados por candidaturas são suprimidos nesse caso.
+O agendamento existente roda uma vez ao dia, 06h UTC. A análise de IA
+continua sendo assíncrona.
+
+O endpoint /health exibe apenas `discord_alerts_configured` (true/false),
+sem expor webhook. Não significa que houve entrega real ao Discord.
+Validar uma mensagem de teste autorizada no canal antes de considerar
+a integração concluída.
+
 ### Análise retroativa controlada (portal GEX)
 
 Experimental, desativada por padrão. Usa o agendamento existente e somente os
