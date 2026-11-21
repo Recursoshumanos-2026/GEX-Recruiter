@@ -8,6 +8,7 @@ import { runRetroactiveAnalysis } from './retroactive-analysis.js';
 import { duplicateIndexReady, checkDuplicatePair, duplicateCpfKnown, rememberDuplicatePair, cleanupDuplicateIndex } from './duplicate-index.js';
 
 import { integrationMonitoringEnabled, integrationEvent, monitorApplication, checkIntegration } from './integration-monitoring.js';
+import { sendDiscordAlert, discordAlertsReady } from './discord-alerts.js';
 
 const API_BASE = 'https://api.recrutei.com.br';
 let tokenCache = { token: null, expiresAt: 0 };
@@ -1209,7 +1210,7 @@ async function createProspect(env, rawPayload, ctx) {
     response = await recrutei(env, '/api/v2/prospects', { method:'POST', body:form });
   } catch {
     // The request may have reached the ATS. Never re-create on uncertainty.
-    integrationEvent(env,'application','uncertain');
+    integrationEvent(env,'application','uncertain',ctx);
     throw unconfirmedCreationError();
   }
   if (response.status >= 500) {
@@ -1222,7 +1223,7 @@ async function createProspect(env, rawPayload, ctx) {
     .catch(() => ({}));
 
   if (!response.ok) {
-    integrationEvent(env,'application','failed');
+    integrationEvent(env,'application','failed',ctx);
     throw new Error(
       createBody.message ||
       `Falha ao criar candidatura (${response.status})`
@@ -1302,7 +1303,7 @@ async function createProspect(env, rawPayload, ctx) {
 
   monitorApplication(env, { application:true, profile:profileCompleted, tag:tagCompleted,
     questionnaire:observationResult?.ok, resume_storage:markdown ? resumeStored : null,
-    resume_note:resumeObservation?.ok, profile_fallback:readOnlyProfileObservation?.ok });
+    resume_note:resumeObservation?.ok, profile_fallback:readOnlyProfileObservation?.ok },ctx);
 
   // Run after the candidate-facing submission has finished, so slow AI cannot
   // delay or invalidate an otherwise successful application. Only explicit rate-limit rejection can repeat the observation write.
@@ -1315,9 +1316,9 @@ async function createProspect(env, rawPayload, ctx) {
   if (technicalScheduled) {
     const task = addTechnicalAnalysisObservation(env, payload, createBody,
       markdown, technicalDescription, vacancy.title)
-      .then(result => { integrationEvent(env,'technical_analysis',result?.ok ? 'ok' : 'failed'); return result; })
+      .then(result => { integrationEvent(env,'technical_analysis',result?.ok ? 'ok' : 'failed',ctx); return result; })
       .catch(() => {
-        integrationEvent(env,'technical_analysis','uncertain');
+        integrationEvent(env,'technical_analysis','uncertain',ctx);
         // Never log candidate text, model output, contact details or identifiers.
         console.warn('GEX Talents: análise técnica não concluída; candidatura preservada.');
         return {ok:false};
@@ -1328,7 +1329,7 @@ async function createProspect(env, rawPayload, ctx) {
     } else {
       technicalAnalysisStatus = (await task).ok ? 'completed' : 'unavailable';
     }
-  } else if (markdown) integrationEvent(env,'technical_analysis','unavailable');
+  } else if (markdown) integrationEvent(env,'technical_analysis','unavailable',ctx);
 
   return {
     ok: true,
@@ -1370,7 +1371,7 @@ export default {
   async scheduled(controller, env) {
     if (controller.cron !== RETENTION_CRON) return;
     if (integrationMonitoringEnabled(env)) {
-      await checkIntegration(env,{checkRecrutei:async () => {
+      const connection=await checkIntegration(env,{checkRecrutei:async () => {
         const response = await recrutei(env,'/api/v2/vacancies/filter?page=1&perPage=1',{
           method:'POST', headers:{'Content-Type':'application/json'},
           body:JSON.stringify({orderBy:{field:'created_at',type:'DESC'}}),
@@ -1379,6 +1380,10 @@ export default {
         if (!response.ok) return false;
         return Array.isArray((await response.json())?.data);
       }});
+      const events=[['recrutei_connection',connection.recrutei],['resume_database',connection.d1],['ai_binding',connection.ai_binding]];
+      for(const [stage,outcome] of events) if(outcome==='failed'||outcome==='unavailable') {
+        try{await sendDiscordAlert(env,stage,outcome,{allowWithoutDb:true});}catch{}
+      }
     }
     try { await cleanupDuplicateIndex(env,controller.scheduledTime); } catch { console.warn('GEX Recruiter: limpeza do índice de duplicidade indisponível.'); }
     const report = await cleanupExpiredResumes(env, { now:controller.scheduledTime });
@@ -1572,6 +1577,7 @@ export default {
             duplicate_pilot_enabled:duplicatePilotEnabled(env,164607),
             safe_recovery_format: 'bounded_retry_v1',
             integration_monitoring_enabled: integrationMonitoringEnabled(env),
+            discord_alerts_configured: discordAlertsReady(env),
             retroactive_analysis_enabled: env.RETROACTIVE_ANALYSIS_ENABLED === 'true',
             retroactive_analysis_write_enabled: env.RETROACTIVE_ANALYSIS_ENABLED === 'true' && env.RETROACTIVE_ANALYSIS_WRITE_ENABLED === 'true',
             curriculum_storage: resumeAvailable(env),
@@ -1601,6 +1607,9 @@ export default {
         env
       );
     } catch (error) {
+      if(error.code==='DUPLICATE_CHECK_UNAVAILABLE' && typeof ctx?.waitUntil==='function') {
+        try{ctx.waitUntil(sendDiscordAlert(env,'duplicate_check','unavailable'));}catch{}
+      }
       return json(
         {
           message:

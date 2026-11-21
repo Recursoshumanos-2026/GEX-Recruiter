@@ -15,6 +15,8 @@ DUPLICATE_PILOT_VACANCY_ID = "164607"
 PROSPECT_CHANNEL_ID = "8"
 RESUME_UPLOAD_ENABLED = "true"
 INTEGRATION_MONITOR_ENABLED = "true"
+# Alertas Discord: ativa-se no painel Cloudflare com secret e variável específicos.
+# DISCORD_ALERTS_ENABLED fica ausente/desativado por padrão.
 # Retencao automatica somente no D1, 12 meses; Recrutei nunca e alterada.
 RESUME_RETENTION_ENABLED = "true"
 RESUME_RETENTION_DRY_RUN = "false"
