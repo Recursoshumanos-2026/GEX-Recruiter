@@ -235,7 +235,9 @@ export async function handleRhRequest(request, env, ctx, loadVacancies, diagnost
       if (typeof diagnostics.duplicatePilot !== 'function') return reject(404,'Diagnóstico indisponível.');
       const vacancyId=url.searchParams.get('vaga') || '164607';
       if(!/^[1-9][0-9]*$/.test(vacancyId)||!Number.isSafeInteger(Number(vacancyId))) return reject(400,'Vaga inválida.');
-      return reply(await diagnostics.duplicatePilot(Number(vacancyId)));
+      const size=url.searchParams.get('tamanho');
+      if(size!==null && size!=='100' && size!=='250') return reject(400,'Tamanho de página inválido.');
+      return reply(await diagnostics.duplicatePilot(Number(vacancyId),size===null?250:Number(size)));
     }
     if (path === '/rh/api/teste-alerta-discord') {
       if (request.method !== 'POST') return reject(405,'Método não permitido.');
