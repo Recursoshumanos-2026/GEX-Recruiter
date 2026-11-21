@@ -24,7 +24,7 @@ export function renderRhAdminPage(email, authMode='access') {
 <div class="toolbar toolbar-model"><select id="templates" aria-label="Modelo de questionário"><option value="">Escolha um modelo salvo</option></select><button type="button" id="useTemplate" class="secondary" disabled>Usar modelo</button><button type="button" id="saveTemplate" class="secondary" disabled>Salvar como modelo</button></div>
 <label class="field-title" for="questionnaireTitle">Título do questionário</label><input id="questionnaireTitle" placeholder="Ex.: Triagem técnica — Analista de Dados" disabled maxlength="150">
 <div class="editor-section-title"><h2>Perguntas</h2><span id="counter">0 perguntas</span></div><div id="cards" class="cards"><div class="empty">Selecione uma vaga à esquerda para começar.</div></div>
-<div class="footer"><span class="footnote">As respostas são registradas nas observações da Recrutei. Nenhuma pergunta reprova candidatos automaticamente.</span><button type="button" id="disable" class="danger" disabled>Desativar questionário</button><button type="button" id="save" disabled>Salvar questionário</button></div>
+<div class="footer"><span class="footnote">As respostas são registradas nas observações da Recrutei. Nenhuma pergunta reprova candidatos automaticamente.</span><button type="button" id="testDiscord" class="secondary">Testar alerta do Discord</button><button type="button" id="disable" class="danger" disabled>Desativar questionário</button><button type="button" id="save" disabled>Salvar questionário</button></div>
 <p id="message" role="status" aria-live="polite"></p></section></main>
 <script type="module" nonce="${nonce}">${CLIENT_JS}</script></body></html>`;
   return new Response(html, { status: 200, headers: {
@@ -208,6 +208,13 @@ $('saveTemplate').addEventListener('click',async()=>{
   try{await api('modelos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,questionnaire:collect()})});
     message('Modelo salvo para reutilização.');await refreshTemplates();}
   catch(error){message(error.message,true);}
+});
+$('testDiscord').addEventListener('click',async()=>{
+  const button=$('testDiscord');button.disabled=true;
+  try{const result=await api('teste-alerta-discord',{method:'POST'});
+    message(result.message||'Verifique o canal do Discord.');
+  }catch(error){message(error.message,true);}
+  finally{button.disabled=false;}
 });
 try {
   const session=await api('session');

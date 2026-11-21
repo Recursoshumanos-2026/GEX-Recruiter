@@ -13,9 +13,10 @@ const labels = Object.freeze({
   recrutei_connection:'Conexão com a Recrutei',
   resume_database:'Banco privado de currículos',
   ai_binding:'Serviços de inteligência artificial',
-  duplicate_check:'Verificação de duplicidade'
+  duplicate_check:'Verificação de duplicidade',
+  monitor_test:'Teste de notificações'
 });
-const outcomes=Object.freeze({failed:'Falha',uncertain:'Resultado não confirmado',unavailable:'Serviço indisponível'});
+const outcomes=Object.freeze({failed:'Falha',uncertain:'Resultado não confirmado',unavailable:'Serviço indisponível',test:'Teste controlado'});
 const COOLDOWN_MS=6*60*60*1000;
 function webhook(env){
   if(env?.INTEGRATION_MONITOR_ENABLED!=='true'||env?.DISCORD_ALERTS_ENABLED!=='true')return null;
@@ -56,7 +57,7 @@ export async function sendDiscordAlert(env,stage,outcome,{allowWithoutDb=false,n
     }
   }else if(!allowWithoutDb)return 'unavailable';
   // Fixed template, no candidate data or raw response messages.
-  const content='🚨 **GEX Recruiter | Alerta de integração**\n'+
+  const content=(stage==='monitor_test'?'🧪 **GEX Recruiter | Teste de notificação**\n':'🚨 **GEX Recruiter | Alerta de integração**\n')+
     '**Etapa:** '+labels[stage]+'\n**Situação:** '+outcomes[outcome]+'\n'+
     'Verifique os logs privados do Worker na Cloudflare.';
   try{
