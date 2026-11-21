@@ -1407,7 +1407,8 @@ export default {
 
     // Only Access-authenticated RH users can access the private editor.
     if (url.pathname === '/rh' || url.pathname.startsWith('/rh/')) {
-      return handleRhRequest(request, env, ctx, () => listVacancies(env), { duplicatePilot: vacancyId => duplicatePilot(env,vacancyId) });
+      return handleRhRequest(request, env, ctx, () => listVacancies(env), { duplicatePilot: vacancyId => duplicatePilot(env,vacancyId),
+        testDiscordAlert: () => sendDiscordAlert(env,'monitor_test','test') });
     }
 
     if (request.method === 'OPTIONS') {
