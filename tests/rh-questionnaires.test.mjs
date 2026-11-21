@@ -218,8 +218,8 @@ test('página de login indisponível informa motivo sem revelar credenciais',asy
 });
 
 test('diagnóstico de duplicidade só está disponível após autenticação do RH',async()=>{
-  let calls=0;
-  const env=envWithDb(), deps={duplicatePilot:async()=>{calls++;return {status:'complete',rows_checked:1,email_available:1,cpf_available:0}}};
+  let calls=0, requested;
+  const env=envWithDb(), deps={duplicatePilot:async(vacancyId)=>{calls++;requested=vacancyId;return {status:'complete',rows_checked:1,email_available:1,cpf_available:0}}};
   const path='/rh/api/diagnostico-duplicidade';
   const denied=await handleRhRequest(req(path),env,{},vacancies,deps);
   assert.equal(denied.status,403);
@@ -228,4 +228,11 @@ test('diagnóstico de duplicidade só está disponível após autenticação do 
   assert.equal(allowed.status,200);
   assert.deepEqual(await allowed.json(),{status:'complete',rows_checked:1,email_available:1,cpf_available:0});
   assert.equal(calls,1);
+  assert.equal(requested,164607);
+  const selected=await handleRhRequest(req(path+'?vaga=158928'),env,fakeAccess,vacancies,deps);
+  assert.equal(selected.status,200);
+  assert.equal(requested,158928);
+  const invalid=await handleRhRequest(req(path+'?vaga=bad'),env,fakeAccess,vacancies,deps);
+  assert.equal(invalid.status,400);
+  assert.equal(calls,2);
 });

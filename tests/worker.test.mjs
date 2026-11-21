@@ -43,7 +43,7 @@ async function run(input, options = {}) {
       if (options.searchFail) return json({message:'Erro de consulta'},503);
       if (options.searchMalformed) return json({data:[]});
       const pages = options.searchPages || [[]];
-      return json({data:pages[page-1] || [],meta:{current_page:page,last_page:pages.length}});
+      return json({data:pages[page-1] || [],meta:{current_page:page,last_page:pages.length,total:{items:pages.reduce((count,rows)=>count+rows.length,0)}}});
     }
     if (path.endsWith('/prospects') && options.createThrows) throw new Error('Simulated lost creation acknowledgement');
     if (path.endsWith('/prospects')) return json(options.createBody ?? {
@@ -89,6 +89,26 @@ test('bloqueia e-mail existente na mesma vaga, inclusive em páginas posteriores
   assert.equal(result.calls.filter(c=>c.path==='/api/v1/search/talents').length,2);
   assert.ok(!result.calls.some(c=>c.path==='/api/v2/prospects'));
   assert.ok(!JSON.stringify(result.body).includes('teste@example.invalid'));
+});
+test('varre 2.166 registros sem parar na página 20 quando a API usa 100 por página',async()=>{
+  const pages=Array.from({length:22},(_,page)=>Array.from({length:page===21?66:100},(_,i)=>({id:page*100+i+1,email:'person'+(page*100+i)+'@example.invalid'})));
+  const allowed=await run(payload(),{env:duplicateEnv,searchPages:pages});
+  assert.equal(allowed.status,201);
+  assert.equal(allowed.calls.filter(c=>c.path==='/api/v1/search/talents').length,22);
+  assert.ok(allowed.calls.filter(c=>c.path==='/api/v1/search/talents').every(c=>new URL(c.url).searchParams.get('perPage')==='250'));
+  pages[21][65].email='TESTE@example.invalid';
+  const blocked=await run(payload(),{env:duplicateEnv,searchPages:pages});
+  assert.equal(blocked.status,409);
+  assert.ok(!blocked.calls.some(c=>c.path==='/api/v2/prospects'));
+});
+test('página repetida ou limite de segurança excedido não cria candidatura',async()=>{
+  const duplicate=await run(payload(),{env:duplicateEnv,searchPages:[[{id:1,email:'other@example.invalid'}],[{id:1,email:'other@example.invalid'}]]});
+  assert.equal(duplicate.status,503);
+  const pages=Array.from({length:31},(_,i)=>[{id:i+1,email:'other'+i+'@example.invalid'}]);
+  const capped=await run(payload(),{env:duplicateEnv,searchPages:pages});
+  assert.equal(capped.status,503);
+  assert.equal(capped.calls.filter(c=>c.path==='/api/v1/search/talents').length,30);
+  assert.ok(!capped.calls.some(c=>c.path==='/api/v2/prospects'));
 });
 test('piloto bloqueia somente na vaga selecionada sem habilitar o bloqueio global',async()=>{
   const pilotEnv={...env,DUPLICATE_CHECK_ENABLED:'false',DUPLICATE_PILOT_VACANCY_ID:'158928'};

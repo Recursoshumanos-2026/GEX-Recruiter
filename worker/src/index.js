@@ -925,17 +925,23 @@ function duplicateError(code = 'DUPLICATE_APPLICATION') {
 const comparableEmail = value => typeof value === 'string' ? value.trim().toLowerCase() : '';
 const comparableCpf = value => typeof value === 'string' ? value.replace(/\D/g, '') : '';
 
-// Authenticated, read-only pilot for the internal vacancy. No candidate
+const DUPLICATE_PAGE_SIZE = 250;
+const DUPLICATE_MAX_PAGES = 30;
+
+// Authenticated, read-only diagnostic for a selected vacancy. No candidate
 // fields, identities or raw upstream errors are returned to the browser.
-async function duplicatePilot(env) {
-  const vacancyId = 164607;
+async function duplicatePilot(env, requestedVacancy = 164607) {
+  const vacancyId = Number(requestedVacancy);
   const report = {vacancy_id:vacancyId, production_block_enabled:duplicateCheckEnabled(env),
     pilot_block_enabled:duplicatePilotEnabled(env,vacancyId),
-    status:'incomplete', pages_checked:0, rows_checked:0, email_available:0, cpf_available:0};
-  for (let page=1; page<=20; page++) {
+    status:'incomplete', page_size_requested:DUPLICATE_PAGE_SIZE, max_pages:DUPLICATE_MAX_PAGES,
+    pages_checked:0, rows_checked:0, email_available:0, cpf_available:0};
+  const seen=new Set();
+  let consistentTotal=null, consistentLast=null;
+  for (let page=1; page<=DUPLICATE_MAX_PAGES; page++) {
     let response, body;
     try {
-      response = await recrutei(env,'/api/v1/search/talents?page='+page+'&perPage=100',{
+      response = await recrutei(env,'/api/v1/search/talents?page='+page+'&perPage='+DUPLICATE_PAGE_SIZE,{
         method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({vacancy_id:[vacancyId]}),signal:AbortSignal.timeout(10000)
       });
@@ -947,13 +953,28 @@ async function duplicatePilot(env) {
     const last=Number(body?.meta?.last_page ?? body?.meta?.total?.pages);
     if(!Array.isArray(body?.data)||current!==page||!Number.isInteger(last)||last<0)return report;
     if(body.data.some(row=>!row||typeof row!=='object'||(row.vacancy_id!=null&&Number(row.vacancy_id)!==vacancyId)))return report;
+    const total=Number(body?.meta?.total?.items);
+    if(Number.isSafeInteger(total)&&total>=0){
+      report.total_reported=total;
+      if(consistentTotal!==null&&consistentTotal!==total)return report;
+      consistentTotal=total;
+    }
+    if(consistentLast!==null&&consistentLast!==last)return report;
+    consistentLast=last;
+    if(Number.isSafeInteger(Number(body?.meta?.per_page)))report.page_size_returned=Number(body.meta.per_page);
     report.pages_checked++;
     for(const row of body.data){
+      const id=String(row.id??'');
+      if(!positiveId(id)||seen.has(id))return report;
+      seen.add(id);
       report.rows_checked++;
       if([row.email,row.talent?.email,row.talent?.user?.email,row.talent?.prospect?.email].some(v=>comparableEmail(v)))report.email_available++;
       if([row.ssn,row.talent?.ssn].some(v=>comparableCpf(v).length===11))report.cpf_available++;
     }
-    if(last<=page){report.status='complete';return report;}
+    if(last<=page){
+      if(consistentTotal!==null&&consistentTotal!==report.rows_checked)return report;
+      report.status='complete';return report;
+    }
     if(!body.data.length)return report;
   }
   return report;
@@ -963,12 +984,14 @@ async function verifyNoExistingApplication(env, payload) {
   const vacancyId = Number(payload.vacancy_id);
   const email = comparableEmail(payload.email);
   const cpf = comparableCpf(payload.ssn);
+  const seen=new Set();
+  let consistentTotal=null, consistentLast=null;
   // Bound requests on the existing Workers plan; never treat an incomplete
   // or unavailable search as confirmation that the candidate is new.
-  for (let page = 1; page <= 20; page++) {
+  for (let page = 1; page <= DUPLICATE_MAX_PAGES; page++) {
     let body;
     try {
-      const response = await recrutei(env, '/api/v1/search/talents?page=' + page + '&perPage=100', {
+      const response = await recrutei(env, '/api/v1/search/talents?page=' + page + '&perPage=' + DUPLICATE_PAGE_SIZE, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({vacancy_id:[vacancyId]}), signal:AbortSignal.timeout(10000)
@@ -978,7 +1001,9 @@ async function verifyNoExistingApplication(env, payload) {
     } catch { throw duplicateError('DUPLICATE_CHECK_UNAVAILABLE'); }
     if (!Array.isArray(body?.data)) throw duplicateError('DUPLICATE_CHECK_UNAVAILABLE');
     for (const row of body.data) {
-      if (!row || (row.vacancy_id != null && Number(row.vacancy_id) !== vacancyId)) continue;
+      if (!row || !positiveId(row.id) || seen.has(String(row.id))) throw duplicateError('DUPLICATE_CHECK_UNAVAILABLE');
+      seen.add(String(row.id));
+      if (row.vacancy_id != null && Number(row.vacancy_id) !== vacancyId) continue;
       const emails = [row.email,row.talent?.email,row.talent?.user?.email,row.talent?.prospect?.email];
       const cpfs = [row.ssn,row.talent?.ssn];
       if (emails.some(value => comparableEmail(value) === email) ||
@@ -989,7 +1014,17 @@ async function verifyNoExistingApplication(env, payload) {
     if (current !== page || !Number.isInteger(last) || last < 0) {
       throw duplicateError('DUPLICATE_CHECK_UNAVAILABLE');
     }
-    if (last <= page) return;
+    const total=Number(body?.meta?.total?.items);
+    if (Number.isSafeInteger(total)&&total>=0) {
+      if(consistentTotal!==null&&consistentTotal!==total) throw duplicateError('DUPLICATE_CHECK_UNAVAILABLE');
+      consistentTotal=total;
+    }
+    if(consistentLast!==null&&consistentLast!==last) throw duplicateError('DUPLICATE_CHECK_UNAVAILABLE');
+    consistentLast=last;
+    if (last <= page) {
+      if(consistentTotal!==null&&consistentTotal!==seen.size) throw duplicateError('DUPLICATE_CHECK_UNAVAILABLE');
+      return;
+    }
     if (!body.data.length) throw duplicateError('DUPLICATE_CHECK_UNAVAILABLE');
   }
   throw duplicateError('DUPLICATE_CHECK_UNAVAILABLE');
@@ -1367,7 +1402,7 @@ export default {
 
     // Only Access-authenticated RH users can access the private editor.
     if (url.pathname === '/rh' || url.pathname.startsWith('/rh/')) {
-      return handleRhRequest(request, env, ctx, () => listVacancies(env), { duplicatePilot: () => duplicatePilot(env) });
+      return handleRhRequest(request, env, ctx, () => listVacancies(env), { duplicatePilot: vacancyId => duplicatePilot(env,vacancyId) });
     }
 
     if (request.method === 'OPTIONS') {
