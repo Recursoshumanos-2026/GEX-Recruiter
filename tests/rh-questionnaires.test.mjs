@@ -218,8 +218,8 @@ test('página de login indisponível informa motivo sem revelar credenciais',asy
 });
 
 test('diagnóstico de duplicidade só está disponível após autenticação do RH',async()=>{
-  let calls=0, requested;
-  const env=envWithDb(), deps={duplicatePilot:async(vacancyId)=>{calls++;requested=vacancyId;return {status:'complete',rows_checked:1,email_available:1,cpf_available:0}}};
+  let calls=0, requested, pageSize;
+  const env=envWithDb(), deps={duplicatePilot:async(vacancyId,size)=>{calls++;requested=vacancyId;pageSize=size;return {status:'complete',rows_checked:1,email_available:1,cpf_available:0}}};
   const path='/rh/api/diagnostico-duplicidade';
   const denied=await handleRhRequest(req(path),env,{},vacancies,deps);
   assert.equal(denied.status,403);
@@ -229,11 +229,15 @@ test('diagnóstico de duplicidade só está disponível após autenticação do 
   assert.deepEqual(await allowed.json(),{status:'complete',rows_checked:1,email_available:1,cpf_available:0});
   assert.equal(calls,1);
   assert.equal(requested,164607);
-  const selected=await handleRhRequest(req(path+'?vaga=158928'),env,fakeAccess,vacancies,deps);
+  assert.equal(pageSize,250);
+  const selected=await handleRhRequest(req(path+'?vaga=158928&tamanho=100'),env,fakeAccess,vacancies,deps);
   assert.equal(selected.status,200);
   assert.equal(requested,158928);
+  assert.equal(pageSize,100);
   const invalid=await handleRhRequest(req(path+'?vaga=bad'),env,fakeAccess,vacancies,deps);
   assert.equal(invalid.status,400);
+  const invalidPageSize=await handleRhRequest(req(path+'?vaga=158928&tamanho=30'),env,fakeAccess,vacancies,deps);
+  assert.equal(invalidPageSize.status,400);
   assert.equal(calls,2);
 });
 
@@ -270,6 +274,9 @@ test('painel RH oferece conferência apenas de leitura por vaga, sem revelar dad
   assert.equal(page.status,200);
   const html=await page.text();
   assert.match(html,/id="auditDuplicates"/);
+  assert.match(html,/id="auditAgain"/);
+  assert.ok(html.includes('&tamanho='));
+  assert.ok(html.includes('Rever com páginas menores'));
   assert.match(html,/id="auditResult"/);
   assert.ok(html.includes('diagnostico-duplicidade?vaga='));
   assert.match(html,/Consulta incompleta ou não confirmada/);

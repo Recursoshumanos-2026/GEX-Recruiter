@@ -931,18 +931,19 @@ const DUPLICATE_MAX_PAGES = 30;
 
 // Authenticated, read-only diagnostic for a selected vacancy. No candidate
 // fields, identities or raw upstream errors are returned to the browser.
-async function duplicatePilot(env, requestedVacancy = 164607) {
+async function duplicatePilot(env, requestedVacancy = 164607, pageSize = DUPLICATE_PAGE_SIZE) {
   const vacancyId = Number(requestedVacancy);
+  const checkedPageSize = pageSize === 100 ? 100 : DUPLICATE_PAGE_SIZE;
   const report = {vacancy_id:vacancyId, production_block_enabled:duplicateCheckEnabled(env),
     pilot_block_enabled:duplicatePilotEnabled(env,vacancyId),
-    status:'incomplete', page_size_requested:DUPLICATE_PAGE_SIZE, max_pages:DUPLICATE_MAX_PAGES,
+    status:'incomplete', page_size_requested:checkedPageSize, max_pages:DUPLICATE_MAX_PAGES,
     pages_checked:0, rows_checked:0, email_available:0, cpf_available:0};
   const seen=new Set();
   let consistentTotal=null, consistentLast=null;
   for (let page=1; page<=DUPLICATE_MAX_PAGES; page++) {
     let response, body;
     try {
-      response = await recrutei(env,'/api/v1/search/talents?page='+page+'&perPage='+DUPLICATE_PAGE_SIZE,{
+      response = await recrutei(env,'/api/v1/search/talents?page='+page+'&perPage='+checkedPageSize,{
         method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({vacancy_id:[vacancyId]}),signal:AbortSignal.timeout(10000)
       });
@@ -1407,7 +1408,7 @@ export default {
 
     // Only Access-authenticated RH users can access the private editor.
     if (url.pathname === '/rh' || url.pathname.startsWith('/rh/')) {
-      return handleRhRequest(request, env, ctx, () => listVacancies(env), { duplicatePilot: vacancyId => duplicatePilot(env,vacancyId),
+      return handleRhRequest(request, env, ctx, () => listVacancies(env), { duplicatePilot: (vacancyId,pageSize) => duplicatePilot(env,vacancyId,pageSize),
         testDiscordAlert: () => sendDiscordAlert(env,'monitor_test','test') });
     }
 

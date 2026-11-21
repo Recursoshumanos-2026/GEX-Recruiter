@@ -21,7 +21,7 @@ export function renderRhAdminPage(email, authMode='access') {
 <div class="aside-note">As vagas e seus títulos são sincronizados com a Recrutei. A edição do questionário é feita exclusivamente aqui.</div></aside>
 <section class="editor"><div class="editor-header"><div><small>GEX RECRUITER / RH</small><h1 id="heading">Escolha uma vaga</h1><p id="subtitle">Cadastre as perguntas que aparecem na candidatura, sem alterar o GitHub.</p></div><span id="statusBadge" class="status-badge">Aguardando</span></div>
 <section class="duplicate-audit" aria-labelledby="auditHeading">
-<div class="duplicate-audit-head"><div><h2 id="auditHeading">Verificação de candidaturas duplicadas</h2><p>Conferência somente de leitura na Recrutei. Não bloqueia candidatos nem ativa a proteção.</p></div><button type="button" id="auditDuplicates" class="secondary" disabled>Conferir vaga</button></div>
+<div class="duplicate-audit-head"><div><h2 id="auditHeading">Verificação de candidaturas duplicadas</h2><p>Conferência somente de leitura na Recrutei. Não bloqueia candidatos nem ativa a proteção.</p></div><div class="duplicate-audit-actions"><button type="button" id="auditDuplicates" class="secondary" disabled>Conferir vaga</button><button type="button" id="auditAgain" class="secondary" hidden disabled>Rever com páginas menores</button></div></div>
 <div id="auditResult" class="duplicate-audit-result" role="status" aria-live="polite">Selecione uma vaga para consultar a cobertura da verificação.</div>
 </section>
 <div class="toolbar"><button type="button" id="addQuestion" disabled>+ Adicionar pergunta</button><button type="button" id="copyFrom" class="secondary" disabled>Copiar outra vaga</button><select id="sourceVacancy" aria-label="Vaga de origem"><option value="">Escolha a vaga de origem</option></select></div>
@@ -43,7 +43,7 @@ export function renderRhAdminPage(email, authMode='access') {
 
 const STYLES = String.raw`
 :root{color-scheme:light;font-family:Inter,ui-sans-serif,system-ui,-apple-system,'Segoe UI',Arial,sans-serif;font-size:15px;color:#202631;background:#f4f7fb}
-*{box-sizing:border-box}body{margin:0}button,input,select,textarea{font:inherit}button{cursor:pointer;border:0;border-radius:9px;background:#216ee0;color:white;font-weight:650;padding:11px 16px;transition:filter .16s}button:hover:not(:disabled){filter:brightness(.95)}button:disabled{opacity:.48;cursor:not-allowed}button.secondary,button.quiet{background:#eff4fd;color:#1455b9}button.quiet{font-size:12px;padding:8px 10px}.danger{background:#fff0f0;color:#b0323c}input,textarea,select{border:1px solid #d7e1ef;border-radius:10px;padding:11px 12px;background:#fff;color:#243044;outline:0;width:100%}input:focus,textarea:focus,select:focus{border-color:#2b77e5;box-shadow:0 0 0 3px #2473e824}input:disabled{background:#f0f2f5}.top{display:flex;align-items:center;gap:18px;height:76px;padding:0 4%;background:#080c15;color:#eaf1ff}.brand{text-decoration:none;color:#fff;font-weight:900;font-size:24px;letter-spacing:-1.1px;white-space:nowrap}.brand span{font-weight:450;color:#61acff}.top-separator{width:1px;height:25px;background:#3f4757}.top-title{font-size:14px;color:#d3dced}.signed{margin-left:auto;font-size:12px;color:#a6b0c6}.layout{display:grid;grid-template-columns:330px minmax(0,1fr);max-width:1440px;margin:0 auto;min-height:calc(100vh - 76px)}.sidebar{background:#fff;border-right:1px solid #e1e8f3;padding:32px 22px}.section-title,.editor-header,.editor-section-title{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.section-title h2,.editor-section-title h2{margin:3px 0 0;font-size:22px}.section-title small,.editor-header small{font-size:10px;letter-spacing:.17em;color:#2575dd;font-weight:750}.search-label{display:block;margin:22px 0 8px;font-size:12px;font-weight:700}.vacancy-list{margin-top:20px;display:grid;gap:8px;max-height:calc(100vh - 282px);overflow:auto}.vacancy{display:block;text-align:left;width:100%;padding:13px;background:#fff;color:#263345;border:1px solid #e3e9f3;font-weight:700}.vacancy:hover{border-color:#88b4f5}.vacancy.active{border-color:#2878e8;background:#edf5ff}.vacancy small{display:block;color:#8390a3;font-size:11px;margin-bottom:5px;font-weight:500}.vacancy .pill{display:inline-block;margin-top:8px;padding:3px 7px;background:#edf2f9;color:#607188;border-radius:5px;font-size:10px}.vacancy .pill.ready{color:#186a50;background:#def8ed}.vacancy .pill.missing{color:#a36c10;background:#fff4d8}.aside-note{font-size:12px;line-height:1.6;color:#7a8799;margin-top:24px}.editor{padding:42px 5%;min-width:0}.editor-header{margin-bottom:28px}.editor-header h1{font-size:30px;letter-spacing:-.04em;margin:6px 0 10px}.editor-header p{margin:0;color:#778397;line-height:1.5}.status-badge{padding:6px 10px;background:#edf0f5;border-radius:7px;color:#718096;white-space:nowrap;font-size:12px}.toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.toolbar select{width:auto;max-width:320px;flex:1;min-width:180px}.toolbar-model{padding-bottom:20px;border-bottom:1px solid #e3e9f2;margin-bottom:22px}.field-title{font-weight:750;font-size:12px;display:block;margin-bottom:8px}.editor-section-title{align-items:center;margin:28px 0 16px}.editor-section-title h2{font-size:18px}.editor-section-title span{font-size:12px;color:#8692a3}.cards{display:grid;gap:15px;min-height:130px}.empty{border:1px dashed #cbd6e4;border-radius:12px;padding:42px 20px;text-align:center;color:#8b97a8}.question-card{background:white;border:1px solid #dee7f2;border-radius:14px;padding:20px;box-shadow:0 4px 18px #1c3b6508}.card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:17px}.card-head strong{font-size:14px}.card-actions{display:flex;gap:5px}.card-actions button{padding:5px 9px;font-size:12px}.form-grid{display:grid;grid-template-columns:1fr 190px;gap:14px}.card-field{display:block}.card-field span{display:block;font-size:11px;font-weight:750;margin-bottom:7px;color:#64758d}.card-options{margin-top:14px}.card-options textarea{min-height:94px;resize:vertical;line-height:1.5}.required-check{display:flex;align-items:center;gap:9px;margin-top:14px;font-size:12px;color:#65758a}.required-check input{width:16px;height:16px}.duplicate-audit{background:#fff;border:1px solid #dde8f4;border-radius:14px;padding:18px 22px;margin:0 0 24px}.duplicate-audit-head{display:flex;align-items:center;justify-content:space-between;gap:16px}.duplicate-audit-head h2{font-size:15px;margin:0 0 6px}.duplicate-audit-head p{font-size:12px;line-height:1.55;color:#778397;margin:0}.duplicate-audit-head button{white-space:nowrap}.duplicate-audit-result{margin-top:12px;padding-top:12px;border-top:1px solid #e7eef7;color:#52657e;font-size:12px;line-height:1.65;white-space:pre-line}.duplicate-audit-result.verified{color:#176548}.duplicate-audit-result.warning{color:#a05d17}@media(max-width:700px){.duplicate-audit-head{align-items:stretch;flex-direction:column}}.footer{display:flex;align-items:center;justify-content:flex-end;gap:11px;padding:25px 0;border-top:1px solid #dde7f3;margin-top:26px;flex-wrap:wrap}.footnote{margin-right:auto;font-size:12px;max-width:360px;color:#758398;line-height:1.4}#message{font-size:13px;min-height:24px;color:#176548;font-weight:700}#message.error{color:#b1333d}@media(max-width:850px){.top{height:auto;flex-wrap:wrap;padding:18px}.signed{margin-left:0}.layout{display:block}.sidebar{border-right:0;border-bottom:1px solid #e5eaf2;padding:22px}.vacancy-list{max-height:245px}.editor{padding:28px 20px}.editor-header h1{font-size:25px}.form-grid{grid-template-columns:1fr}.footer{align-items:stretch}.footer>*{width:100%}}
+*{box-sizing:border-box}body{margin:0}button,input,select,textarea{font:inherit}button{cursor:pointer;border:0;border-radius:9px;background:#216ee0;color:white;font-weight:650;padding:11px 16px;transition:filter .16s}button:hover:not(:disabled){filter:brightness(.95)}button:disabled{opacity:.48;cursor:not-allowed}button.secondary,button.quiet{background:#eff4fd;color:#1455b9}button.quiet{font-size:12px;padding:8px 10px}.danger{background:#fff0f0;color:#b0323c}input,textarea,select{border:1px solid #d7e1ef;border-radius:10px;padding:11px 12px;background:#fff;color:#243044;outline:0;width:100%}input:focus,textarea:focus,select:focus{border-color:#2b77e5;box-shadow:0 0 0 3px #2473e824}input:disabled{background:#f0f2f5}.top{display:flex;align-items:center;gap:18px;height:76px;padding:0 4%;background:#080c15;color:#eaf1ff}.brand{text-decoration:none;color:#fff;font-weight:900;font-size:24px;letter-spacing:-1.1px;white-space:nowrap}.brand span{font-weight:450;color:#61acff}.top-separator{width:1px;height:25px;background:#3f4757}.top-title{font-size:14px;color:#d3dced}.signed{margin-left:auto;font-size:12px;color:#a6b0c6}.layout{display:grid;grid-template-columns:330px minmax(0,1fr);max-width:1440px;margin:0 auto;min-height:calc(100vh - 76px)}.sidebar{background:#fff;border-right:1px solid #e1e8f3;padding:32px 22px}.section-title,.editor-header,.editor-section-title{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.section-title h2,.editor-section-title h2{margin:3px 0 0;font-size:22px}.section-title small,.editor-header small{font-size:10px;letter-spacing:.17em;color:#2575dd;font-weight:750}.search-label{display:block;margin:22px 0 8px;font-size:12px;font-weight:700}.vacancy-list{margin-top:20px;display:grid;gap:8px;max-height:calc(100vh - 282px);overflow:auto}.vacancy{display:block;text-align:left;width:100%;padding:13px;background:#fff;color:#263345;border:1px solid #e3e9f3;font-weight:700}.vacancy:hover{border-color:#88b4f5}.vacancy.active{border-color:#2878e8;background:#edf5ff}.vacancy small{display:block;color:#8390a3;font-size:11px;margin-bottom:5px;font-weight:500}.vacancy .pill{display:inline-block;margin-top:8px;padding:3px 7px;background:#edf2f9;color:#607188;border-radius:5px;font-size:10px}.vacancy .pill.ready{color:#186a50;background:#def8ed}.vacancy .pill.missing{color:#a36c10;background:#fff4d8}.aside-note{font-size:12px;line-height:1.6;color:#7a8799;margin-top:24px}.editor{padding:42px 5%;min-width:0}.editor-header{margin-bottom:28px}.editor-header h1{font-size:30px;letter-spacing:-.04em;margin:6px 0 10px}.editor-header p{margin:0;color:#778397;line-height:1.5}.status-badge{padding:6px 10px;background:#edf0f5;border-radius:7px;color:#718096;white-space:nowrap;font-size:12px}.toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.toolbar select{width:auto;max-width:320px;flex:1;min-width:180px}.toolbar-model{padding-bottom:20px;border-bottom:1px solid #e3e9f2;margin-bottom:22px}.field-title{font-weight:750;font-size:12px;display:block;margin-bottom:8px}.editor-section-title{align-items:center;margin:28px 0 16px}.editor-section-title h2{font-size:18px}.editor-section-title span{font-size:12px;color:#8692a3}.cards{display:grid;gap:15px;min-height:130px}.empty{border:1px dashed #cbd6e4;border-radius:12px;padding:42px 20px;text-align:center;color:#8b97a8}.question-card{background:white;border:1px solid #dee7f2;border-radius:14px;padding:20px;box-shadow:0 4px 18px #1c3b6508}.card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:17px}.card-head strong{font-size:14px}.card-actions{display:flex;gap:5px}.card-actions button{padding:5px 9px;font-size:12px}.form-grid{display:grid;grid-template-columns:1fr 190px;gap:14px}.card-field{display:block}.card-field span{display:block;font-size:11px;font-weight:750;margin-bottom:7px;color:#64758d}.card-options{margin-top:14px}.card-options textarea{min-height:94px;resize:vertical;line-height:1.5}.required-check{display:flex;align-items:center;gap:9px;margin-top:14px;font-size:12px;color:#65758a}.required-check input{width:16px;height:16px}.duplicate-audit{background:#fff;border:1px solid #dde8f4;border-radius:14px;padding:18px 22px;margin:0 0 24px}.duplicate-audit-head{display:flex;align-items:center;justify-content:space-between;gap:16px}.duplicate-audit-head h2{font-size:15px;margin:0 0 6px}.duplicate-audit-head p{font-size:12px;line-height:1.55;color:#778397;margin:0}.duplicate-audit-head button{white-space:nowrap}.duplicate-audit-actions{display:flex;flex-wrap:wrap;gap:8px}.duplicate-audit-actions [hidden]{display:none}.duplicate-audit-result{margin-top:12px;padding-top:12px;border-top:1px solid #e7eef7;color:#52657e;font-size:12px;line-height:1.65;white-space:pre-line}.duplicate-audit-result.verified{color:#176548}.duplicate-audit-result.warning{color:#a05d17}@media(max-width:700px){.duplicate-audit-head{align-items:stretch;flex-direction:column}}.footer{display:flex;align-items:center;justify-content:flex-end;gap:11px;padding:25px 0;border-top:1px solid #dde7f3;margin-top:26px;flex-wrap:wrap}.footnote{margin-right:auto;font-size:12px;max-width:360px;color:#758398;line-height:1.4}#message{font-size:13px;min-height:24px;color:#176548;font-weight:700}#message.error{color:#b1333d}@media(max-width:850px){.top{height:auto;flex-wrap:wrap;padding:18px}.signed{margin-left:0}.layout{display:block}.sidebar{border-right:0;border-bottom:1px solid #e5eaf2;padding:22px}.vacancy-list{max-height:245px}.editor{padding:28px 20px}.editor-header h1{font-size:25px}.form-grid{grid-template-columns:1fr}.footer{align-items:stretch}.footer>*{width:100%}}
 `;
 
 const CLIENT_JS = String.raw`
@@ -59,30 +59,47 @@ async function api(path, options) {
   return data;
 }
 const formatCount = value => Number.isSafeInteger(value) && value>=0 ? value.toLocaleString('pt-BR') : 'não informado';
-async function auditDuplicateCoverage() {
+async function auditDuplicateCoverage(pageSize=250) {
   const id=state.id;
   if(!id)return;
-  const button=$('auditDuplicates'),output=$('auditResult');
-  button.disabled=true;
+  const button=$('auditDuplicates'),again=$('auditAgain'),output=$('auditResult');
+  button.disabled=true;again.disabled=true;
+  if(pageSize===250){again.hidden=true;state.auditPrimary=null;}
   output.className='duplicate-audit-result';
   output.textContent='Consultando a Recrutei. A busca pode levar alguns instantes...';
   try {
-    const info=await api('diagnostico-duplicidade?vaga='+encodeURIComponent(id));
+    const info=await api('diagnostico-duplicidade?vaga='+encodeURIComponent(id)+'&tamanho='+pageSize);
     if(state.id!==id)return;
     const complete=info.status==='complete';
+    const total=info.total_reported;
     output.className='duplicate-audit-result '+(complete?'verified':'warning');
-    output.textContent=(complete?'Consulta completa nesta vaga.':'Consulta incompleta ou não confirmada. Não ativar bloqueio nesta vaga.')+
-      '\nRegistros verificados: '+formatCount(info.rows_checked)+
-      ' | Total informado pela API: '+formatCount(info.total_reported)+
+    let result=(complete?'Consulta completa nesta modalidade de paginação.':'Consulta incompleta ou não confirmada. Não ativar bloqueio nesta vaga.')+
+      '\nTamanho solicitado da página: '+formatCount(info.page_size_requested)+
+      ' | Registros verificados: '+formatCount(info.rows_checked)+
+      ' | Total informado pela API: '+formatCount(total)+
       ' | Páginas verificadas: '+formatCount(info.pages_checked)+
       '\nRegistros com e-mail: '+formatCount(info.email_available)+
       ' | Registros com CPF: '+formatCount(info.cpf_available)+
       '\nBloqueio nessa vaga: '+(info.production_block_enabled||info.pilot_block_enabled?'ativado':'ainda desativado')+'.';
-  }catch(error) {
+    if(pageSize===250){
+      state.auditPrimary={total,rows:info.rows_checked,status:info.status};
+      if(!complete && Number.isSafeInteger(total) && total>0 && total<=3000){
+        again.hidden=false;
+      }
+    }else if(state.auditPrimary){
+      const previous=state.auditPrimary;
+      if(previous.total===total){
+        result+='\nComparação com páginas de 250: '+formatCount(previous.rows)+' registros verificados na primeira consulta.';
+      }else{
+        result+='\nO total da Recrutei mudou entre as consultas. Não é possível comparar diretamente os resultados.';
+      }
+    }
+    output.textContent=result;
+  }catch(error){
     if(state.id!==id)return;
     output.className='duplicate-audit-result warning';
     output.textContent='Não foi possível conferir a vaga. '+error.message;
-  }finally{if(state.id===id)button.disabled=false;}
+  }finally{if(state.id===id){button.disabled=false;again.disabled=again.hidden;}}
 }
 function markDirty() { if (state.id) { state.dirty = true; message('Alterações ainda não salvas.'); } }
 function append(tag, parent, props, text) {
@@ -189,6 +206,9 @@ async function selectVacancy(id) {
     const data=await api('questionarios/'+encodeURIComponent(id));
     state.id=id;state.version=data.version;
     $('auditDuplicates').disabled=false;
+    $('auditAgain').hidden=true;
+    $('auditAgain').disabled=true;
+    state.auditPrimary=null;
     $('auditResult').className='duplicate-audit-result';
     $('auditResult').textContent='Clique em “Conferir vaga” para verificar todas as páginas, sem alterar candidatos.';
     const vacancy=state.vacancies.find(item=>item.id===id);
@@ -198,7 +218,8 @@ async function selectVacancy(id) {
     fill(data.questionnaire);setEnabled(true);drawVacancies();message('');
   } catch(error) {message(error.message,true);}
 }
-$('auditDuplicates').addEventListener('click',auditDuplicateCoverage);
+$('auditDuplicates').addEventListener('click',()=>auditDuplicateCoverage(250));
+$('auditAgain').addEventListener('click',()=>auditDuplicateCoverage(100));
 $('search').addEventListener('input',drawVacancies);
 $('refresh').addEventListener('click',refreshVacancies);
 $('addQuestion').addEventListener('click',()=>{addQuestion();updateNumbers();markDirty();});

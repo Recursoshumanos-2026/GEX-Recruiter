@@ -43,7 +43,7 @@ async function run(input, options = {}) {
       if (options.searchFail) return json({message:'Erro de consulta'},503);
       if (options.searchMalformed) return json({data:[]});
       const pages = options.searchPages || [[]];
-      return json({data:pages[page-1] || [],meta:{current_page:page,last_page:pages.length,total:{items:pages.reduce((count,rows)=>count+rows.length,0)}}});
+      return json({data:pages[page-1] || [],meta:{current_page:page,last_page:pages.length,total:{items:pages.reduce((count,rows)=>count+rows.length,0)+(options.searchCountExtra||0)}}});
     }
     if (path.endsWith('/prospects') && options.createThrows) throw new Error('Simulated lost creation acknowledgement');
     if (path.endsWith('/prospects')) return json(options.createBody ?? {
@@ -109,6 +109,12 @@ test('página repetida ou limite de segurança excedido não cria candidatura',a
   assert.equal(capped.status,503);
   assert.equal(capped.calls.filter(c=>c.path==='/api/v1/search/talents').length,30);
   assert.ok(!capped.calls.some(c=>c.path==='/api/v2/prospects'));
+});
+test('diferença de um registro entre metadados e páginas mantém bloqueio de segurança',async()=>{
+  const result=await run(payload(),{env:duplicateEnv,searchPages:[[{id:1,email:'other@example.invalid'}]],searchCountExtra:1});
+  assert.equal(result.status,503);
+  assert.equal(result.body.code,'DUPLICATE_CHECK_UNAVAILABLE');
+  assert.ok(!result.calls.some(c=>c.path==='/api/v2/prospects'));
 });
 test('piloto bloqueia somente na vaga selecionada sem habilitar o bloqueio global',async()=>{
   const pilotEnv={...env,DUPLICATE_CHECK_ENABLED:'false',DUPLICATE_PILOT_VACANCY_ID:'158928'};
