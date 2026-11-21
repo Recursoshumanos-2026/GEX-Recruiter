@@ -236,3 +236,28 @@ test('diagnóstico de duplicidade só está disponível após autenticação do 
   assert.equal(invalid.status,400);
   assert.equal(calls,2);
 });
+
+test('botão de teste Discord só funciona para RH autenticado e na mesma origem',async()=>{
+  const env=envWithDb();
+  let calls=0;
+  const deps={testDiscordAlert:async()=>{calls++;return 'sent';}};
+  const path='/rh/api/teste-alerta-discord';
+  const denied=await handleRhRequest(req(path,'POST',{}, {Origin:origin}),env,{},vacancies,deps);
+  assert.equal(denied.status,403);
+  const wrongOrigin=await handleRhRequest(req(path,'POST',{}, {Origin:'https://example.invalid'}),env,fakeAccess,vacancies,deps);
+  assert.equal(wrongOrigin.status,403);
+  const get=await handleRhRequest(req(path),env,fakeAccess,vacancies,deps);
+  assert.equal(get.status,405);
+  assert.equal(calls,0);
+  const response=await handleRhRequest(req(path,'POST',{}),env,fakeAccess,vacancies,deps);
+  assert.equal(response.status,200);
+  assert.equal((await response.json()).status,'sent');
+  assert.equal(calls,1);
+  const unavailable=await handleRhRequest(req(path,'POST',{}),env,fakeAccess,vacancies,{testDiscordAlert:async()=> 'disabled'});
+  assert.equal(unavailable.status,503);
+  const panel=await handleRhRequest(req('/rh/perguntas'),env,fakeAccess,vacancies,deps);
+  assert.equal(panel.status,200);
+  const html=await panel.text();
+  assert.match(html,/Testar alerta do Discord/);
+  assert.doesNotMatch(html,/discord\.com\/api\/webhooks/);
+});
