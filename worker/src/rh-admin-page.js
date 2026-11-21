@@ -72,12 +72,12 @@ async function auditDuplicateCoverage() {
     const complete=info.status==='complete';
     output.className='duplicate-audit-result '+(complete?'verified':'warning');
     output.textContent=(complete?'Consulta completa nesta vaga.':'Consulta incompleta ou não confirmada. Não ativar bloqueio nesta vaga.')+
-      '\\nRegistros verificados: '+formatCount(info.rows_checked)+
+      '\nRegistros verificados: '+formatCount(info.rows_checked)+
       ' | Total informado pela API: '+formatCount(info.total_reported)+
       ' | Páginas verificadas: '+formatCount(info.pages_checked)+
-      '\\nRegistros com e-mail: '+formatCount(info.email_available)+
+      '\nRegistros com e-mail: '+formatCount(info.email_available)+
       ' | Registros com CPF: '+formatCount(info.cpf_available)+
-      '\\nBloqueio nessa vaga: '+(info.production_block_enabled||info.pilot_block_enabled?'ativado':'ainda desativado')+'.';
+      '\nBloqueio nessa vaga: '+(info.production_block_enabled||info.pilot_block_enabled?'ativado':'ainda desativado')+'.';
   }catch(error) {
     if(state.id!==id)return;
     output.className='duplicate-audit-result warning';
