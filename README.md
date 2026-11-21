@@ -382,7 +382,7 @@ A confirmação requer acesso ao Worker e D1 em produção; testes são simulado
 ### Diagnóstico privado de duplicidade
 
 Depois de autenticar no painel do RH, acessar /rh/api/diagnostico-duplicidade.
-Por padrão consulta a vaga de teste 164607; parâmetro opcional `?vaga=158928` permite conferir outra vaga com autenticação RH. Paginação limitada e somente leitura, com contagem total e checagem de páginas repetidas.
+Por padrão consulta a vaga de teste 164607; parâmetro opcional `?vaga=158928` permite conferir outra vaga com autenticação RH. Paginação limitada e somente leitura, com contagem total e checagem de páginas repetidas. O parâmetro opcional `&tamanho=100` permite uma segunda leitura em páginas menores (padrão `250`), acessível pelo botão **Rever com páginas menores** quando há uma divergência e o total não ultrapassa 3.000 registros. Essa segunda consulta ajuda a distinguir diferenças de paginação de inconsistências no total informado pela API; não corrige nem dispensa a conferência de completude. Se os dois tamanhos continuarem com diferença, solicitar confirmação do contrato de contagem à Recrutei. Uma diferença de apenas um registro mantém a verificação de envio final desativada para a vaga.
 Retorna contagens agregadas de linhas, e-mails e CPFs disponíveis, sem dados
 pessoais, e informa se a consulta completou ou não. O bloqueio global não é
 ativado por este diagnóstico. Confirmar o contrato da API e implementar
