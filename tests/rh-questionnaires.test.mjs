@@ -244,7 +244,7 @@ test('botão de teste Discord só funciona para RH autenticado e na mesma origem
   const path='/rh/api/teste-alerta-discord';
   const denied=await handleRhRequest(req(path,'POST',{}, {Origin:origin}),env,{},vacancies,deps);
   assert.equal(denied.status,403);
-  const wrongOrigin=await handleRhRequest(req(path,'POST',{}, {Origin:'https://example.invalid'}),env,fakeAccess,vacancies,deps);
+  const wrongOrigin=await handleRhRequest(req(path,'POST',null, {Origin:'https://example.invalid'}),env,fakeAccess,vacancies,deps);
   assert.equal(wrongOrigin.status,403);
   const get=await handleRhRequest(req(path),env,fakeAccess,vacancies,deps);
   assert.equal(get.status,405);
