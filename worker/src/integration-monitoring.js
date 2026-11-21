@@ -1,3 +1,5 @@
+import {sendDiscordAlert} from './discord-alerts.js';
+
 // Operational monitoring only: never log IDs, names, résumé text, raw
 // provider messages, headers, credentials, or candidate assessment scores.
 export const integrationMonitoringEnabled=env=>env?.INTEGRATION_MONITOR_ENABLED==='true';
@@ -5,7 +7,7 @@ export const integrationMonitoringEnabled=env=>env?.INTEGRATION_MONITOR_ENABLED=
 const stages=new Set(['application','profile','tag','questionnaire','resume_storage','resume_note','profile_fallback','technical_analysis','recrutei_connection','resume_database','ai_binding']);
 const outcomes=new Set(['ok','failed','uncertain','not_required','unavailable']);
 
-export function integrationEvent(env,stage,outcome) {
+export function integrationEvent(env,stage,outcome,ctx) {
   if(!integrationMonitoringEnabled(env)||!stages.has(stage)||!outcomes.has(outcome))return;
   // Fixed strings only. Logging must not interfere with the application.
   try {
@@ -13,13 +15,16 @@ export function integrationEvent(env,stage,outcome) {
     if(outcome==='failed'||outcome==='uncertain'||outcome==='unavailable') console.warn(line);
     else console.info(line);
   } catch {}
+  if(ctx?.waitUntil && (outcome==='failed'||outcome==='uncertain'||outcome==='unavailable')) {
+    try { ctx.waitUntil(sendDiscordAlert(env,stage,outcome)); } catch {}
+  }
 }
 
-export function monitorApplication(env,report) {
+export function monitorApplication(env,report,ctx) {
   if(!integrationMonitoringEnabled(env))return;
   for(const stage of ['application','profile','tag','questionnaire','resume_storage','resume_note','profile_fallback']) {
     const state=report[stage];
-    integrationEvent(env,stage,state===true?'ok':state===false?'failed':'not_required');
+    integrationEvent(env,stage,state===true?'ok':state===false?'failed':'not_required',ctx);
   }
 }
 
