@@ -224,8 +224,9 @@ test('when Recrutei custom field returns HTTP 404, fallback observation stores e
   assert.equal(r.body.resume_observation_completed,true);
   assert.equal(r.body.resume_completed,true);
   const notes=r.calls.filter(c=>c.path==='/api/v2/talents-observations');
-  assert.equal(notes.length,2);
+  assert.equal(notes.length,3);
   assert.ok(notes[1].init.body.get('description').includes('Currículo do candidato'));
+  assert.ok(notes[2].init.body.get('description').includes('Dados complementares'));
   assert.equal(r.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
 });
 
