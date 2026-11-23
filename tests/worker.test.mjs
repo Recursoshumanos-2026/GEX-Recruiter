@@ -244,14 +244,14 @@ test('cria observação multipart ordenada, preservando perfil e tag', async () 
   const tag = result.calls.find(c => c.path.endsWith('/tags/talent'));
   assert.equal(JSON.parse(tag.init.body).value, 'GEX Recruiter');
   const profile = JSON.parse(result.calls.find(c => c.path.endsWith('/curriculum/filled/22')).init.body);
-  assert.equal(Object.hasOwn(profile, 'talent_id'), false);
+  assert.equal(profile.talent_id,22);
   assert.equal(profile.application_id, 33);
   assert.equal(new URL(result.calls.find(c => c.path.endsWith('/curriculum/filled/22')).url).pathname.split('/').pop(), '22');
   assert.equal(profile.basic_infos.length, 4);
   assert.equal(profile.additional.length, 2);
 });
 
-test('Recrutei recebe ID do talento no caminho, sem talent_id no corpo, com nascimento e salário juntos', async () => {
+test('Recrutei recebe ID do talento no caminho e no corpo, com nascimento e salário juntos', async () => {
   const input = payload();
   input.intended_remuneration = 'R$ 8.000,50';
   const result = await run(input);
@@ -260,7 +260,7 @@ test('Recrutei recebe ID do talento no caminho, sem talent_id no corpo, com nasc
   assert.equal(new URL(update.url).pathname, '/api/v2/curriculum/filled/22');
   assert.equal(new URL(update.url).search, '');
   const body = JSON.parse(update.init.body);
-  assert.equal(Object.hasOwn(body, 'talent_id'), false);
+  assert.equal(body.talent_id,22);
   assert.equal(body.application_id, 33);
   assert.deepEqual(body.basic_infos.find(field => field.key === 'birthday'),
     { key: 'birthday', value: '1990-01-01', title: 'Data de nascimento' });
@@ -606,7 +606,7 @@ test('perfil mantém ID do talento original sem consulta adicional quando prospe
   assert.ok(!result.calls.some(call => call.path.startsWith('/api/v1/applications/')));
   const update = result.calls.find(call => call.path.endsWith('/curriculum/filled/22'));
   assert.equal(new URL(update.url).pathname.split('/').pop(), '22');
-  assert.equal(Object.hasOwn(JSON.parse(update.init.body), 'talent_id'), false);
+  assert.equal(JSON.parse(update.init.body).talent_id,22);
 });
 test('falha na criação nunca envia perfil, tag ou observação', async () => {
   const result = await run(payload(), { createStatus: 422 });
