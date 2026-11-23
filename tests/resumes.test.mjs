@@ -135,7 +135,7 @@ test('Markdown resume enters Recrutei custom informations field and D1 storage',
   const update=r.calls.find(c=>c.path==='/api/v2/curriculum/filled/22');
   const payload=JSON.parse(update.init.body);
   assert.equal(new URL(update.url).pathname.split('/').pop(),'22');
-  assert.equal(Object.hasOwn(payload,'talent_id'),false);
+  assert.equal(payload.talent_id,22);
   assert.equal(payload.application_id,33);
   assert.equal(payload.informations.length,1);
   assert.deepEqual(payload.informations[0],resumeField(r.dbRows[0].values[3]));
