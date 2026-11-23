@@ -90,6 +90,7 @@ async function application(file,options={}) {
     if(path.endsWith('/curriculum/filled/22')) return new Response(
       JSON.stringify(options.profileFail?{message:'Não encontrado'}:{data:{ok:true}}),
       {status:options.profileFail?(options.profileStatus??404):200});
+    if(path==='/api/v2/curriculum/filled') return new Response(JSON.stringify({message:'Não encontrado'}),{status:options.profileFail?(options.profileStatus??404):200});
     if(path.endsWith('/tags/talent')||path.endsWith('/talents-observations'))return new Response(
       JSON.stringify({ok:true}),{status:201});
     throw Error('Unexpected external request:'+path);
