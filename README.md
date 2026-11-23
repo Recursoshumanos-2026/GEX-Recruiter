@@ -247,6 +247,27 @@ confirmar se a listagem inclui reprovados/desistentes e testar se o
 endpoint é permitido pelo plano da empresa. Confirmar a publicação da
 API e do portal; o diagnóstico `/health` informa apenas a flag.
 
+### Compatibilidade do perfil complementar — novembro de 2026
+
+A documentação oficial de edição de prospecções descreve
+`PUT /api/v2/curriculum/filled?talent_id=ID`, com `talent_id` e
+`application_id` também no corpo. O portal conserva a rota anteriormente
+utilizada e, **somente em HTTP 404**, tenta a URL documentada com o mesmo
+PUT e identificadores já validados. Falha de rede, HTTP 5xx ou confirmação
+incerta nunca geram uma segunda candidatura nem são interpretadas como
+autorização para repetir o POST de criação.
+
+Se a edição do perfil não for confirmada (404, 406 ou outra falha), o
+portal registra uma observação privada do RH com os dados complementares
+informados no formulário, inclusive CPF, nascimento, pretensão salarial,
+disponibilidade, cidade/UF e LinkedIn quando presentes. Essa observação
+explicita que **os campos nativos não foram confirmados**, e o status
+`profile_completed` permanece `false`. A mensagem pública não retorna
+esses dados nem a mensagem detalhada do provedor. Não alterar retroativamente
+candidaturas ou afirmar homologação completa sem leitura posterior de um
+cadastro de teste autorizado. A Recrutei não precisa aceitar a observação;
+uma eventual falha também deve ser acompanhada pelo RH.
+
 ### Conferência antecipada de novas inscrições
 
 A consulta antes do envio é opcional e requer Secret de produção
