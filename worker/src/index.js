@@ -1585,7 +1585,7 @@ export default {
               Boolean(env.PROSPECT_CHANNEL_ID),
             candidate_form_version: 2,
             // Marcador público, sem dados pessoais, para confirmar o deploy da correção.
-            profile_update_endpoint: 'talent_path_v2',
+            profile_update_endpoint: 'legacy_path_documented_query_fallback_v3',
             vacancy_availability_check: 'recrutei_public_close_flags_v1',
             resume_observation_format: 'sectioned_html_v3',
             technical_analysis_format: 'gex_evidence_weighted_v3',
