@@ -45,6 +45,14 @@ async function run(input, options = {}) {
       const pages = options.searchPages || [[]];
       return json({data:pages[page-1] || [],meta:{current_page:page,last_page:pages.length,total:{items:pages.reduce((count,rows)=>count+rows.length,0)+(options.searchCountExtra||0)}}});
     }
+    if (path === '/api/v2/curriculum/filled') {
+      assert.equal(new URL(url).searchParams.get('talent_id'),'22');
+      assert.equal(JSON.parse(init.body).talent_id,22);
+      if(options.documentedProfileThrows) throw Error('alternate update failed');
+      return options.documentedProfileFailStatus
+        ? json({message:'private error, do not expose'},options.documentedProfileFailStatus)
+        : json({data:{id:1}});
+    }
     if (path.endsWith('/prospects') && options.createThrows) throw new Error('Simulated lost creation acknowledgement');
     if (path.endsWith('/prospects')) return json(options.createBody ?? {
       data: { talent: { id: 22, prospect: { id: 44 } }, application: { id: 33 } }
@@ -236,14 +244,14 @@ test('cria observação multipart ordenada, preservando perfil e tag', async () 
   const tag = result.calls.find(c => c.path.endsWith('/tags/talent'));
   assert.equal(JSON.parse(tag.init.body).value, 'GEX Recruiter');
   const profile = JSON.parse(result.calls.find(c => c.path.endsWith('/curriculum/filled/22')).init.body);
-  assert.equal(Object.hasOwn(profile, 'talent_id'), false);
+  assert.equal(profile.talent_id,22);
   assert.equal(profile.application_id, 33);
   assert.equal(new URL(result.calls.find(c => c.path.endsWith('/curriculum/filled/22')).url).pathname.split('/').pop(), '22');
   assert.equal(profile.basic_infos.length, 4);
   assert.equal(profile.additional.length, 2);
 });
 
-test('Recrutei recebe ID do talento no caminho, sem talent_id no corpo, com nascimento e salário juntos', async () => {
+test('Recrutei recebe ID do talento no caminho e no corpo, com nascimento e salário juntos', async () => {
   const input = payload();
   input.intended_remuneration = 'R$ 8.000,50';
   const result = await run(input);
@@ -252,7 +260,7 @@ test('Recrutei recebe ID do talento no caminho, sem talent_id no corpo, com nasc
   assert.equal(new URL(update.url).pathname, '/api/v2/curriculum/filled/22');
   assert.equal(new URL(update.url).search, '');
   const body = JSON.parse(update.init.body);
-  assert.equal(Object.hasOwn(body, 'talent_id'), false);
+  assert.equal(body.talent_id,22);
   assert.equal(body.application_id, 33);
   assert.deepEqual(body.basic_infos.find(field => field.key === 'birthday'),
     { key: 'birthday', value: '1990-01-01', title: 'Data de nascimento' });
@@ -307,6 +315,45 @@ test('HTTP 406 não cancela a candidatura e preserva nascimento/salário em obse
   assert.ok(fallbackText.includes('Dados complementares'));
   assert.ok(fallbackText.includes('1990-01-01'));
   assert.ok(fallbackText.includes('5000'));
+  assert.ok(!JSON.stringify(result.body).includes('1990-01-01'));
+});
+
+
+test('HTTP 404 da rota antiga usa URL documentada, sem recriar candidatura',async()=>{
+  const result=await run(payload(),{
+    failPath:'/api/v2/curriculum/filled/22',failStatus:404,
+    failBody:{message:'missing route'}
+  });
+  assert.equal(result.status,201);
+  assert.equal(result.body.profile_completed,true);
+  assert.equal(result.body.profile_fallback_observation_completed,undefined);
+  assert.equal(result.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
+  const writes=result.calls.filter(c=>c.init.method==='PUT');
+  assert.equal(writes.length,2);
+  assert.equal(writes[1].path,'/api/v2/curriculum/filled');
+  assert.equal(new URL(writes[1].url).searchParams.get('talent_id'),'22');
+});
+
+test('ambas as rotas rejeitam perfil: observação preserva dados, sem mascarar erro',async()=>{
+  const result=await run(payload(),{
+    failPath:'/api/v2/curriculum/filled/22',failStatus:404,
+    documentedProfileFailStatus:404
+  });
+  assert.equal(result.status,201);
+  assert.equal(result.body.profile_completed,false);
+  assert.equal(result.body.profile_error.http_status,404);
+  assert.equal(result.body.profile_fallback_observation_completed,true);
+  assert.equal(result.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
+  const notes=result.calls.filter(c=>c.path==='/api/v2/talents-observations');
+  const fallback=notes.at(-1).init.body.get('description');
+  assert.match(fallback,/Dados complementares/);
+  assert.match(fallback,/CPF/);
+  assert.match(fallback,/Data de nascimento/);
+  assert.match(fallback,/Pretensão salarial/);
+  assert.match(fallback,/Disponibilidade para início/);
+  assert.match(fallback,/LinkedIn/);
+  assert.match(fallback,/não confirma o preenchimento dos campos nativos/);
+  assert.ok(!JSON.stringify(result.body).includes('529.982.247-25'));
   assert.ok(!JSON.stringify(result.body).includes('1990-01-01'));
 });
 
@@ -471,7 +518,7 @@ test('outra vaga mantém perfil/tag e não envia observação, mesmo com respost
   assert.equal(result.body.tag_completed, true);
   const profile = result.calls.find(call => call.path.endsWith('/curriculum/filled/22'));
   assert.equal(new URL(profile.url).pathname.split('/').pop(), '22');
-  assert.equal(Object.hasOwn(JSON.parse(profile.init.body), 'talent_id'), false);
+  assert.equal(JSON.parse(profile.init.body).talent_id, 22);
   assert.ok(!result.calls.some(call => call.path.startsWith('/api/v1/applications/')));
 });
 
@@ -520,13 +567,14 @@ test('falha422 do perfil informa status e somente chaves conhecidas, sem valores
   assert.equal(result.status, 201);
   assert.equal(result.body.application_created, true);
   assert.equal(result.body.profile_completed, false);
-  assert.equal(result.body.profile_warning, 'upstream rejected');
+  assert.equal(result.body.profile_warning, 'A Recrutei não confirmou a atualização dos dados complementares.');
   assert.deepEqual(result.body.profile_error, {
     http_status: 422,
     fields: ['birthday', 'ssn', 'basic_infos.1.value', 'additional.0.value']
   });
   assert.equal(result.body.tag_completed, true);
   assert.equal(result.body.observation_completed, true);
+  assert.equal(result.body.profile_fallback_observation_completed, true);
   const publicResponse = JSON.stringify(result.body);
   for (const value of [rejectedValue, '123.456.789-00', 'teste@example.invalid', 'rejected_value']) {
     assert.ok(!publicResponse.includes(value));
@@ -558,7 +606,7 @@ test('perfil mantém ID do talento original sem consulta adicional quando prospe
   assert.ok(!result.calls.some(call => call.path.startsWith('/api/v1/applications/')));
   const update = result.calls.find(call => call.path.endsWith('/curriculum/filled/22'));
   assert.equal(new URL(update.url).pathname.split('/').pop(), '22');
-  assert.equal(Object.hasOwn(JSON.parse(update.init.body), 'talent_id'), false);
+  assert.equal(JSON.parse(update.init.body).talent_id,22);
 });
 test('falha na criação nunca envia perfil, tag ou observação', async () => {
   const result = await run(payload(), { createStatus: 422 });
@@ -607,7 +655,7 @@ test('health da prévia informa candidaturas desabilitadas', async () => {
   assert.equal(response.status, 200);
   const health = await response.json();
   assert.equal(health.applications_enabled, false);
-  assert.equal(health.profile_update_endpoint, 'talent_path_v2');
+  assert.equal(health.profile_update_endpoint, 'legacy_path_documented_query_fallback_v3');
 });
 
 const diagnosticEnv = {
@@ -734,6 +782,13 @@ async function runProfileTest(options = {}) {
       application.talent.professional_profile.intended_remuneration = '5000';
       return json(options.readbackBody ?? application);
     }
+    if (path === '/api/v2/curriculum/filled' && init.method === 'PUT') {
+      assert.equal(new URL(url).searchParams.get('talent_id'),'7654321');
+      assert.equal(JSON.parse(init.body).talent_id,7654321);
+      return options.acceptDocumentedUpdate
+        ? json({data:{id:1}})
+        : json({message:'private rejected value'},options.updateStatus ?? 404);
+    }
     if (path === '/api/v2/curriculum/filled/7654321' && init.method === 'PUT') {
       return options.rejectUpdate
         ? json({ message: 'private rejected value 2000-02-29 5000.00',
@@ -796,7 +851,7 @@ test('reparo atualiza somente currículo do teste fixo e confirma nascimento e s
   const update = dataCalls[1];
   assert.equal(new URL(update.url).pathname, '/api/v2/curriculum/filled/7654321');
   const sent = JSON.parse(update.init.body);
-  assert.equal(Object.hasOwn(sent, 'talent_id'), false);
+  assert.equal(sent.talent_id, 7654321);
   assert.equal(sent.application_id, 15905660);
   assert.deepEqual(sent.basic_infos, [{ key: 'birthday', value: '2000-02-29', title: 'Data de nascimento' }]);
   assert.deepEqual(sent.additional, [{ key: 'intended_remuneration', value: '5000.00', title: 'Pretensão salarial' }]);
@@ -805,6 +860,17 @@ test('reparo atualiza somente currículo do teste fixo e confirma nascimento e s
     assert.ok(!publicResponse.includes(value));
   }
 });
+test('reparo da rota antiga 404 usa o endpoint documentado e confirma leitura',async()=>{
+  const result=await runProfileTest({rejectUpdate:true,updateStatus:404,acceptDocumentedUpdate:true});
+  assert.equal(result.status,200);
+  assert.equal(result.body.profile_completed,true);
+  assert.equal(result.body.birthday_verified,true);
+  const updates=result.calls.filter(c=>c.init.method==='PUT');
+  assert.equal(updates.length,2);
+  assert.equal(updates[1].path,'/api/v2/curriculum/filled');
+  assert.equal(new URL(updates[1].url).searchParams.get('talent_id'),'7654321');
+});
+
 test('reparo rejeita pessoa não identificada como teste antes de qualquer PUT', async () => {
   const application = diagnosticApplication(); application.talent.prospect.name = 'Pessoa real';
   const result = await runProfileTest({ lookupBody: application });

@@ -90,6 +90,7 @@ async function application(file,options={}) {
     if(path.endsWith('/curriculum/filled/22')) return new Response(
       JSON.stringify(options.profileFail?{message:'Não encontrado'}:{data:{ok:true}}),
       {status:options.profileFail?(options.profileStatus??404):200});
+    if(path==='/api/v2/curriculum/filled') return new Response(JSON.stringify({message:'Não encontrado'}),{status:options.profileFail?(options.profileStatus??404):200});
     if(path.endsWith('/tags/talent')||path.endsWith('/talents-observations'))return new Response(
       JSON.stringify({ok:true}),{status:201});
     throw Error('Unexpected external request:'+path);
@@ -135,7 +136,7 @@ test('Markdown resume enters Recrutei custom informations field and D1 storage',
   const update=r.calls.find(c=>c.path==='/api/v2/curriculum/filled/22');
   const payload=JSON.parse(update.init.body);
   assert.equal(new URL(update.url).pathname.split('/').pop(),'22');
-  assert.equal(Object.hasOwn(payload,'talent_id'),false);
+  assert.equal(payload.talent_id,22);
   assert.equal(payload.application_id,33);
   assert.equal(payload.informations.length,1);
   assert.deepEqual(payload.informations[0],resumeField(r.dbRows[0].values[3]));
@@ -223,8 +224,9 @@ test('when Recrutei custom field returns HTTP 404, fallback observation stores e
   assert.equal(r.body.resume_observation_completed,true);
   assert.equal(r.body.resume_completed,true);
   const notes=r.calls.filter(c=>c.path==='/api/v2/talents-observations');
-  assert.equal(notes.length,2);
+  assert.equal(notes.length,3);
   assert.ok(notes[1].init.body.get('description').includes('Currículo do candidato'));
+  assert.ok(notes[2].init.body.get('description').includes('Dados complementares'));
   assert.equal(r.calls.filter(c=>c.path==='/api/v2/prospects').length,1);
 });
 
