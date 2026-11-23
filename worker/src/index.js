@@ -536,11 +536,10 @@ async function updateProspectProfile(env, payload, createBody, resumeMarkdown = 
     };
   }
 
-  const profilePayload = buildProfilePayload(
-    payload,
-    applicationId,
-    resumeMarkdown
-  );
+  const profilePayload = {
+    talent_id: Number(talentId),
+    ...buildProfilePayload(payload, applicationId, resumeMarkdown)
+  };
 
   if (
     !profilePayload.basic_infos.length &&
@@ -550,17 +549,22 @@ async function updateProspectProfile(env, payload, createBody, resumeMarkdown = 
     return { ok: true };
   }
 
-  const response = await recoverAfterCreation(
-    env,
-    `/api/v2/curriculum/filled/${encodeURIComponent(talentId)}`,
-    {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(profilePayload)
-    }
-  );
+  // Preserve the previously supported route first. If the server explicitly
+  // says 404, retry only the documented route with talent_id as query param.
+  // PUT is idempotent: this never recreates a candidature or retries an
+  // ambiguous network failure. Both routes use the same already-validated ID.
+  const updateOptions = {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(profilePayload)
+  };
+  let response = await recoverAfterCreation(env,
+    `/api/v2/curriculum/filled/${encodeURIComponent(talentId)}`, updateOptions);
+  if (response.status === 404) {
+    response = await recoverAfterCreation(env,
+      `/api/v2/curriculum/filled?talent_id=${encodeURIComponent(talentId)}`,
+      updateOptions);
+  }
 
   const body = await response.json().catch(() => ({}));
 
@@ -574,9 +578,7 @@ async function updateProspectProfile(env, payload, createBody, resumeMarkdown = 
     }
     return {
       ok: false,
-      reason:
-        body?.message ||
-        `Falha ao complementar perfil (${response.status})`,
+      reason: 'A Recrutei não confirmou a atualização dos dados complementares.',
       diagnostics: {
         http_status: response.status,
         fields: profileValidationFields(body)
@@ -869,13 +871,28 @@ async function addTechnicalAnalysisObservation(env, payload, createBody, markdow
   return {ok:true};
 }
 
-// HTTP 406: perfis criados pelo próprio candidato não são editáveis pela API.
-// Preserva os dois dados confirmados pelo suporte em uma observação restrita ao RH.
-async function addReadOnlyProfileObservation(env, payload, createBody) {
+// Fallback for any unconfirmed profile update (including 404 and 406).
+// The ATS observation is visible only to authorized recruiters, not to candidates.
+// It is clearly distinct from an update of the structured profile fields.
+async function addReadOnlyProfileObservation(env, payload, createBody, status) {
   const { talentId, applicationId } = profileIds(createBody, payload.vacancy_id);
   if (!positiveId(talentId) || !positiveId(applicationId)) {
     return { ok: false, reason: 'IDs da candidatura não retornados para a observação.' };
   }
+  const fields = [
+    ['CPF', payload.ssn],
+    ['Data de nascimento', payload.birthday],
+    ['Pretensão salarial', payload.intended_remuneration],
+    ['Disponibilidade para início', payload.available],
+    ['Cidade', [payload.city, payload.state].filter(Boolean).join(' - ')],
+    ['LinkedIn', payload.linkedin_url]
+  ].filter(([,value]) => typeof value === 'string' && value.trim())
+    .map(([label,value]) =>
+      `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`);
+  if (!fields.length) return {ok:true,not_required:true};
+  const statusMessage = status === 406
+    ? 'A Recrutei não permite atualizar este perfil.'
+    : 'Não foi possível confirmar a atualização dos campos próprios do perfil.';
   const form = new FormData();
   form.set('application_id', String(applicationId));
   form.set('talent_id', String(talentId));
@@ -883,16 +900,15 @@ async function addReadOnlyProfileObservation(env, payload, createBody) {
   form.set('action', '1');
   form.set('description',
     '<p><strong>GEX Talents | Dados complementares</strong></p>' +
-    '<p>Este candidato possui um perfil próprio na Recrutei (HTTP 406). ' +
-    'A integração não pode alterar os dados do perfil.</p>' +
-    `<p><strong>Data de nascimento:</strong> ${escapeHtml(payload.birthday || 'Não informada')}</p>` +
-    `<p><strong>Pretensão salarial:</strong> ${escapeHtml(payload.intended_remuneration || 'Não informada')}</p>`);
+    '<p>' + escapeHtml(statusMessage) +
+    ' Os dados abaixo foram informados na inscrição do portal GEX e precisam ser conferidos pelo RH. ' +
+    'Esta observação não confirma o preenchimento dos campos nativos.</p>' +
+    fields.join(''));
   const response = await recoverAfterCreation(env, '/api/v2/talents-observations', {
-    method: 'POST', body: form
+    method:'POST', body:form
   });
-  return response.ok ? { ok: true } : {
-    ok: false, reason: 'Não foi possível registrar os dados complementares na Recrutei.'
-  };
+  return response.ok ? {ok:true} :
+    {ok:false,reason:'Não foi possível registrar os dados complementares na Recrutei.'};
 }
 
 async function completeApplicationStep(operation) {
@@ -1215,7 +1231,7 @@ async function createProspect(env, rawPayload, ctx) {
     throw unconfirmedCreationError();
   }
   if (response.status >= 500) {
-    integrationEvent(env,'application','uncertain');
+    integrationEvent(env,'application','uncertain',ctx);
     throw unconfirmedCreationError();
   }
 
@@ -1295,9 +1311,9 @@ async function createProspect(env, rawPayload, ctx) {
     ? await completeApplicationStep(() =>
         addResumeObservation(env, payload, createBody, markdown))
     : null;
-  const readOnlyProfileObservation = profileError?.http_status === 406
+  const readOnlyProfileObservation = !profileCompleted
     ? await completeApplicationStep(() =>
-        addReadOnlyProfileObservation(env, payload, createBody))
+        addReadOnlyProfileObservation(env, payload, createBody,profileError?.http_status))
     : null;
   const resumeLinked = Boolean(markdown) &&
     (profileCompleted || resumeObservation?.ok === true);
